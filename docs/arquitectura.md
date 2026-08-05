@@ -1,7 +1,8 @@
 # Arquitectura
 
-Última actualización: 2026-08-05 (Fase 0 + Spec 01 implementada; se actualiza con
-cada fase aprobada según el Definition of Done del roadmap).
+Última actualización: 2026-08-05 (Fase 0 + Spec 01 implementada y verificada:
+Pint/PHPStan/Pest en verde; se actualiza con cada fase aprobada según el
+Definition of Done del roadmap).
 
 ## Visión general
 
@@ -150,7 +151,8 @@ Para no rediseñar después, se reservan estos espacios (ADR-004):
 ## Testing
 
 - Pest: Feature Tests por caso de uso (el estándar), Unit Tests para lógica
-  compleja (cálculo de cajas, descuentos, DTOs).
+  compleja (cálculo de cajas, descuentos, DTOs). La suite `tests/Unit` todavía
+  no existe: se crea cuando aparezca la primera lógica que lo justifique (Spec 05).
 - TDD obligatorio (principio 3).
 - Base de datos de tests: PostgreSQL (`ceramica_test`), mismo motor que producción.
 

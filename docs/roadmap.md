@@ -35,7 +35,7 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 | # | Spec | Contenido | Dominio | Estado |
 |---|---|---|---|---|
-| 01 | Autenticación y roles | Login admin (Breeze en `/admin`), usuarios internos, roles admin/vendedor/depósito (Spatie), Policies, auditoría de usuarios/roles | Users | implementada (verificación de calidad en curso) |
+| 01 | Autenticación y roles | Login admin (Breeze en `/admin`), usuarios internos, roles admin/vendedor/depósito (Spatie), Policies, auditoría de usuarios/roles | Users | implementada (Pint/PHPStan/Pest en verde); pendientes los tests Pest de gestión de usuarios y auditoría |
 | 02 | Panel + Categorías | Layout admin, CRUD de categorías | Products | pendiente |
 | 03 | Productos | Atributos de producto + atributos comerciales, precios m²/caja, ofertas, stock, imágenes | Products | pendiente |
 | 04 | Catálogo público | Home, categorías, filtros, ficha con calculadora m²→cajas, stock visible, ofertas | Products | pendiente |

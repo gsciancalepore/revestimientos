@@ -1,7 +1,8 @@
 # Spec 01 — Autenticación y roles
 
-- **Estado**: aprobada (2026-08-05); implementada (2026-08-05), verificación de
-  calidad en curso (pint/stan/CI)
+- **Estado**: aprobada (2026-08-05); implementada (2026-08-05) con verificación
+  de calidad completa (Pint, PHPStan nivel 8 y Pest en verde, CI alineado);
+  pendientes los tests Pest de gestión de usuarios y auditoría
 - **Fuentes**: Spec 00 (reglas 31-32), ADR-004 (auditoría), decisiones del dueño
   sobre stack de auth (ADR-007)
 
@@ -128,4 +129,6 @@ administración).
 - [x] Vistas: login/forgot/reset/perfil (Breeze, sin registro ni borrado de
       cuenta), usuarios (index/create/edit en español), dashboard placeholder.
 - [ ] Tests Pest (TDD): auth completo, gestión de usuarios, auditoría.
-- [ ] Verificación de calidad: pint, PHPStan, CI, smoke en local.
+      (El auth de Breeze ya está cubierto por tests; faltan los de gestión de
+      usuarios y auditoría.)
+- [x] Verificación de calidad: pint, PHPStan, CI, smoke en local.

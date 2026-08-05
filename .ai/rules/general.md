@@ -2,6 +2,7 @@
 paths:
   - vite.config.js
   - phpstan.neon
+  - phpstan-*.stub
 ---
 
 # General

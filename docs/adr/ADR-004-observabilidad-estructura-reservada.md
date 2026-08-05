@@ -23,6 +23,20 @@ el MVP salvo lo que surja naturalmente:
 4. **Métricas**: en la fase de despliegue: health check (`/up`), latencia y estado
    de colas. Sin dashboards en el MVP.
 
+## Implementación (2026-08-05)
+
+- La auditoría se creó antes de lo previsto: la **Spec 01** (usuarios y roles) ya
+  era una acción crítica, así que fue la primera en implementarla.
+- Se implementó con un **servicio `AuditRecorder` invocado explícitamente desde
+  las Actions** (`CreateUserAction`, `UpdateUserAction`, `SetUserActiveAction`),
+  no con un Listener sobre eventos de dominio (más simple hoy: principio 5).
+  La tabla `audit_logs` incluye `ip_address` y `user_agent` además de lo
+  reservado. Acciones registradas: `user.created`, `user.updated` (solo las
+  claves cambiadas, nunca valores sensibles), `user.role_changed` (rol anterior
+  → nuevo), `user.deactivated`, `user.reactivated`.
+- Las specs siguientes (precios, stock, pagos) reutilizan `AuditRecorder`; el
+  mecanismo de Listener sigue disponible si alguna reacción lo justifica.
+
 ## Consecuencias
 
 - Las Actions disparan eventos de dominio desde el día uno → auditoría y
