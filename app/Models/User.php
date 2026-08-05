@@ -4,11 +4,16 @@ namespace App\Models;
 
 use App\Enums\UserRole;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
 
+/**
+ * @property-read Collection<int, Role> $roles
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -52,6 +57,6 @@ class User extends Authenticatable
 
     public function role(): UserRole
     {
-        return UserRole::from($this->roles->first()?->name ?? UserRole::Vendedor->value);
+        return UserRole::from($this->roles->first()->name ?? UserRole::Vendedor->value);
     }
 }

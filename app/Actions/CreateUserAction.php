@@ -8,9 +8,7 @@ use App\Services\AuditRecorder;
 
 class CreateUserAction
 {
-    public function __construct(private AuditRecorder $recorder)
-    {
-    }
+    public function __construct(private AuditRecorder $recorder) {}
 
     public function execute(string $name, string $email, string $password, UserRole $role): User
     {

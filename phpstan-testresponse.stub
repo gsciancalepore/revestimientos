@@ -1,0 +1,45 @@
+<?php
+
+/**
+ * Stub: Illuminate\Testing\TestResponse, declared here because the stub
+ * validator cannot resolve the real class (no autoload in that phase). It
+ * shadows the real class during analysis; only the methods used by this
+ * project's tests are declared.
+ */
+namespace Illuminate\Testing;
+
+class TestResponse
+{
+    public function assertOk(): self
+    {
+    }
+
+    public function assertStatus(int $status): self
+    {
+    }
+
+    public function assertRedirect(?string $uri = null): self
+    {
+    }
+
+    /**
+     * @param array<string, mixed> $keys
+     */
+    public function assertSessionHasNoErrors(array $keys = [], ?string $format = null, ?string $errorBag = null): self
+    {
+    }
+
+    /**
+     * @param array<string, mixed>|string $keys
+     */
+    public function assertSessionHasErrors(array|string $keys = [], ?string $format = null, ?string $errorBag = null): self
+    {
+    }
+
+    /**
+     * @param array<string, mixed>|string $keys
+     */
+    public function assertSessionHasErrorsIn(string $errorBag, array|string $keys = [], ?string $format = null): self
+    {
+    }
+}

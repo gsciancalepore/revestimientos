@@ -8,9 +8,7 @@ use DomainException;
 
 class SetUserActiveAction
 {
-    public function __construct(private AuditRecorder $recorder)
-    {
-    }
+    public function __construct(private AuditRecorder $recorder) {}
 
     public function execute(User $user, bool $active, ?User $actor = null): User
     {

@@ -2,15 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class AuditLog extends Model
 {
-    /** @use HasFactory<\Database\Factories\AuditLogFactory> */
-    use HasFactory;
-
     /**
      * The attributes that are mass assignable.
      *
@@ -39,11 +35,17 @@ class AuditLog extends Model
         ];
     }
 
+    /**
+     * @return MorphTo<Model, $this>
+     */
     public function actor(): MorphTo
     {
         return $this->morphTo();
     }
 
+    /**
+     * @return MorphTo<Model, $this>
+     */
     public function subject(): MorphTo
     {
         return $this->morphTo();
