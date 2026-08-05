@@ -27,6 +27,7 @@ Una fase/spec se considera terminada **solo** cuando cumple todo:
 | 0 | Dominio y arquitectura: spec 00, `arquitectura.md`, ADR-001..006 | ✅ |
 | 1 | Fundación técnica: Docker, Laravel 12, calidad, CI | ✅ |
 | 1b | Calidad de onboarding: spec `calidad-onboarding` (runbook, Makefile, README) | ✅ (2026-08-05) |
+| 1c | Calidad de análisis estático: spec `calidad-analisis-estatico` (PHPStan↔Pest 3.8, gates) | ✅ (2026-08-05): PHPStan app-only, stubs eliminados, 52 tests en verde |
 | 2 | Specs 01..09 (funcionales, TDD) | ⏳ siguiente |
 
 ## Fase 2 — Entregables funcionales
@@ -36,7 +37,7 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 | # | Spec | Contenido | Dominio | Estado |
 |---|---|---|---|---|
-| 01 | Autenticación y roles | Login admin (Breeze en `/admin`), usuarios internos, roles admin/vendedor/depósito (Spatie), Policies, auditoría de usuarios/roles | Users | implementada (Pint/PHPStan/Pest en verde); pendientes los tests Pest de gestión de usuarios y auditoría |
+| 01 | Autenticación y roles | Login admin (Breeze en `/admin`), usuarios internos, roles admin/vendedor/depósito (Spatie), Policies, auditoría de usuarios/roles | Users | ✅ cerrada (2026-08-05): 52 tests en verde, Pint/PHPStan alineados, CI verde |
 | 02 | Panel + Categorías | Layout admin, CRUD de categorías | Products | pendiente |
 | 03 | Productos | Atributos de producto + atributos comerciales, precios m²/caja, ofertas, stock, imágenes | Products | pendiente |
 | 04 | Catálogo público | Home, categorías, filtros, ficha con calculadora m²→cajas, stock visible, ofertas | Products | pendiente |

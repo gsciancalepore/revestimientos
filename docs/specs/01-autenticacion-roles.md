@@ -1,8 +1,8 @@
 # Spec 01 — Autenticación y roles
 
-- **Estado**: aprobada (2026-08-05); implementada (2026-08-05) con verificación
-  de calidad completa (Pint, PHPStan nivel 8 y Pest en verde, CI alineado);
-  pendientes los tests Pest de gestión de usuarios y auditoría
+- **Estado**: aprobada (2026-08-05); implementada y **cerrada** (2026-08-05)
+  con verificación de calidad completa: Pint, PHPStan nivel 8 y suite Pest de 52
+  tests en verde, CI alineado
 - **Fuentes**: Spec 00 (reglas 31-32), ADR-004 (auditoría), decisiones del dueño
   sobre stack de auth (ADR-007)
 
@@ -128,7 +128,10 @@ administración).
       `role:admin` + `Gate::authorize` por método).
 - [x] Vistas: login/forgot/reset/perfil (Breeze, sin registro ni borrado de
       cuenta), usuarios (index/create/edit en español), dashboard placeholder.
-- [ ] Tests Pest (TDD): auth completo, gestión de usuarios, auditoría.
-      (El auth de Breeze ya está cubierto por tests; faltan los de gestión de
-      usuarios y auditoría.)
+- [x] Tests Pest (TDD): auth completo, gestión de usuarios, auditoría.
+      (Auth de Breeze cubierto por tests; gestión de usuarios y auditoría
+      agregados en `tests/Feature/Usuarios/` — 22 tests de gestión + 8 de
+      auditoría, 52 tests totales en verde. El seed de roles vive en `beforeEach`
+      a nivel de archivo; el mismatch de route-model binding se documentó en la
+      spec de calidad de análisis estático.)
 - [x] Verificación de calidad: pint, PHPStan, CI, smoke en local.

@@ -17,7 +17,9 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
 
     Route::middleware('role:admin')->group(function () {
-        Route::resource('usuarios', UserController::class)->except(['show']);
+        Route::resource('usuarios', UserController::class)
+            ->except(['show'])
+            ->parameters(['usuarios' => 'user']);
         Route::patch('usuarios/{user}/active', [UserController::class, 'toggleActive'])
             ->name('usuarios.toggle-active');
     });

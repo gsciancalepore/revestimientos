@@ -5,13 +5,4 @@ parameters:
     level: 8
     paths:
         - app
-        - tests
     tmpDir: storage/phpstan
-    stubFiles:
-        - phpstan-pest-functions.stub
-        - phpstan-testcase.stub
-        - phpstan-testresponse.stub
-        
-    scanDirectories:
-        - vendor/pestphp/pest/src
-        - tests
