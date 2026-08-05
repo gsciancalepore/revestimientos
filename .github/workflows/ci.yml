@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ceramica_test
+          POSTGRES_USER: ceramica
+          POSTGRES_PASSWORD: ceramica
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ceramica"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, redis, bcmath, intl, zip
+          coverage: none
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Setup environment
+        run: |
+          cp .env.ci .env
+          php artisan key:generate
+
+      - name: Pint
+        run: ./vendor/bin/pint --test
+
+      - name: PHPStan
+        run: ./vendor/bin/phpstan analyse --no-progress
+
+      - name: Tests (Pest)
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: ceramica_test
+          DB_USERNAME: ceramica
+          DB_PASSWORD: ceramica
+        run: php artisan test
