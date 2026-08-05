@@ -1,7 +1,7 @@
 # Arquitectura
 
-Última actualización: 2026-08-05 (corresponde a la Fase 0; se actualiza con cada
-fase aprobada según el Definition of Done del roadmap).
+Última actualización: 2026-08-05 (Fase 0 + Spec 01 implementada; se actualiza con
+cada fase aprobada según el Definition of Done del roadmap).
 
 ## Visión general
 
@@ -65,9 +65,11 @@ Una Action recibe entradas explícitas (DTO o primitivos), aplica las reglas de
 negocio, persiste (transaccionalmente cuando corresponde), dispara eventos y
 devuelve el resultado. Las Actions no conocen HTTP.
 
-Ejemplos previstos: `CreateProductAction`, `UpdateProductAction`,
-`ChangeProductPriceAction`, `PlaceOrderAction`, `ConfirmPaymentAction`,
-`RegisterWhatsAppSaleAction`, `DispatchOrderAction`, `CancelOrderAction`.
+Ejemplos implementados: `CreateUserAction`, `UpdateUserAction`,
+`SetUserActiveAction` (Spec 01). Previstos: `CreateProductAction`,
+`UpdateProductAction`, `ChangeProductPriceAction`, `PlaceOrderAction`,
+`ConfirmPaymentAction`, `RegisterWhatsAppSaleAction`, `DispatchOrderAction`,
+`CancelOrderAction`.
 
 ## Eventos y listeners
 
@@ -77,15 +79,34 @@ mismo, se ejecuta dentro de la Action, no vía evento.
 
 ## Autenticación y roles (Users)
 
-- Flujo de auth con **Laravel Breeze (stack Blade)** adaptado a `/admin`: login,
-  logout, recuperación de contraseña y perfil propio. Sin registro público ni
-  verificación de email (panel interno; el cliente web es anónimo — Spec 00).
+Implementado en la Spec 01 (Breeze + Spatie, ver ADR-007):
+
+- Flujo de auth con **Laravel Breeze (stack Blade) 2.4.2** (pineado) adaptado a
+  `/admin`: rutas en `routes/auth.php` (login, logout, recuperación y reseteo de
+  contraseña, confirmación de contraseña), dashboard en `/admin` y perfil propio
+  en `/admin/profile`. **Sin registro público, sin verificación de email y sin
+  borrado de cuenta** (panel interno; el cliente web es anónimo — Spec 00).
 - Roles con **spatie/laravel-permission** (ADR-007): `admin`, `vendedor`,
-  `deposito`, uno por usuario. Autorización por recurso en `app/Policies/`;
-  checks de rol con middleware `role:*` y `hasRole()`.
-- Baja de usuarios por **desactivación** (`users.is_active`), nunca borrado.
-- Auditoría de usuarios/roles: tabla `audit_logs` + servicio `AuditRecorder`
-  (ADR-004), implementada desde la Spec 01.
+  `deposito`, uno por usuario. El rol se tipa en código con el enum `UserRole`
+  y se persiste como nombre de rol de Spatie; helper `User::role()`.
+- Gestión de usuarios solo por admin en `/admin/usuarios` (middleware
+  `role:admin` + `UserPolicy`): `UserController` delgado que delega en las
+  Actions `CreateUserAction`, `UpdateUserAction` y `SetUserActiveAction`;
+  validación en `StoreUserRequest` / `UpdateUserRequest` (email `unique`,
+  contraseña mínima 8, rol por enum).
+- Baja de usuarios por **desactivación** (`users.is_active`), nunca borrado; el
+  login deniega a los desactivados con el **mismo error genérico** que
+  credenciales inválidas (no revela el estado). Throttle de login: 5 intentos
+  por minuto por `email|ip` (nativo de Breeze, `LoginRequest`).
+- El admin inicial nace del seeder (`AdminSeeder`) con credenciales de entorno
+  (`config/admin.php` → `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`);
+  `RolesSeeder` crea los 3 roles.
+- Auditoría de usuarios/roles: tabla `audit_logs` (model `AuditLog`) + servicio
+  `AuditRecorder` (ADR-004). Acciones registradas: `user.created`,
+  `user.updated` (con los atributos cambiados), `user.role_changed` (rol
+  anterior → nuevo), `user.deactivated`, `user.reactivated`. Cada registro lleva
+  actor, sujeto, payload, IP, user-agent y fecha. El admin no puede
+  desactivarse a sí mismo (regla de negocio en `SetUserActiveAction`).
 
 ## Pagos (Payments)
 

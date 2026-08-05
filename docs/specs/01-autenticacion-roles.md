@@ -1,6 +1,7 @@
 # Spec 01 — Autenticación y roles
 
-- **Estado**: aprobada (2026-08-05)
+- **Estado**: aprobada (2026-08-05); implementada (2026-08-05), verificación de
+  calidad en curso (pint/stan/CI)
 - **Fuentes**: Spec 00 (reglas 31-32), ADR-004 (auditoría), decisiones del dueño
   sobre stack de auth (ADR-007)
 
@@ -111,16 +112,20 @@ administración).
 
 ## Tareas técnicas
 
-- [ ] Instalar `laravel/breeze` (blade) y `spatie/laravel-permission`; configurar
-      aliases de middleware y redirects de auth en `bootstrap/app.php`.
-- [ ] Migraciones: `users.is_active` (default true), tablas de permisos,
+- [x] Instalar `laravel/breeze` (blade) y `spatie/laravel-permission`; configurar
+      aliases de middleware y redirects de auth en `bootstrap/app.php`
+      (Breeze `2.4.2` pineado; Tailwind 4 restaurado — ADR-007).
+- [x] Migraciones: `users.is_active` (default true), tablas de permisos,
       `audit_logs`.
-- [ ] Modelos: `User` (HasRoles), `AuditLog`; enum `UserRole`.
-- [ ] Seeders: `RolesSeeder` (3 roles) y `AdminSeeder` (admin inicial por
-      entorno).
-- [ ] Actions: `CreateUserAction`, `UpdateUserAction`, `SetUserActiveAction` +
+- [x] Modelos: `User` (HasRoles), `AuditLog`; enum `UserRole`.
+- [x] Seeders: `RolesSeeder` (3 roles) y `AdminSeeder` (admin inicial por
+      entorno — `ADMIN_NAME/ADMIN_EMAIL/ADMIN_PASSWORD` en `.env(.example/.ci)`,
+      leídos vía `config/admin.php`).
+- [x] Actions: `CreateUserAction`, `UpdateUserAction`, `SetUserActiveAction` +
       servicio `AuditRecorder`.
-- [ ] `UserController` + `UserPolicy` + rutas `/admin/usuarios`.
-- [ ] Vistas: login/forgot/reset/perfil (Breeze, sin registro ni borrado de
-      cuenta), usuarios (index/create/edit), dashboard placeholder.
+- [x] `UserController` + `UserPolicy` + rutas `/admin/usuarios` (middleware
+      `role:admin` + `Gate::authorize` por método).
+- [x] Vistas: login/forgot/reset/perfil (Breeze, sin registro ni borrado de
+      cuenta), usuarios (index/create/edit en español), dashboard placeholder.
 - [ ] Tests Pest (TDD): auth completo, gestión de usuarios, auditoría.
+- [ ] Verificación de calidad: pint, PHPStan, CI, smoke en local.

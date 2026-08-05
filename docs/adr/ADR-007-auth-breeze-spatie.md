@@ -24,6 +24,25 @@
 5. Auditoría de usuarios/roles: tabla `audit_logs` + servicio `AuditRecorder`
    (ver ADR-004).
 
+## Implementación (2026-08-05)
+
+- **Breeze pineado a `2.4.2` exacto** (sin caret): los stubs instalados se
+  versionan y no deben cambiar con futuras versiones de Breeze.
+- **Tailwind 4 se conserva**: `breeze:install` baja Tailwind a `^3.1.0`,
+  copia `tailwind.config.js`/`postcss.config.js` y pisa `vite.config.js`,
+  `app.css` y `package.json`. Se restauró la configuración v4 (plugin
+  `@tailwindcss/vite`) y se registró `@tailwindcss/forms` al estilo v4:
+  `@plugin "@tailwindcss/forms";` en `resources/css/app.css`. Se eliminaron
+  `tailwind.config.js` y `postcss.config.js`.
+- **Alpine**: el skeleton no traía Alpine; se conserva el `app.js` de Breeze
+  (única inicialización `Alpine.start()`). El dropdown del navigation no se
+  duplica.
+- **Poda del flujo Breeze**: sin `RegisteredUserController`, sin verificación
+  de email, sin `ProfileController::destroy` (ni su partial); welcome sin links
+  a registro; tests de registro/verificación/borrado eliminados.
+- El throttle de login (5/min por `email|ip`) ya viene en el `LoginRequest` de
+  Breeze; solo se agregó el chequeo de `users.is_active` (mismo error genérico).
+
 ## Consecuencias
 
 - Costo operativo de Spatie: 4 tablas (roles, permissions, pivotes), config y
