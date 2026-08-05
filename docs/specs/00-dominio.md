@@ -23,24 +23,34 @@ manualmente en el sistema para mantener el stock consistente.
 
 1. Un producto tiene **atributos de producto** (físicos/catalogables) y **atributos
    comerciales** (de venta). Conceptualmente separados; pueden persistir juntos.
-   - Atributos de producto: marca, línea, colección, material, terminación, color,
-     formato (largo × ancho en cm), espesor, m² por caja, peso por caja.
-   - Atributos comerciales: precio por m², oferta (opcional), stock en cajas,
-     activo/inactivo, imágenes.
-2. El **precio se expresa por m²**. El **stock se expresa en cajas**.
-3. El **precio por caja** se deriva: `precio_caja = redondear(precio_m2 × m²_por_caja)`
-   (a la unidad monetaria más cercana).
-4. El producto pertenece a una **categoría** (jerárquica: ej. Cerámicas →
-   Porcelanatos; Pegamentos → Adhesivos/Morteros/Pastinas).
-5. Un producto **sin stock** (0 cajas) no puede comprarse; puede seguir visible en el
-   catálogo ("Sin stock") a criterio del negocio.
+   El modelo es **híbrido** (decisión del dueño 2026-08-05): las columnas tipadas
+   guardan solo lo que se calcula o filtra; el resto (medida, color, acabado,
+   rendimiento, peso…) vive en `specs` JSONB validado por familia (Spec 03).
+   - Columnas tipadas: nombre, categoría, marca, código (SKU único), precio,
+     `unidad_venta`, m² por caja (solo modo m²), stock, activo, imágenes.
+   - Atributos comerciales: precio, oferta (opcional), stock, activo/inactivo,
+     imágenes.
+2. Hay **dos modos de venta** (`unidad_venta`, Spec 03): **por m²** (cerámicas y
+   porcelanatos: el precio se expresa por m² y el stock en cajas) y **por unidad**
+   (pastinas, adhesivos, zócalos/perfiles: el precio es por bolsa/pieza y el stock
+   en unidades). El precio se guarda en una sola columna `precio_cents` cuyo
+   significado lo da `unidad_venta`.
+3. Solo en modo **m²** se deriva el **precio por caja**:
+   `precio_caja = redondear(precio_cents × m²_por_caja)` (a la unidad monetaria más
+   cercana). En modo **unidad** no existe el precio por caja.
+4. El producto pertenece a una **categoría plana** (Spec 02 revisada): una lista de
+   raíces (Porcelanatos, Cerámicas, Pastinas, Adhesivos), sin jerarquía.
+5. Un producto **sin stock** (0 cajas o 0 unidades) no puede comprarse; puede seguir
+   visible en el catálogo ("Sin stock") a criterio del negocio.
 6. La **oferta** es un precio promocional con % de descuento sobre el precio de
    lista; se muestra con el precio de lista tachado.
 7. Las ventas WhatsApp y las ventas web comparten el **mismo stock único**.
 
 ### Unidades y cálculo (regla de redondeo)
 
-8. El cliente expresa la cantidad en **m²** (o mediante dimensiones: largo × ancho).
+8. En modo **m²**, el cliente expresa la cantidad en **m²** (o mediante dimensiones:
+   largo × ancho). En modo **unidad**, expresa la cantidad en **unidades** (bolsas o
+   piezas) y no aplican las reglas 9–12.
 9. **No se vende media caja**: las cajas se redondean siempre hacia arriba
    (techo). `cajas = ceil(m² / m²_por_caja)`.
 10. El **total se cobra por cajas enteras**: `total = cajas × precio_caja`.
@@ -131,12 +141,13 @@ manualmente en el sistema para mantener el stock consistente.
 
 ## Casos borde (resumen; detalle por spec)
 
-- Pedido de m² que no cierra en cajas exactas → siempre ceil a cajas enteras.
+- Pedido de m² que no cierra en cajas exactas → siempre ceil a cajas enteras (solo
+  modo m²).
 - Cambio de stock entre el carrito y el checkout → se valida al generar el pedido
   (ver Spec 05).
 - Cambio de precio entre carrito y checkout → precio congelado al generar el pedido
   (ver Spec 05).
-- Producto con 0 cajas → no comprable.
+- Producto con 0 cajas (modo m²) o 0 unidades (modo unidad) → no comprable.
 - Cancelación de pedido pagado → restitución de stock.
 - CP fuera de la zona de tarifas → sin envío disponible (se define en Spec 06).
 
@@ -151,4 +162,5 @@ manualmente en el sistema para mantener el stock consistente.
 - Dominios diferidos: **Inventory, Customers, Shipping, Discounts** (ADR-001).
 - Gestión del stock: al confirmar el pago (ADR-005).
 - Envío: puerto + adaptador (ADR-006).
-- Unidades y dinero: precios en centavos; m² con precisión decimal (ADR-003).
+- Unidades y dinero: precios en centavos; m² con precisión decimal; dos modos de
+  venta (m² y unidad) definidos por `unidad_venta` (ADR-003, Spec 03).

@@ -2,9 +2,11 @@
 
 - **Estado**: aceptado (2026-08-05)
 - **Contexto**: el stock es físico y único (compartido entre la web y las ventas de
-  WhatsApp registradas manualmente). Hay que decidir en qué momento del ciclo de
-  vida del pedido el stock desciende. Opciones evaluadas: al agregar al carrito,
-  al iniciar checkout, al generar el pedido, al aprobar el pago, al despachar.
+  WhatsApp registradas manualmente). La unidad del stock la define el producto por
+  su `unidad_venta` (ADR-003): **cajas** en modo `m2`, **unidades** (bolsas/piezas)
+  en modo `unidad`. Hay que decidir en qué momento del ciclo de vida del pedido el
+  stock desciende. Opciones evaluadas: al agregar al carrito, al iniciar checkout,
+  al generar el pedido, al aprobar el pago, al despachar.
 
 ## Decisión
 
@@ -16,7 +18,8 @@
   registrarse.
 - El carrito y el checkout **no reservan stock** (el carrito es anónimo y no
   persiste; un pedido pendiente de pago no compromete stock).
-- Al **cancelar** un pedido pagado o despachado, el stock **se restituye**.
+- Al **cancelar** un pedido pagado o despachado, el stock **se restituye** (en la
+  misma unidad que se descontó: cajas o unidades según `unidad_venta` del producto).
 - El descuento y la restitución de stock ocurren dentro de la misma transacción que
   el cambio de estado, con bloqueo de fila del producto (locks de Postgres) para
   evitar ventas concurrentes por encima del stock real.

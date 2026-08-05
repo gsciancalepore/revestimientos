@@ -9,8 +9,10 @@
   autoservicio con tarjeta (MercadoPago) o transferencia bancaria.
 - **Mantener WhatsApp como canal**: sigue siendo el canal principal de asesoramiento
   y venta. El sistema registra esas ventas manualmente para que el stock sea consistente.
-- **Comunicar el producto como se piensa en el rubro**: precio por m², calculadora de
-  dimensiones (largo × ancho → m² → cajas necesarias), despacho en cajas enteras.
+- **Comunicar el producto como se piensa en el rubro**: dos modos de venta —
+  cerámicas/porcelanatos por m² (precio por m², calculadora de dimensiones
+  largo × ancho → m² → cajas necesarias, despacho en cajas enteras) y
+  pastinas/adhesivos/perfiles por unidad (bolsa o pieza).
 - **Mostrar stock real**: el cliente web ve cuántas cajas quedan antes de comprar.
 - **Operar desde un panel administrativo simple**: productos, categorías, pedidos,
   stock y usuarios, sin conocimientos técnicos.
@@ -44,14 +46,15 @@ Fuera de alcance (al menos en la primera versión):
 ## MVP
 
 1. **Admin** (Users): login con roles — dueño (admin), vendedor, depósito.
-2. **Categorías y productos** (Products): atributos del producto (marca, línea,
-   colección, material, terminación, color, formato, espesor, m² por caja) y
-   atributos comerciales (precio por m², ofertas, stock en cajas, activo, imágenes).
+2. **Categorías y productos** (Products): categorías planas (Porcelanatos,
+   Cerámicas, Pastinas, Adhesivos); producto con dos modos de venta (m² o
+   unidad), atributos del producto (marca, medida, color, acabado…) y atributos
+   comerciales (precio, ofertas, stock, activo, imágenes).
 3. **Catálogo público** (Products): home, categorías, listados con filtros, ficha de
    producto con calculadora de dimensiones, stock visible y ofertas.
-4. **Carrito** (Orders): cantidades en m² → cajas enteras (redondeo hacia arriba),
-   opción de 10 % adicional por desperdicio de colocación, precio del envío según
-   código postal.
+4. **Carrito** (Orders): cantidades en m² → cajas enteras (redondeo hacia arriba,
+   modo m²) o en unidades (bolsas/piezas, modo unidad), opción de 10 % adicional
+   por desperdicio de colocación (modo m²), precio del envío según código postal.
 5. **Checkout** (Orders + Payments): compra anónima, pago con tarjeta vía
    MercadoPago o transferencia bancaria con confirmación manual desde el admin.
 6. **Gestión de pedidos** (Orders): estados (pendiente de pago → pagado → despachado

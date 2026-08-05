@@ -1,8 +1,9 @@
 # Arquitectura
 
-Última actualización: 2026-08-05 (Fase 0 + Spec 01 implementada y verificada:
-Pint/PHPStan/Pest en verde; se actualiza con cada fase aprobada según el
-Definition of Done del roadmap).
+Última actualización: 2026-08-05 (Fase 0 + Spec 01 + Spec 02 implementadas y
+verificadas; Spec 02 revisada a categorías planas; Spec 03 implementada y
+verificada: 93 tests, Pint/PHPStan en verde). Se actualiza con cada fase
+aprobada según el Definition of Done del roadmap.
 
 ## Visión general
 
@@ -72,8 +73,9 @@ negocio, persiste (transaccionalmente cuando corresponde), dispara eventos y
 devuelve el resultado. Las Actions no conocen HTTP.
 
 Ejemplos implementados: `CreateUserAction`, `UpdateUserAction`,
-`SetUserActiveAction` (Spec 01). Previstos: `CreateProductAction`,
-`UpdateProductAction`, `ChangeProductPriceAction`, `PlaceOrderAction`,
+`SetUserActiveAction` (Spec 01); `CreateCategoryAction`, `UpdateCategoryAction`,
+`DeleteCategoryAction` (Spec 02); `CreateProductAction`, `UpdateProductAction`,
+`DeleteProductAction` (Spec 03). Previstos: `PlaceOrderAction`,
 `ConfirmPaymentAction`, `RegisterWhatsAppSaleAction`, `DispatchOrderAction`,
 `CancelOrderAction`.
 
@@ -114,6 +116,58 @@ Implementado en la Spec 01 (Breeze + Spatie, ver ADR-007):
   actor, sujeto, payload, IP, user-agent y fecha. El admin no puede
   desactivarse a sí mismo (regla de negocio en `SetUserActiveAction`).
 
+## Panel y categorías (Products)
+
+Implementado en la Spec 02 (revisada 2026-08-05: **categorías planas**):
+
+- **Layout del panel**: `layouts/app` con **sidebar lateral** (`layouts/navigation`)
+  + área de contenido. El sidebar muestra las secciones según el rol del usuario:
+  Dashboard (todos), Usuarios y Categorías (solo admin); **placeholders
+  deshabilitados** de Productos, Pedidos y Ventas WhatsApp (recordatorio de las
+  specs 03/07/08).
+- **Categorías** en `/admin/categorias` (middleware `role:admin` +
+  `CategoryPolicy`): modelo `Category` **sin jerarquía** (`name`, `slug`,
+  `sort_order`). La revisión del 2026-08-05 **elimina `parent_id`** (las
+  categorías son planas: Porcelanatos, Cerámicas, Pastinas, Adhesivos y las que
+  el admin cree). `CategoryController` delgado que delega en las
+  Actions `CreateCategoryAction`, `UpdateCategoryAction` y
+  `DeleteCategoryAction` (esta última lanza `DomainException` si la categoría
+  tiene productos).
+- **Validación** en `StoreCategoryRequest` / `UpdateCategoryRequest`: `name` y
+  `slug` **únicos en todo el catálogo** (`Rule::unique`). El slug se auto-genera
+  del nombre (`Str::slug`) con un sufijo (`-2`, `-3`...) si colisiona
+  (`CategorySlugGenerator`); puede editarse en el formulario.
+- **Orden manual** (`categories.sort_order`): campo numérico en el formulario,
+  prellenado con el máximo + 1; el listado respeta ese orden.
+- **Sin auditoría** para categorías (ADR-004 la reserva para precios, stock,
+  pagos y roles).
+- `CategoriesSeeder` crea la estructura base del negocio de forma idempotente
+  (`updateOrCreate` por slug): **Porcelanatos, Cerámicas, Pastinas, Adhesivos**
+  (planas). Se ejecuta con `make seed` junto a roles y admin inicial.
+
+## Productos (Products)
+
+Implementado en la **Spec 03**:
+
+- Modelo **`Product`** con columnas tipadas (`category_id`, `name`, `marca`,
+  `codigo` único, `descripcion`, `precio_cents`, `precio_oferta_cents`,
+  `unidad_venta` enum `ProductSaleUnit`, `m2_por_caja` nullable, `stock`,
+  `activo`, `imagenes` jsonb, `specs` jsonb) y FK a `categories` con
+  `restrictOnDelete`.
+- **Dos modos de venta** (`unidad_venta`): `m2` (precio por m², stock en cajas,
+  calculadora m²→cajas) y `unidad` (precio por bolsa/pieza, stock en unidades).
+  El `precio_caja` se deriva solo en modo `m2` (ADR-003); `Product::precioCajaCents()`.
+- **Atributos híbridos**: lo que se calcula o filtra vive en columnas tipadas;
+  el resto (medida, color, acabado, rendimiento, peso…) vive en `specs` JSONB con
+  claves validadas por familia según la categoría (`ProductSpecs::allowedKeysFor`).
+- **Acciones**: `CreateProductAction`, `UpdateProductAction`,
+  `DeleteProductAction`. `UpdateProductAction` registra en la auditoría los
+  cambios de precio (`product.price_changed`), stock (`product.stock_changed`) y
+  la baja por desactivación (`product.deactivated`) reusando `AuditRecorder`
+  (ADR-004).
+- El check de "producto con pedidos" (regla 67: no borrar, no cambiar
+  `unidad_venta`) se activa cuando exista la tabla `orders` (Spec 05).
+
 ## Pagos (Payments)
 
 - MercadoPago: se integra detrás de un puerto `PaymentGateway` (confirmación
@@ -137,6 +191,8 @@ Implementado en la Spec 01 (Breeze + Spatie, ver ADR-007):
 
 - Montos en **centavos (BIGINT)**; m² como decimal con precisión controlada;
   cálculos con bcmath (ADR-003).
+- **Dos modos de venta** (`unidad_venta`): precio/stock en cajas (modo `m2`) o en
+  unidades (modo `unidad`); `precio_caja` se deriva solo en modo `m2` (Spec 03).
 
 ## Observabilidad (estructura reservada — no implementar en MVP)
 

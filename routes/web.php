@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +24,14 @@ Route::middleware('auth')->prefix('admin')->group(function () {
             ->parameters(['usuarios' => 'user']);
         Route::patch('usuarios/{user}/active', [UserController::class, 'toggleActive'])
             ->name('usuarios.toggle-active');
+
+        Route::resource('categorias', CategoryController::class)
+            ->except(['show'])
+            ->parameters(['categorias' => 'category']);
+
+        Route::resource('productos', ProductController::class)
+            ->except(['show'])
+            ->parameters(['productos' => 'product']);
     });
 });
 
