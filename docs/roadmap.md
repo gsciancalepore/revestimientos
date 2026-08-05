@@ -26,6 +26,7 @@ Una fase/spec se considera terminada **solo** cuando cumple todo:
 | -1 | Visión y lenguaje: `docs/vision.md`, `docs/ubiquitous-language.md` | ✅ (visión en revisión del dueño) |
 | 0 | Dominio y arquitectura: spec 00, `arquitectura.md`, ADR-001..006 | ✅ |
 | 1 | Fundación técnica: Docker, Laravel 12, calidad, CI | ✅ |
+| 1b | Calidad de onboarding: spec `calidad-onboarding` (runbook, Makefile, README) | ✅ (2026-08-05) |
 | 2 | Specs 01..09 (funcionales, TDD) | ⏳ siguiente |
 
 ## Fase 2 — Entregables funcionales
@@ -61,3 +62,16 @@ Cada spec se implementa en orden; cada una depende de la anterior
   de las acciones críticas (precios, stock, pagos) se auditan en sus specs.
 - La Spec 01 usa **Breeze 2.4.2 pineado** y conserva **Tailwind 4** (se restauró
   tras el instalador de Breeze, que lo baja a v3; ver ADR-007).
+
+## Cómo continuar
+
+- **Próximo paso**: escribir y aprobar la **Spec 02 (Panel + Categorías)** —
+  layout administrativo y CRUD de categorías (dominio Products). Seguir el
+  mismo formato de las specs existentes (`docs/specs/00-dominio.md` y
+  `docs/specs/01-autenticacion-roles.md`: objetivo, contexto, reglas, matriz
+  de permisos, casos borde, criterios de aceptación, tareas técnicas).
+- **Proceso**: spec aprobada por el dueño → TDD (red → green → refactor) →
+  verificación local (Pint, PHPStan nivel 8, Pest) → merge a `main` (el CI
+  valida la misma secuencia).
+- **Contexto para agentes nuevos**: `.ai/rules/index.md` mapea las reglas
+  durables del repo; el runbook de arranque está en el README.

@@ -1,4 +1,4 @@
-# ADR-002 — Deployment Strategy: Single Docker Compose Deployment
+# ADR-002 — Despliegue: un único Docker Compose
 
 - **Estado**: aceptado (2026-08-05)
 - **Contexto**: el proyecto corre sobre PHP 8.4/PostgreSQL/Redis. No hay PHP ni
@@ -7,9 +7,10 @@
 
 ## Decisión
 
-Un **único `docker-compose.yml`** sirve tanto para desarrollo como para producción.
-Despliegue en un solo VPS con `docker compose up -d --build`, sin orquestador ni
-servicios de infraestructura externos (postgres y redis corren en el mismo host).
+Un **único `docker-compose.yml`** sirve tanto para desarrollo como para
+producción. El despliegue se hace en un solo VPS con `docker compose up -d
+--build`, sin orquestador ni servicios de infraestructura externos (postgres y
+redis corren en el mismo host).
 
 Servicios: `app` (php-fpm 8.4), `web` (nginx), `db` (postgres), `redis`,
 `mailpit` (solo dev).
@@ -33,5 +34,5 @@ Servicios: `app` (php-fpm 8.4), `web` (nginx), `db` (postgres), `redis`,
 
 - **Laravel Sail**: descartado — orientado a dev, no al deploy.
 - **Kubernetes / swarm**: descartado — sobredimensionado (principio 5).
-- **Paas (Forge/Railway/etc.)**: descartado por decisión del dueño de mantener el
-  control en un VPS simple.
+- **Paas (Forge/Railway/etc.)**: descartado por decisión del dueño de mantener
+  el control en un VPS simple.

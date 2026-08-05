@@ -39,6 +39,11 @@ app/
 └── Services/         → servicios de infraestructura (pagos, envíos, imágenes)
 ```
 
+> De las carpetas del árbol, hoy existen: `Actions/`, `Enums/`, `Http/`,
+> `Models/`, `Policies/`, `Services/` (y `View/`, `Providers/` del framework).
+> `DTOs/`, `Events/`, `Listeners/` y `Jobs/` son **previstas**: se crean cuando
+> la primera spec las justifique (no crearlas antes).
+
 Reglas:
 
 - Los **controladores no contienen reglas de negocio**.

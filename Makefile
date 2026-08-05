@@ -1,4 +1,4 @@
-.PHONY: up down build logs shell test lint stan format setup composer npm-install npm-dev npm-build
+.PHONY: up down build logs shell test lint stan format setup composer artisan migrate seed npm-install npm-dev npm-build
 
 up:
 	docker compose up -d
@@ -15,16 +15,26 @@ logs:
 shell:
 	docker compose exec app bash
 
-setup: ## Primer arranque: copia .env, levanta servicios, instala dependencias
+setup: ## Primer arranque: copia .env, levanta servicios, instala dependencias, migra y siembra
 	cp -n .env.example .env
 	docker compose up -d --build
-	docker compose exec app composer update
-	docker compose exec app ./vendor/bin/pest --init
+	docker compose exec app composer install
 	docker compose exec app php artisan key:generate
-	@echo "Listo. Web: http://localhost:8080 | Mailpit: http://localhost:8025"
+	docker compose exec app php artisan migrate --force
+	docker compose exec app php artisan db:seed --force
+	@echo "Listo. Web: http://localhost:8080 | Mailpit: http://localhost:8025 | Login: /admin/login"
 
 composer:
 	docker compose exec app composer $(cmd)
+
+artisan:
+	docker compose exec app php artisan $(cmd)
+
+migrate:
+	docker compose exec app php artisan migrate --force
+
+seed:
+	docker compose exec app php artisan db:seed --force
 
 test:
 	docker compose exec app php artisan test
