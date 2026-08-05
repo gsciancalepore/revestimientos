@@ -35,6 +35,13 @@ sentido, es un bug de lenguaje.
 | **Cuotas** | Pago en cuotas con tarjeta. En la web lo gestiona MercadoPago; en ventas WhatsApp, por fuera del sistema. | — |
 | **Cliente anónimo** | Comprador de la web sin cuenta: solo se conocen email y código postal. | No hay historial ni cuenta en el MVP |
 | **Confirmación de pago** | Acción manual del admin que marca un pedido por transferencia como pagado. | La tarjeta se confirma automáticamente vía MercadoPago |
+| **Usuario interno** | Persona con acceso al panel admin: admin, vendedor o depósito. | No existen cuentas de clientes |
+| **Rol** | Función de un usuario interno que determina qué acciones puede realizar. | admin, vendedor, depósito (uno por usuario) |
+| **Admin** | Rol del dueño: acceso total; gestiona usuarios y roles. | El primer admin nace del seeder con credenciales de entorno |
+| **Vendedor** | Rol que atiende ventas: clientes, pedidos, ventas WhatsApp, catálogo. | No gestiona usuarios |
+| **Depósito** | Rol que despacha y entrega pedidos. | — |
+| **Desactivar usuario** | Baja de un usuario interno: no puede iniciar sesión, conserva historial. | Nunca se borra |
+| **Auditoría** | Registro permanente de quién hizo cada acción crítica y cuándo. | Cambios de rol, precios, stock, pagos |
 
 ## Sinónimos prohibidos
 
@@ -46,3 +53,4 @@ sentido, es un bug de lenguaje.
 | Cerámica (como sinónimo de producto) | "Cerámicas" es una categoría del catálogo | **Producto** |
 | Stock en m² | El stock siempre se expresa en cajas | **Stock (cajas)** |
 | Venta (como sinónimo de pedido) | "Venta WhatsApp" y "pedido web" conviven; se reserva "venta" para el registro manual | **Pedido** / **Venta WhatsApp** |
+| Borrar usuario | El usuario nunca se borra (conserva historial); se da de baja | **Desactivar usuario** |

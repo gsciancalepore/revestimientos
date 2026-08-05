@@ -35,7 +35,7 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 | # | Spec | Contenido | Dominio | Estado |
 |---|---|---|---|---|
-| 01 | Autenticación y roles | Login admin, usuarios internos, roles admin/vendedor/depósito, Policies | Users | pendiente |
+| 01 | Autenticación y roles | Login admin (Breeze en `/admin`), usuarios internos, roles admin/vendedor/depósito (Spatie), Policies, auditoría de usuarios/roles | Users | en curso |
 | 02 | Panel + Categorías | Layout admin, CRUD de categorías | Products | pendiente |
 | 03 | Productos | Atributos de producto + atributos comerciales, precios m²/caja, ofertas, stock, imágenes | Products | pendiente |
 | 04 | Catálogo público | Home, categorías, filtros, ficha con calculadora m²→cajas, stock visible, ofertas | Products | pendiente |
@@ -57,3 +57,5 @@ Cada spec se implementa en orden; cada una depende de la anterior
 - El orden de la Fase 2 es deliberado: **el admin va antes que el catálogo público**
   para que la carga de datos sea la misma que en producción (sin datos demo
   artificiales ni seeders temporales).
+- La Spec 01 introduce la **auditoría** (ADR-004) para usuarios y roles; el resto
+  de las acciones críticas (precios, stock, pagos) se auditan en sus specs.

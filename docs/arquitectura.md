@@ -12,7 +12,7 @@ demuestra (principio 5 y 8 de PROJECT_PRINCIPLES.md).
 
 Stack: PostgreSQL, Redis, Blade + TailwindCSS + AlpineJS (solo donde aporta),
 Vite (servicio `assets` con Node 22 en el compose), Docker Compose (dev y
-producción: ADR-002).
+producción: ADR-002), Spatie Permission para roles y permisos (ADR-007).
 
 ## Organización por dominios
 
@@ -75,6 +75,18 @@ Se usan cuando hay una verdadera separación de responsabilidades (ej: `OrderPai
 → descontar stock, notificar al cliente). Si una reacción es parte del caso de uso
 mismo, se ejecuta dentro de la Action, no vía evento.
 
+## Autenticación y roles (Users)
+
+- Flujo de auth con **Laravel Breeze (stack Blade)** adaptado a `/admin`: login,
+  logout, recuperación de contraseña y perfil propio. Sin registro público ni
+  verificación de email (panel interno; el cliente web es anónimo — Spec 00).
+- Roles con **spatie/laravel-permission** (ADR-007): `admin`, `vendedor`,
+  `deposito`, uno por usuario. Autorización por recurso en `app/Policies/`;
+  checks de rol con middleware `role:*` y `hasRole()`.
+- Baja de usuarios por **desactivación** (`users.is_active`), nunca borrado.
+- Auditoría de usuarios/roles: tabla `audit_logs` + servicio `AuditRecorder`
+  (ADR-004), implementada desde la Spec 01.
+
 ## Pagos (Payments)
 
 - MercadoPago: se integra detrás de un puerto `PaymentGateway` (confirmación
@@ -108,8 +120,9 @@ Para no rediseñar después, se reservan estos espacios (ADR-004):
 - **Eventos de dominio**: ya forman parte del diseño (Events/).
 - **Auditoría**: tabla `audit_logs` para acciones críticas (cambios de precio,
   ajustes de stock, confirmaciones de pago, roles) con `actor`, `action`,
-  `subject_type/id`, `payload`, `created_at`. Se creará en la fase donde exista la
-  primera acción crítica.
+  `subject_type/id`, `payload`, `created_at`. Implementada en la **Spec 01** para
+  usuarios y roles (crear/editar/desactivar/reactivar usuario y cambios de rol);
+  se extiende a precios, stock y pagos en sus specs.
 - **Métricas**: placeholder en la fase de despliegue (health check `/up`,
   latencia, colas). Sin dashboards en el MVP.
 
