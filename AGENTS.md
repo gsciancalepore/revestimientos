@@ -177,3 +177,78 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - Do NOT delete tests without approval.
 
 </laravel-boost-guidelines>
+
+# Reglas del proyecto (repo-specific)
+
+## Idioma y proceso
+
+- Toda la documentación, los commits y las respuestas en español; commits con
+  Conventional Commits: `tipo(ámbito): descripción` (`feat`, `fix`, `chore`,
+  `docs`, `refactor`, `test`, `perf`).
+- Nunca programar sin spec aprobada (`docs/specs/`); nunca inventar reglas de
+  negocio; TDD obligatorio (red → green → refactor); cambios importantes → ADR
+  (`docs/adr/`).
+- **NUNCA editar `docs/specs/`, `docs/adr/` ni `docs/roadmap.md` salvo que la
+  tarea lo solicite explícitamente.**
+
+## Orden de lectura antes de implementar
+
+1. AGENTS.md
+2. `PROJECT_PRINCIPLES.md`
+3. Spec involucrada (`docs/specs/`)
+4. ADRs relacionadas (`docs/adr/`)
+5. `.ai/rules/index.md` → leer las reglas cuyo glob cubre el archivo + `grep`
+   por keyword
+
+## Arquitectura y dominio
+
+- No introducir dependencias, paquetes, patrones ni servicios nuevos sin
+  respaldo de una spec o ADR.
+- Reglas de negocio en `app/Actions/*` (un caso de uso por clase); controladores
+  delgados; Form Requests para validar; Policies para autorizar; estados en
+  Enums (no strings); montos **SIEMPRE** en centavos (int) + bcmath.
+- Categorías **planas** (sin `parent_id`); productos con `unidad_venta`
+  (`M2` | `Unidad`) y `specs` JSONB por familia (no columnas por atributo).
+- `app/DTOs/`, `Events/`, `Listeners/`, `Jobs/` son carpetas **previstas**: no
+  crearlas hasta que su spec las justifique.
+
+## Ambigüedad
+
+- Si una regla de negocio es ambigua, detener la implementación y formular
+  preguntas. Nunca asumir comportamiento.
+
+## Entorno y comandos
+
+- Todo corre en Docker Compose; el host **NO** tiene PHP ni Node. Usar
+  `make ...` o `docker compose exec app php artisan ...`.
+- `make setup` = arranque completo idempotente (instala, migra, siembra).
+- Calidad local (mismo orden que CI): `make lint` → `make stan` (PHPStan nivel
+  8, **SOLO** `app/`) → `make test`. Tras editar PHP: `make format`.
+- Tests (Pest): base dedicada `ceramica_test` (PostgreSQL); **NUNCA** dos
+  suites en paralelo; los tests que renderizan vistas necesitan assets de Vite
+  (`make npm-dev` / `make npm-build`).
+- Stack: Laravel 12 / PHP 8.4, PostgreSQL 17, Redis, Blade + Tailwind 4 +
+  Alpine, Vite, Breeze 2.4.2 pineado, Spatie Permission.
+
+## Tarea terminada (Definition of Done)
+
+Una tarea solo termina cuando:
+
+- todos los tests pasan;
+- PHPStan está en verde;
+- Pint no modifica archivos;
+- se cumple el DoD de la spec (`docs/roadmap.md`).
+
+## Traps operativos (detalle en `.ai/rules`)
+
+- Sin estilos en la web → `public/hot` con `0.0.0.0` (`general.md`).
+- Panel no ve roles/permisos nuevos → `permission:cache-reset` (`seeders.md`).
+- `Route::resource` → `->parameters(['productos' => 'product'])` (`routes.md`).
+- Al modificar una columna en migración, repetir todos sus atributos.
+
+## Reglas de agente
+
+- Registrar reglas durables con `record-rule` (nunca en memoria).
+- Usar MCP Boost: `search-docs` antes de cambiar código, `database-schema`,
+  `database-query` (solo lectura), `get-absolute-url`, `browser-logs`.
+- Siguiente spec a implementar: consultar `docs/roadmap.md`.
