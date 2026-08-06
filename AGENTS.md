@@ -189,7 +189,9 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
   negocio; TDD obligatorio (red → green → refactor); cambios importantes → ADR
   (`docs/adr/`).
 - **NUNCA editar `docs/specs/`, `docs/adr/` ni `docs/roadmap.md` salvo que la
-  tarea lo solicite explícitamente.**
+  tarea lo solicite explícitamente. Única excepción a `docs/roadmap.md`:
+  actualizar la columna "Estado" de la fila de la spec en curso y la fecha de
+  "Última actualización". `docs/specs/` y `docs/adr/` jamás se editan.**
 
 ## Orden de lectura antes de implementar
 

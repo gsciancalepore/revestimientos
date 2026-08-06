@@ -1,6 +1,6 @@
 # Roadmap
 
-Última actualización: 2026-08-05.
+Última actualización: 2026-08-06.
 
 ## Definition of Done (aplica a TODAS las fases y specs)
 
@@ -40,7 +40,7 @@ Cada spec se implementa en orden; cada una depende de la anterior
 | 01 | Autenticación y roles | Login admin (Breeze en `/admin`), usuarios internos, roles admin/vendedor/depósito (Spatie), Policies, auditoría de usuarios/roles | Users | ✅ cerrada (2026-08-05): 52 tests en verde, Pint/PHPStan alineados, CI verde |
 | 02 | Panel + Categorías | Layout admin con sidebar, CRUD de categorías | Products | ✅ cerrada (2026-08-05): 79 tests en verde, Pint/PHPStan alineados. **Revisada (2026-08-05): categorías planas** (Porcelanatos, Cerámicas, Pastinas, Adhesivos; sin jerarquía) para el modelo de Spec 03 |
 | 03 | Productos | Dos modos de venta (m² y unidad), atributos híbridos (columnas tipadas + `specs` JSONB por familia), código único, precios, ofertas, stock, imágenes | Products | ✅ cerrada (2026-08-05): 93 tests en verde, Pint/PHPStan alineados |
-| 04 | Catálogo público | Home, categorías, filtros, ficha con calculadora m²→cajas (modo m²), stock visible, ofertas | Products | pendiente |
+| 04 | Catálogo público | Home, categorías, filtros, ficha con calculadora m²→cajas (modo m²), stock visible, ofertas | Products | ✅ cerrada (2026-08-06): 116 tests en verde, Pint/PHPStan alineados |
 | 05 | Reglas del carrito | Spec de reglas: cajas enteras, desperdicio 10 %, stock/precio en cambio, reserva y vencimiento | Orders | pendiente |
 | 06 | Carrito + Envío | Implementación del carrito + adaptador de envío por CP (ADR-006) | Orders | pendiente |
 | 07 | Checkout | Compra anónima, MercadoPago, transferencia con confirmación manual, creación del pedido | Orders + Payments | pendiente |
@@ -66,15 +66,18 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 ## Cómo continuar
 
-- **Próximo paso**: escribir y aprobar la **Spec 04 (Catálogo público)** — home,
-  categorías, filtros, ficha de producto con calculadora m²→cajas (modo m²),
-  stock visible y ofertas (dominio Products). Seguir el mismo formato de las
-  specs existentes.
+- **Próximo paso**: escribir y aprobar la **Spec 05 (Reglas del carrito)** —
+  cajas enteras, desperdicio 10 %, stock/precio en cambio, reserva y vencimiento
+  (dominio Orders). Seguir el mismo formato de las specs existentes.
 - **Proceso**: spec aprobada por el dueño → TDD (red → green → refactor) →
   verificación local (Pint, PHPStan nivel 8, Pest) → merge a `main` (el CI
   valida la misma secuencia).
 - **Nota (revisión 2026-08-05)**: la Spec 02 quedó revisada a **categorías
   planas** (se eliminó `parent_id` de `categories` con migración) y la **Spec 03
   quedó cerrada** (productos con dos modos de venta y atributos híbridos).
+- **Nota (revisión 2026-08-06)**: la **Spec 04 quedó cerrada** — catálogo
+  público: home con destacados, listados con filtros combinables y búsqueda,
+  ficha con calculadora m²→cajas (Alpine), slug de producto y layout público
+  `layouts/site`.
 - **Contexto para agentes nuevos**: `.ai/rules/index.md` mapea las reglas
   durables del repo; el runbook de arranque está en el README.

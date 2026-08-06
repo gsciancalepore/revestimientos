@@ -1,9 +1,10 @@
 # Arquitectura
 
-Última actualización: 2026-08-05 (Fase 0 + Spec 01 + Spec 02 implementadas y
+Última actualización: 2026-08-06 (Fase 0 + Spec 01 + Spec 02 implementadas y
 verificadas; Spec 02 revisada a categorías planas; Spec 03 implementada y
-verificada: 93 tests, Pint/PHPStan en verde). Se actualiza con cada fase
-aprobada según el Definition of Done del roadmap.
+verificada; Spec 04 implementada y verificada: 116 tests, Pint/PHPStan en
+verde). Se actualiza con cada fase aprobada según el Definition of Done del
+roadmap.
 
 ## Visión general
 
@@ -149,14 +150,22 @@ Implementado en la Spec 02 (revisada 2026-08-05: **categorías planas**):
 
 Implementado en la **Spec 03**:
 
-- Modelo **`Product`** con columnas tipadas (`category_id`, `name`, `marca`,
-  `codigo` único, `descripcion`, `precio_cents`, `precio_oferta_cents`,
-  `unidad_venta` enum `ProductSaleUnit`, `m2_por_caja` nullable, `stock`,
-  `activo`, `imagenes` jsonb, `specs` jsonb) y FK a `categories` con
-  `restrictOnDelete`.
+- Modelo **`Product`** con columnas tipadas (`category_id`, `name`, `slug`
+  único, `marca`, `codigo` único, `descripcion`, `precio_cents`,
+  `precio_oferta_cents`, `unidad_venta` enum `ProductSaleUnit`, `m2_por_caja`
+  nullable, `stock`, `activo`, `imagenes` jsonb, `specs` jsonb) y FK a
+  `categories` con `restrictOnDelete`.
 - **Dos modos de venta** (`unidad_venta`): `m2` (precio por m², stock en cajas,
   calculadora m²→cajas) y `unidad` (precio por bolsa/pieza, stock en unidades).
   El `precio_caja` se deriva solo en modo `m2` (ADR-003); `Product::precioCajaCents()`.
+- **Slug de producto** (Spec 04): columna `slug` única en todo el catálogo,
+  auto-generada del nombre con sufijo `-2`, `-3`… si colisiona
+  (`ProductSlugGenerator`, mismo patrón que categorías) y editable por el admin
+  en los Form Requests. `Product::getRouteKeyName()` devuelve `slug` para el
+  route-model binding público.
+- **Scopes de catálogo** en `Product` (Spec 04): `activo()`, `conOferta()`,
+  `deCategoria()`, `buscar()` (ILIKE sobre nombre, código y marca), `porMarca()`
+  y `specsValor()` (filtro JSONB `specs->>'clave' = valor`).
 - **Atributos híbridos**: lo que se calcula o filtra vive en columnas tipadas;
   el resto (medida, color, acabado, rendimiento, peso…) vive en `specs` JSONB con
   claves validadas por familia según la categoría (`ProductSpecs::allowedKeysFor`).
@@ -167,6 +176,38 @@ Implementado en la **Spec 03**:
   (ADR-004).
 - El check de "producto con pedidos" (regla 67: no borrar, no cambiar
   `unidad_venta`) se activa cuando exista la tabla `orders` (Spec 05).
+
+## Catálogo público (Products)
+
+Implementado en la **Spec 04** (cliente web anónimo, Spec 00 regla 27):
+
+- **Layout público** `layouts/site` (Blade + Tailwind 4 + Alpine) con header de
+  navegación por categorías, buscador y enlace a ofertas; no usa el layout del
+  panel. Vistas: `public/home` (categorías en orden `sort_order` + destacados con
+  oferta), `public/catalogo` (grilla con filtros combinables y paginación de 12)
+  y `public/producto` (ficha con calculadora m²→cajas). Componente reusable
+  `product-card`.
+- **Rutas públicas** en `routes/web.php` (sin middleware de auth): `/`,
+  `/catalogo`, `/categorias/{categoria:slug}`, `/ofertas`,
+  `/productos/{producto:slug}` (nombres `catalogo.*`). La ruta `GET /` reemplaza
+  la vista `welcome` del skeleton.
+- **`CatalogController`** delgado (home, catálogo, categoría, ofertas, ficha)
+  que delega las consultas en los scopes de `Product` y `with('category')` para
+  evitar N+1. Solo publica productos **activos**; la ficha de un inactivo
+  responde 404.
+- **Filtros combinables** (regla 76): categoría, solo ofertas, marca y specs por
+  familia (`ProductSpecs::allowedKeysFor`). Los filtros de specs se ofrecen solo
+  cuando hay categoría seleccionada y con los valores presentes en los productos
+  publicados (regla 77); se resuelven con operadores JSONB de PostgreSQL
+  (`specs->>'clave'`). Búsqueda ILIKE sobre nombre, código y marca (regla 78).
+- **`M2Calculator`** (Spec 04, ADR-003): servicio puro con bcmath
+  (`m2DesdeDimensiones`, `aplicarDesperdicio`, `cajasNecesarias`); único lugar de
+  las reglas de redondeo (reglas 9–12), lo reutiliza el carrito (Spec 05). La
+  calculadora de la ficha es un widget Alpine de estimación (no agrega al
+  carrito).
+- **Stock visible** (regla 73–74): "Quedan N cajas/unidades"; sin stock se
+  muestra el badge "Sin stock" y no hay acción de compra (el carrito llega con
+  las Specs 05/06).
 
 ## Pagos (Payments)
 
@@ -212,8 +253,8 @@ Para no rediseñar después, se reservan estos espacios (ADR-004):
 ## Testing
 
 - Pest: Feature Tests por caso de uso (el estándar), Unit Tests para lógica
-  compleja (cálculo de cajas, descuentos, DTOs). La suite `tests/Unit` todavía
-  no existe: se crea cuando aparezca la primera lógica que lo justifique (Spec 05).
+  compleja (cálculo de cajas, descuentos, DTOs). La suite `tests/Unit` existe
+  desde la **Spec 04** (`M2CalculatorTest`).
 - TDD obligatorio (principio 3).
 - Base de datos de tests: PostgreSQL (`ceramica_test`), mismo motor que producción.
 

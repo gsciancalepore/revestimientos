@@ -46,6 +46,10 @@ sentido, es un bug de lenguaje.
 | **Depósito** | Rol que despacha y entrega pedidos. | — |
 | **Desactivar usuario** | Baja de un usuario interno: no puede iniciar sesión, conserva historial. | Nunca se borra |
 | **Auditoría** | Registro permanente de quién hizo cada acción crítica y cuándo. | Cambios de rol, precios, stock, pagos |
+| **Catálogo público** | La web abierta del negocio (sin login) donde se navegan categorías y productos; fuera del panel. | Home, listados, ficha |
+| **Ficha de producto** | Página pública de un producto con specs de la familia, precio según unidad de venta, oferta, stock y calculadora (solo modo m²). | URL `/productos/{slug}` |
+| **Destacados** | Productos activos con oferta activa mostrados en la home. | "Destacados con oferta" |
+| **Slug** | Identificador legible y único de una categoría o producto, usado en las URLs públicas. Se auto-genera del nombre y es editable por el admin. | `/productos/porcelanato-gris` |
 
 ## Sinónimos prohibidos
 
