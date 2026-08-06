@@ -46,6 +46,7 @@ class ProductController extends Controller
         $action->execute(
             categoryId: $request->validated('category_id'),
             name: $request->validated('name'),
+            slug: $request->validated('slug'),
             codigo: $request->validated('codigo'),
             unidadVenta: ProductSaleUnit::from($request->validated('unidad_venta')),
             precioCents: $request->validated('precio_cents'),
@@ -86,6 +87,7 @@ class ProductController extends Controller
             product: $product,
             categoryId: $request->validated('category_id'),
             name: $request->validated('name'),
+            slug: $request->validated('slug'),
             codigo: $request->validated('codigo'),
             unidadVenta: ProductSaleUnit::from($request->validated('unidad_venta')),
             precioCents: $request->validated('precio_cents'),

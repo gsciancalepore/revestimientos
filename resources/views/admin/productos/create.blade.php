@@ -25,6 +25,13 @@
                         </div>
 
                         <div>
+                            <x-input-label for="slug" :value="__('Slug (opcional)')" />
+                            <x-text-input id="slug" name="slug" type="text" class="mt-1 block w-full" :value="old('slug')" placeholder="ceramico-60x60-beige" />
+                            <p class="mt-1 text-sm text-gray-500">Si se deja vacío se genera automáticamente desde el nombre. Debe ser único en todo el catálogo.</p>
+                            <x-input-error class="mt-2" :messages="$errors->get('slug')" />
+                        </div>
+
+                        <div>
                             <x-input-label for="category_id" :value="__('Categoría')" />
                             <select id="category_id" name="category_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
                                 <option value="">— Seleccionar —</option>

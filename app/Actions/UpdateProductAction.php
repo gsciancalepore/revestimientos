@@ -5,10 +5,14 @@ namespace App\Actions;
 use App\Enums\ProductSaleUnit;
 use App\Models\Product;
 use App\Services\AuditRecorder;
+use App\Services\ProductSlugGenerator;
 
 class UpdateProductAction
 {
-    public function __construct(private AuditRecorder $recorder) {}
+    public function __construct(
+        private AuditRecorder $recorder,
+        private ProductSlugGenerator $slugGenerator,
+    ) {}
 
     /**
      * @param  array<string, mixed>|null  $imagenes
@@ -21,6 +25,7 @@ class UpdateProductAction
         string $codigo,
         ProductSaleUnit $unidadVenta,
         int $precioCents,
+        ?string $slug = null,
         ?string $marca = null,
         ?string $descripcion = null,
         ?int $precioOfertaCents = null,
@@ -36,6 +41,7 @@ class UpdateProductAction
         $product->fill([
             'category_id' => $categoryId,
             'name' => $name,
+            'slug' => $this->slugGenerator->uniqueFor($name, $slug, $product->id),
             'marca' => $marca,
             'codigo' => $codigo,
             'descripcion' => $descripcion,

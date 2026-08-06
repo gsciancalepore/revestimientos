@@ -6,6 +6,7 @@ use App\Enums\ProductSaleUnit;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends Factory<Product>
@@ -24,6 +25,7 @@ class ProductFactory extends Factory
         return [
             'category_id' => Category::factory(),
             'name' => $name,
+            'slug' => Str::slug($name),
             'marca' => fake()->company(),
             'codigo' => 'ILV-'.fake()->unique()->numerify('#####'),
             'descripcion' => fake()->sentence(),
@@ -51,6 +53,14 @@ class ProductFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'unidad_venta' => ProductSaleUnit::Unidad,
             'm2_por_caja' => null,
+        ]);
+    }
+
+    public function conOferta(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'precio_cents' => 200000,
+            'precio_oferta_cents' => 150000,
         ]);
     }
 

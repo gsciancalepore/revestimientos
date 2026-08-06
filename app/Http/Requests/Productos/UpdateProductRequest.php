@@ -20,6 +20,7 @@ class UpdateProductRequest extends FormRequest
         return [
             'category_id' => ['required', 'integer', 'exists:categories,id'],
             'name' => ['required', 'string', 'max:255'],
+            'slug' => ['nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'],
             'marca' => ['nullable', 'string', 'max:255'],
             'codigo' => ['required', 'string', 'max:255', Rule::unique('products', 'codigo')->ignore($this->route('product'))],
             'descripcion' => ['nullable', 'string'],
