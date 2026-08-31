@@ -15,7 +15,7 @@ RUN npm run build
 
 FROM dunglas/frankenphp:1-php8.4-alpine
 
-RUN install-php-extensions pdo_pgsql bcmath intl zip opcache redis
+RUN install-php-extensions pdo_pgsql bcmath intl zip opcache redis pcntl
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
