@@ -38,4 +38,4 @@ EXPOSE 8000
 # Render/Koyeb inyecta $PORT; health check es GET /up (bootstrap/app.php: health: '/up')
 # Migraciones NO se ejecutan aquí — son un step controlado del deployment (docs/deployment/staging.md §11).
 # Octane FrankenPHP con 2 workers evita que / (Neon) bloquee /up en Render Free (512MB/0.1 vCPU).
-CMD ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=${PORT:-8000}", "--workers=2", "--max-requests=500"]
+CMD ["sh", "-c", "php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=${PORT:-8000} --workers=2 --max-requests=500"]
