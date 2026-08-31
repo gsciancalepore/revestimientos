@@ -430,6 +430,9 @@ se habilitará el deployment automático desde `main`.
 
 Koyeb soporta actualmente continuous deployment basado en GitHub: cada push/merge a `main` puede iniciar un nuevo build y deployment. Las migraciones se ejecutan como step controlado posterior al deploy (ver §11), no dentro del `CMD`.
 
+> **Nota 2026-08-31 — Render `composer install --no-dev` y Telescope `require-dev` (fix `cb1002b`):**
+> Render (igual que Koyeb) ejecuta `composer install --no-dev --optimize-autoloader` en el build (`docker/koyeb/Dockerfile:42`). Telescope está en `require-dev` (`composer.json:21`) y no se instala en staging. El registro incondicional de `App\Providers\TelescopeServiceProvider` en `bootstrap/providers.php:4` provocaba `artisan package:discover` → `Class "Laravel\Telescope\TelescopeApplicationServiceProvider" not found`. Solución: quitar el registro de `bootstrap/providers.php` y registrar `TelescopeServiceProvider` condicionalmente desde `App\Providers\AppServiceProvider.php:12` solo si `APP_ENV=local` y `class_exists(TelescopeApplicationServiceProvider::class)`. Mantiene `TELESCOPE_ENABLED=false` y `Telescope` solo local.
+
 ---
 
 # 16. Rollback
