@@ -19,6 +19,7 @@ RUN apk add --no-cache \
         libpq-dev \
         libzip-dev \
         icu-dev \
+        linux-headers \
         zip \
         unzip \
         $PHPIZE_DEPS \
