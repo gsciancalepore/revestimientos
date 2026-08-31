@@ -36,3 +36,10 @@ Servicios: `app` (php-fpm 8.4), `web` (nginx), `db` (postgres), `redis`,
 - **Kubernetes / swarm**: descartado — sobredimensionado (principio 5).
 - **Paas (Forge/Railway/etc.)**: descartado por decisión del dueño de mantener
   el control en un VPS simple.
+
+## Nota 2026-08-31 — Relación con ADR-008
+
+ADR-002 continúa vigente como referencia para una futura estrategia de
+Production basada en VPS. Para Staging, fue complementado/sustituido por
+ADR-008 (Koyeb + Neon). No invalida el historial: ADR-002 documenta la decisión
+original de VPS y su contexto; ADR-008 rige exclusivamente Staging.
