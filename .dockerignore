@@ -23,3 +23,6 @@ yarn-error.log
 .phpunit.result.cache
 /public/hot
 /public/storage
+frankenphp
+/frankenphp
+**/caddy
