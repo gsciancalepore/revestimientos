@@ -12,6 +12,8 @@ bootstrap/cache/*
 .env.backup
 .env.production
 .env.staging
+.env.neon*
+.env.*.test
 npm-debug.log
 yarn-error.log
 .DS_Store
