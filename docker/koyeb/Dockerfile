@@ -1,7 +1,7 @@
 # Koyeb/Render runtime — staging (main → Staging)
 # Misma aplicación, adapter de runtime distinto a development.
 # Development: nginx + php-fpm (docker/php/Dockerfile + docker-compose.yml)
-# Staging: FrankenPHP + Octane 2 workers (multi-proceso, evita bloqueo single-thread)
+# Staging: RoadRunner + Octane 2 workers (multi-proceso, evita bloqueo single-thread)
 # No supervisord, no nginx separado, no migrate --force en arranque (ver docs/deployment/staging.md §11).
 
 FROM node:22-alpine AS assets
@@ -13,9 +13,19 @@ COPY vite.config.js ./
 COPY public ./public
 RUN npm run build
 
-FROM dunglas/frankenphp:1-php8.4-alpine
+FROM php:8.4-cli-alpine
 
-RUN install-php-extensions pdo_pgsql bcmath intl zip opcache redis pcntl
+RUN apk add --no-cache \
+        libpq-dev \
+        libzip-dev \
+        icu-dev \
+        zip \
+        unzip \
+        $PHPIZE_DEPS \
+    && docker-php-ext-install pdo_pgsql bcmath intl zip opcache pcntl sockets \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apk del $PHPIZE_DEPS
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -37,5 +47,5 @@ EXPOSE 8000
 
 # Render/Koyeb inyecta $PORT; health check es GET /up (bootstrap/app.php: health: '/up')
 # Migraciones NO se ejecutan aquí — son un step controlado del deployment (docs/deployment/staging.md §11).
-# Octane FrankenPHP con 2 workers evita que / (Neon) bloquee /up en Render Free (512MB/0.1 vCPU).
-CMD ["sh", "-c", "php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=${PORT:-8000} --workers=2 --max-requests=500"]
+# Octane RoadRunner con 2 workers evita que / (Neon) bloquee /up en Render Free (512MB/0.1 vCPU).
+CMD ["sh", "-c", "php artisan octane:start --server=roadrunner --host=0.0.0.0 --port=${PORT:-8000} --workers=2 --max-requests=500"]
