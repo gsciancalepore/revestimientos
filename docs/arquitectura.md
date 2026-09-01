@@ -1,10 +1,6 @@
 # Arquitectura
 
-Última actualización: 2026-08-06 (Fase 0 + Spec 01 + Spec 02 implementadas y
-verificadas; Spec 02 revisada a categorías planas; Spec 03 implementada y
-verificada; Spec 04 implementada y verificada: 116 tests, Pint/PHPStan en
-verde). Se actualiza con cada fase aprobada según el Definition of Done del
-roadmap.
+Última actualización: 2026-08-31 (Fase 0 + Spec 01-04 + Staging docs: `ADR-008`/`ADR-009`, `docs/deployment/staging.md` con `Render + RoadRunner`, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`, `Neon` con 11 migraciones, deploy en `https://revestimientos.onrender.com` levantado sin estilos pendiente `public/build`). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
 
 ## Visión general
 
@@ -14,8 +10,9 @@ se usa lo que Laravel ya ofrece y solo se agrega estructura cuando el dominio lo
 demuestra (principio 5 y 8 de PROJECT_PRINCIPLES.md).
 
 Stack: PostgreSQL, Redis, Blade + TailwindCSS + AlpineJS (solo donde aporta),
-Vite (servicio `assets` con Node 22 en el compose), Docker Compose (dev y
-producción: ADR-002), Spatie Permission para roles y permisos (ADR-007).
+Vite (servicio `assets` con Node 22 en el compose), Docker Compose (dev, ver ADR-002),
+Render Free + RoadRunner + Octane 2 workers para Staging (ver ADR-009 y `docs/deployment/staging.md`),
+Spatie Permission para roles y permisos (ADR-007).
 
 ## Organización por dominios
 
@@ -266,9 +263,9 @@ Para no rediseñar después, se reservan estos espacios (ADR-004):
 
 ## Despliegue
 
-- Un único `docker-compose.yml` sirve para desarrollo y producción (VPS simple,
-  sin orquestador): nginx + php-fpm + postgres + redis + mailpit (solo dev).
-  Detalle en ADR-002 y en `docs/roadmap.md` (Fase 1).
+- **Desarrollo:** `docker-compose.yml` con nginx + php-fpm + postgres + redis + mailpit (solo dev), ver ADR-002.
+- **Staging:** `Render Free` + `Neon` + `RoadRunner 2 workers` via `Octane` (`docker/koyeb/Dockerfile`, histórico Koyeb) — `php artisan octane:start --server=roadrunner --workers=2` multi-proceso, `PORT` inyectado, `health /up`, `SESSION/CACHE database`, sin `migrate --force` en `CMD`. Ver `docs/deployment/staging.md` y `ADR-009` (fixes: `Telescope` condicional `cb1002b`, `pcntl`/`sockets`/`linux-headers` `10b19a5`/`e56e62c`, `$PORT` `73d2945`, `FrankenPHP EPERM` → `RoadRunner` `6b477bb`). Estado 2026-08-31: deploy en `https://revestimientos.onrender.com` levantado, sin estilos pendiente `public/build` (§15.1).
+- **Producción futura:** VPS único (ADR-002).
 - Configuración del runtime PHP en archivos separados dentro de `docker/php/`
   (`php.ini`, `opcache.ini`, `www.conf`); healthchecks declarados por servicio
   en el compose.

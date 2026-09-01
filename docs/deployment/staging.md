@@ -1,9 +1,11 @@
 # Staging — Deployment Roadmap
 
 **Proyecto:** Sistema de ventas para casa de cerámicas y revestimientos
-**Estado:** Propuesto
-**Fecha:** 2026-08-31
+**Estado:** En implementación (deploy en Render levantado, sin estilos — ver §15.1)
+**Fecha:** 2026-08-31 (actualizado 2026-08-31: migración Koyeb → Render, ver ADR-009)
 **Objetivo:** disponer de un entorno remoto gratuito y permanente para que el equipo pueda probar el sistema desde distintas computadoras mientras continúa el desarrollo.
+
+> **Nota 2026-08-31:** Koyeb exige plan pago para cuentas nuevas (Mistral AI). Staging actual es **Render Free + RoadRunner + Octane** (ADR-009), manteniendo **Neon** y el contrato `DB_*`. `docs/deployment/staging.md:15.1` y `ADR-009` documentan las 5 incidencias y fixes.
 
 ---
 
@@ -33,50 +35,50 @@ El entorno debe ser suficientemente profesional para representar un flujo real d
                     Pull Request / Merge
                            │
                            ▼
-                    CI / Quality Gates
-                           │
-                    Tests + Static Analysis
-                           │
-                           ▼
-                     main
+                     CI / Quality Gates
+                            │
+                     Tests + Static Analysis
                             │
                             ▼
-                      ┌─────────────┐
-                      │    Koyeb    │
-                      │             │
-                      │   Laravel   │
-                      │  Docker     │
-                      │ artisan     │
-                      │ serve $PORT│
-                      └──────┬──────┘
+                      main
                              │
-                      HTTPS / Internet
-                             │
-               ┌─────────────┴─────────────┐
-               │                           │
-               ▼                           ▼
-            Gabriel                     Socio
-         desarrollo local             navegador
-               │
-               │
-         Docker Compose
-               │
-        ┌──────┴───────┐
-        │              │
-     Laravel       PostgreSQL
-        │  (nginx+fpm)   │
-        └────── desarrollo local
+                             ▼
+                       ┌─────────────┐
+                       │   Render    │
+                       │  Free Web   │
+                       │   Laravel   │
+                       │  RoadRunner │
+                       │  Octane 2w  │
+                       │  $PORT      │
+                       └──────┬──────┘
+                              │
+                       HTTPS / Internet
+                              │
+                ┌─────────────┴─────────────┐
+                │                           │
+                ▼                           ▼
+             Gabriel                     Socio
+          desarrollo local             navegador
+                │
+                │
+          Docker Compose
+                │
+         ┌──────┴───────┐
+         │              │
+      Laravel       PostgreSQL
+         │  (nginx+fpm)   │
+         └────── desarrollo local
 
-                      Koyeb
-                        │
-                        │ DB_* vars
-                        │ (DB_HOST, DB_PORT,
-                        │  DB_DATABASE, ...)
-                        ▼
-                   ┌───────────┐
-                   │   Neon    │
-                   │ PostgreSQL│
-                   └───────────┘
+                      Render
+                         │
+                         │ DB_* vars
+                         │ (DB_HOST, DB_PORT,
+                         │  DB_DATABASE, ...)
+                         ▼
+                    ┌───────────┐
+                    │   Neon    │
+                    │ PostgreSQL│
+                    └───────────┘
 ```
 
 ---
@@ -99,9 +101,9 @@ GitHub será la fuente de verdad del código.
 
 ---
 
-## 3.2 Koyeb
+## 3.2 Render (actual) — Koyeb histórico
 
-Responsabilidades:
+Responsabilidades (Render Free Web Service, migrado desde Koyeb 2026-08-31 por plan pago para cuentas nuevas tras Mistral AI, ver ADR-009):
 
 * ejecutar la aplicación Laravel;
 * construir la aplicación desde GitHub;
@@ -109,9 +111,9 @@ Responsabilidades:
 * proporcionar HTTPS;
 * exponer una URL pública de staging.
 
-El Free Instance actual proporciona 512 MB de RAM, 0,1 vCPU y 2 GB SSD. Está destinado a testing/hobby y escala a cero después de una hora sin tráfico. No se utilizará como producción definitiva.
+Render Free actual: 750h/mes, 512 MB RAM, 0,1 vCPU, escala a cero tras ~15min sin tráfico (Koyeb era 2 GB SSD/1h). No se utiliza como producción definitiva.
 
-Koyeb soporta despliegue desde GitHub y también puede utilizar un `Dockerfile`, por lo que el proyecto puede conservar su estrategia de containerización.
+Render soporta `Dockerfile` (`docker/koyeb/Dockerfile`, nombre histórico) y `PORT` inyectado, manteniendo la estrategia de containerización. `Koyeb` queda documentado en `ADR-008` como histórico.
 
 ---
 
@@ -125,7 +127,7 @@ Responsabilidades:
 
 El plan Free actual proporciona 0,5 GB de almacenamiento por proyecto, 50 CU-hours mensuales por proyecto y scale-to-zero.
 
-La aplicación utilizará la conexión mediante variables `DB_*` (`DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`) y nunca almacenará credenciales en Git. Neon entrega una connection string, pero en Koyeb se mapea a `DB_*` para mantener el contrato estándar de Laravel (ver §9).
+La aplicación utilizará la conexión mediante variables `DB_*` (`DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`) y nunca almacenará credenciales en Git. Neon entrega una connection string, pero en Render (antes Koyeb, ver ADR-009) se mapea a `DB_*` para mantener el contrato estándar de Laravel (ver §9).
 
 ---
 
@@ -141,9 +143,9 @@ Docker Compose local
 PostgreSQL local
 
 STAGING
-    ↓
-Koyeb
-    ↓
+     ↓
+Render Free
+     ↓
 Neon PostgreSQL
 ```
 
@@ -243,16 +245,16 @@ Un cambio que no supere los quality gates no deberá llegar a Staging.
 La aplicación seguirá siendo containerizada. Misma aplicación, dos runtime adapters:
 
 ```text
-DEVELOPMENT                 STAGING (Koyeb)
+DEVELOPMENT                 STAGING (Render Free)
     nginx  ─┐                  Laravel
-    php-fpm ─┤ Laravel  vs      php artisan serve
+    php-fpm ─┤ Laravel  vs      Octane RoadRunner 2 workers
     postgres ┘                  --host=0.0.0.0 --port=$PORT
              │                  Neon PostgreSQL
-             └─ docker-compose  └─ docker/koyeb/Dockerfile
+             └─ docker-compose  └─ docker/koyeb/Dockerfile (histórico Koyeb)
 ```
 
 * **Desarrollo:** `docker/php/Dockerfile` (php-fpm 8.4) + `docker/nginx/default.conf` + `docker-compose.yml` — sin cambios.
-* **Staging Koyeb:** `docker/koyeb/Dockerfile` (php-cli 8.4) que ejecuta `php artisan serve --host=0.0.0.0 --port=${PORT}`. Koyeb inyecta `$PORT`; no se usa `supervisord` ni se hibrida el Dockerfile FPM. Esto no cambia la arquitectura de la app, solo el adapter de runtime.
+* **Staging Render:** `docker/koyeb/Dockerfile` ( `php:8.4-cli-alpine` + `RoadRunner 2025.1.15` + `Octane 2.19` ) que ejecuta `php artisan octane:start --server=roadrunner --host=0.0.0.0 --port=${PORT} --workers=2 --max-requests=500` con `install-php-extensions pdo_pgsql bcmath intl zip opcache pcntl sockets redis` + `linux-headers`. Render inyecta `$PORT`; no se usa `supervisord` ni se hibrida el Dockerfile FPM. Esto no cambia la arquitectura de la app, solo el adapter de runtime. Ver `ADR-009` y `§15.1` para las 5 incidencias (Telescope, FrankenPHP EPERM, PORT, pcntl/sockets).
 
 La regla es:
 
@@ -419,19 +421,35 @@ Una vez validado:
 ```text
 GitHub
    ↓
-Koyeb
+Render Free
    ↓
-Build (docker/koyeb/Dockerfile)
+Build (docker/koyeb/Dockerfile — histórico Koyeb)
    ↓
-Deploy (artisan serve $PORT)
+Deploy (Octane RoadRunner $PORT, 2 workers)
 ```
 
 se habilitará el deployment automático desde `main`.
 
-Koyeb soporta actualmente continuous deployment basado en GitHub: cada push/merge a `main` puede iniciar un nuevo build y deployment. Las migraciones se ejecutan como step controlado posterior al deploy (ver §11), no dentro del `CMD`.
+Render (migrado desde Koyeb 2026-08-31, ver ADR-009) soporta continuous deployment basado en GitHub: cada push/merge a `main` puede iniciar un nuevo build y deployment. Las migraciones se ejecutan como step controlado posterior al deploy (ver §11), no dentro del `CMD`.
 
-> **Nota 2026-08-31 — Render `composer install --no-dev` y Telescope `require-dev` (fix `cb1002b`):**
-> Render (igual que Koyeb) ejecuta `composer install --no-dev --optimize-autoloader` en el build (`docker/koyeb/Dockerfile:42`). Telescope está en `require-dev` (`composer.json:21`) y no se instala en staging. El registro incondicional de `App\Providers\TelescopeServiceProvider` en `bootstrap/providers.php:4` provocaba `artisan package:discover` → `Class "Laravel\Telescope\TelescopeApplicationServiceProvider" not found`. Solución: quitar el registro de `bootstrap/providers.php` y registrar `TelescopeServiceProvider` condicionalmente desde `App\Providers\AppServiceProvider.php:12` solo si `APP_ENV=local` y `class_exists(TelescopeApplicationServiceProvider::class)`. Mantiene `TELESCOPE_ENABLED=false` y `Telescope` solo local.
+> **Nota 2026-08-31 — 5 incidencias Render + fixes (migrado Koyeb → Render, ver ADR-009):**
+> 1. **Telescope `require-dev`** (`cb1002b`): Render ejecuta `composer install --no-dev` (`Dockerfile:42`), `Telescope` no se instala en staging. Registro incondicional en `bootstrap/providers.php:4` → `package:discover Class not found`. Fix: registro condicional en `AppServiceProvider.php:12` solo `local && class_exists(TelescopeApplicationServiceProvider)`, `TELESCOPE_ENABLED=false`.
+> 2. **`artisan serve` single-thread** (evidencia `/ 4.68s` bloquea `/ping 4.42s` concurrente): `php artisan serve` 1 thread en `Render Free` bloquea `/up` detrás de Neon. Migración a `Octane RoadRunner 2 workers` (`6b477bb`, `73d2945`).
+> 3. **FrankenPHP `EPERM`** (`/usr/local/bin/frankenphp: Operation not permitted`): `FrankenPHP/Caddy` requiere `CAP_SYS_ADMIN` bloqueado en Render Free. Migración a `RoadRunner` (Golang, sin `CAP`).
+> 4. **`pcntl` + `sockets` faltantes** (`InteractsWithServers.php:174 SIGINT`, `sockets.c:58 linux/sock_diag.h`): `php:8.4-cli-alpine` no trae `pcntl`/`sockets`; `RoadRunner` los requiere. Fixes: `pcntl` (`10b19a5`) + `sockets` + `linux-headers` (`e56e62c`) en `Dockerfile:18`.
+> 5. **`$PORT` no expandido** (`StartFrankenPhpCommand.php:273 string - int`): `CMD ["php", ... "--port=${PORT:-8000}"]` exec JSON no expande `${PORT}` → `adminPort = 2019 + ("${PORT:-8000}" - 8000)` → `Unsupported operand`. Fix: `CMD ["sh","-c","php artisan octane:start ... --port=${PORT:-8000} ..."]` (`73d2945`).
+> **Estado actual:** deploy en `https://revestimientos.onrender.com` levantado con `Octane RoadRunner 2w` (`pcntl`/`sockets`/`linux-headers`, `PORT` OK), `Neon` con 11 migraciones, sin estilos — pendiente `public/build` (ver §15.1).
+
+### 15.1 Pendiente — Assets sin estilos (deploy levantado, HTML sin CSS)
+
+**Síntoma 2026-08-31:** `https://revestimientos.onrender.com` responde `200` pero sin CSS (solo HTML). `public/build/manifest.json` local existe (`app-Izz6OxUL.css`), `node:22-alpine` en `docker/koyeb/Dockerfile:7` y `docker-compose.yml:77` es correcto para `vite 7.3` + `@tailwindcss/vite 4.3` (exige `node >=20`), `vite.config.js:14` `hmr.host=localhost` corrige `public/hot 0.0.0.0`, `.dockerignore` ignora `/public/hot` pero **no** `/public/build`, `Dockerfile:40` `COPY --from=assets` debería copiar `public/build`.
+
+**Verificaciones pendientes (sin fix aún):**
+1. `assets` stage: `docker build --target assets -t test-assets && docker run --rm test-assets cat public/build/manifest.json` + `ls -lh public/build/assets`
+2. Imagen final: `docker build -t test-final . && docker run --rm test-final ls -lh public/build && cat public/build/manifest.json`
+3. Runtime: `docker run -p 8001:8000 -e PORT=8000 test-final` → `curl -I http://localhost:8001/build/assets/app-*.css` (`200` vs `404`) y `curl -s http://localhost:8001/ | grep build/assets`
+
+Si 1-3 pasan local y falla en Render con `Dockerfile Path = docker/koyeb/Dockerfile` no configurado (Render Native sin `npm run build`), el fix es solo `Render Settings → Dockerfile Path` + `NODE_VERSION=22`.
 
 ---
 
