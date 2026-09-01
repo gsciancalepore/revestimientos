@@ -1,11 +1,11 @@
 # Staging — Deployment Roadmap
 
 **Proyecto:** Sistema de ventas para casa de cerámicas y revestimientos
-**Estado:** Operativo (deploy en Render con estilos y HTTPS correctos — ver §15 y §15.2)
-**Fecha:** 2026-09-01 (actualizado 2026-09-01: fix HTTPS TrustProxies + seed inicial Neon, ver §15.2/15.3)
+**Estado:** Operativo (deploy en Render Oregon + Neon Oregon PG18, co-localizado — ver §15.4)
+**Fecha:** 2026-09-01 (actualizado 2026-09-01: migración Neon a Oregon PG18, ver §15.4 y ADR-010)
 **Objetivo:** disponer de un entorno remoto gratuito y permanente para que el equipo pueda probar el sistema desde distintas computadoras mientras continúa el desarrollo.
 
-> **Nota 2026-09-01:** Koyeb exige plan pago para cuentas nuevas (Mistral AI). Staging actual es **Render Free + RoadRunner + Octane** (ADR-009), manteniendo **Neon** y el contrato `DB_*`. `docs/deployment/staging.md:15.2` y `ADR-009` documentan las 7 incidencias y fixes (5 de migración + Mixed Content HTTPS + seed Neon vacío).
+> **Nota 2026-09-01:** Koyeb exige plan pago para cuentas nuevas (Mistral AI). Staging actual es **Render Free (Oregon) + RoadRunner + Octane + Neon PG18 (Oregon, us-west-2)** (ADR-009 y ADR-010), manteniendo el contrato `DB_*`. `docs/deployment/staging.md:15.4` y `ADR-010` documentan la migración por latencia inter-región (8 incidencias totales).
 
 ---
 
@@ -127,7 +127,9 @@ Responsabilidades:
 
 El plan Free actual proporciona 0,5 GB de almacenamiento por proyecto, 50 CU-hours mensuales por proyecto y scale-to-zero.
 
-La aplicación utilizará la conexión mediante variables `DB_*` (`DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`) y nunca almacenará credenciales en Git. Neon entrega una connection string, pero en Render (antes Koyeb, ver ADR-009) se mapea a `DB_*` para mantener el contrato estándar de Laravel (ver §9).
+La aplicación utilizará la conexión mediante variables `DB_*` (`DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`) y nunca almacenará credenciales en Git. Neon entrega una connection string, pero en Render (antes Koyeb, ver ADR-009 y ADR-010) se mapea a `DB_*` para mantener el contrato estándar de Laravel (ver §9).
+
+**Región actual:** `aws-us-west-2 (Oregon)` con Postgres `18.6` (`ep-orange-sun-afa5blwb-pooler.c-2.us-west-2.aws.neon.tech`, `DB_SSLMODE=require` + `channel_binding=require`), co-localizado con Render Oregon (ver §15.4 y ADR-010). Proyecto anterior `aws-sa-east-1 (São Paulo)` se conserva **48h como rollback** (`ep-cool-morning-aceox6ow-pooler.sa-east-1`).
 
 ---
 
@@ -432,7 +434,7 @@ se habilitará el deployment automático desde `main`.
 
 Render (migrado desde Koyeb 2026-08-31, ver ADR-009) soporta continuous deployment basado en GitHub: cada push/merge a `main` puede iniciar un nuevo build y deployment. Las migraciones se ejecutan como step controlado posterior al deploy (ver §11), no dentro del `CMD`.
 
-> **Nota 2026-09-01 — 7 incidencias Render + fixes (migrado Koyeb → Render, ver ADR-009 y §15.2/15.3):**
+> **Nota 2026-09-01 — 8 incidencias Render + fixes (migrado Koyeb → Render + Oregon PG18, ver ADR-009, ADR-010 y §15.2-15.4):**
 > 1. **Telescope `require-dev`** (`cb1002b`): Render ejecuta `composer install --no-dev` (`Dockerfile:42`), `Telescope` no se instala en staging. Registro incondicional en `bootstrap/providers.php:4` → `package:discover Class not found`. Fix: registro condicional en `AppServiceProvider.php:12` solo `local && class_exists(TelescopeApplicationServiceProvider)`, `TELESCOPE_ENABLED=false`.
 > 2. **`artisan serve` single-thread** (evidencia `/ 4.68s` bloquea `/ping 4.42s` concurrente): `php artisan serve` 1 thread en `Render Free` bloquea `/up` detrás de Neon. Migración a `Octane RoadRunner 2 workers` (`6b477bb`, `73d2945`).
 > 3. **FrankenPHP `EPERM`** (`/usr/local/bin/frankenphp: Operation not permitted`): `FrankenPHP/Caddy` requiere `CAP_SYS_ADMIN` bloqueado en Render Free. Migración a `RoadRunner` (Golang, sin `CAP`).
@@ -440,7 +442,8 @@ Render (migrado desde Koyeb 2026-08-31, ver ADR-009) soporta continuous deployme
 > 5. **`$PORT` no expandido** (`StartFrankenPhpCommand.php:273 string - int`): `CMD ["php", ... "--port=${PORT:-8000}"]` exec JSON no expande `${PORT}` → `adminPort = 2019 + ("${PORT:-8000}" - 8000)` → `Unsupported operand`. Fix: `CMD ["sh","-c","php artisan octane:start ... --port=${PORT:-8000} ..."]` (`73d2945`).
 > 6. **Mixed Content `http` detrás de proxy TLS** (`2026-09-01`, `bbfd1fd`): `APP_URL=https://revestimientos.onrender.com` correcto, pero Render termina TLS en LB y reenvía `http + X-Forwarded-Proto:https` a RoadRunner. Sin confiar en el proxy, `Request::getScheme()` queda `http` y `UrlGenerator`/`@vite`/`asset()`/`route()` generan `http://` → navegador bloquea CSS/JS y forms. Fix mínimo idiomático Laravel 12: `$middleware->trustProxies(at:'*')` en `bootstrap/app.php:17` (usa `Illuminate\Http\Middleware\TrustProxies` global, respeta `X-Forwarded-Proto`; local sin header sigue `http`).
 > 7. **Neon sin seed — `users` vacío** (`2026-09-01`): deploy OK pero `users`/`roles`=`0` filas (11 migraciones aplicadas, `audit_logs` vacío). `COPY . .` + `.gitignore: rr` impide que el binario/seed viaje; el seed no está en `CMD`. Fix: seed controlado contra Neon: `docker compose run --rm -e DB_HOST=...neon.tech ... app php artisan db:seed --force` (crea `admin@ceramica.local`/`admin1234` + 3 roles + 4 categorías planas, idempotente vía `updateOrCreate`).
-> **Estado actual:** deploy en `https://revestimientos.onrender.com` **operativo** con `Octane RoadRunner 2w` (`pcntl`/`sockets`/`linux-headers`, `PORT` OK, `trustProxies at:'*'` para HTTPS), `Neon` con 11 migraciones + seed completo (`users=1` admin, `roles=3`, `categories=4`), estilos OK vía `public/build`.
+> 8. **Latencia inter-región `~5s` por query** (`2026-09-01`, diagnóstico `tinker enableQueryLog`): Render Oregon → Neon `sa-east-1` pagaba `~110ms` por query × 5-12 queries (`/catalogo` `1109ms` sum vs `182ms` local, `?categoria=` `3966ms` vs `100ms`) + cold-start `2.5s` en 1ra query. Fil `filtrosSpecs` 8 `distinct specs->>?` secuenciales amplificaba. Fix: nuevo Neon `aws-us-west-2 (Oregon)` PG18 `ep-orange-sun-afa5blwb-pooler.c-2.us-west-2` co-localizado (ver ADR-010 y §15.4), `RTT ~10ms` por query, `/catalogo` `0.35-0.72s` post-cutover.
+> **Estado actual:** deploy en `https://revestimientos.onrender.com` **operativo** con `Octane RoadRunner 2w` (`pcntl`/`sockets`/`linux-headers`, `PORT` OK, `trustProxies at:'*'` para HTTPS), `Neon Oregon PG18` `18.6` co-localizado con 11 migraciones + seed completo (`users=1` admin, `roles=3`, `categories=4`, `products=1`), catálogo `~0.3-0.7s` despierto.
 
 ### 15.1 Pendiente histórico — Assets sin estilos (resuelto 2026-09-01)
 
@@ -479,6 +482,16 @@ docker compose run --rm \
 # Database\Seeders\RolesSeeder 2227ms DONE, AdminSeeder 1448ms DONE, CategoriesSeeder 1079ms DONE
 ```
 Resultado: `users=1 (Admin)`, `roles=3`, `categories=4` (porcelanatos, ceramicas, pastinas, adhesivos). Login operativo. Futuros deploys no requieren re-seed salvo `migrate:fresh` (nunca en staging, §11).
+
+### 15.4 Migración Neon a Oregon PG18 por latencia (2026-09-01, ADR-010)
+
+**Síntoma:** pese a `trustProxies` y seed OK, producción tardaba `~5s` por módulo (`/catalogo` `4.6-5.1s`, `home` `3.0s`, `?categoria=porcelanatos` `8.4s` vs `/up` `0.33s` despierto). Local era instantáneo (`~0.2s`).
+
+**Diagnóstico (sin tocar código):** `DB::enableQueryLog()` apuntando a Neon `sa-east-1` vs local `db:5432`: `/catalogo` 5 queries `sumMs 1109ms` (Neon) vs `182ms` (local), `?categoria=` 12 queries `3966ms` vs `100ms`, `~110-130ms` por query (vs `3-15ms` local) + `2.5s` cold-start en 1ra query del pool (`2595ms`). `CatalogController:156 filtrosSpecs()` hace 8 `distinct specs->>?` secuenciales → `12` queries totales amplifican el `RTT`. `92-95%` del `totalMs` era DB (`1109/1204`, `3966/4173`). Causa: Render está en `Oregon (us-west)` y Neon en `São Paulo (sa-east-1)` — `~180ms` RTT inter-región (Neon `Oregon` existe como `aws-us-west-2`, Render también).
+
+**Fix:** nuevo proyecto Neon `aws-us-west-2 (Oregon)` Postgres `18.6` (`ep-orange-sun-afa5blwb-pooler.c-2.us-west-2.aws.neon.tech`, `sslmode=require&channel_binding=require`), `11` migraciones `migrate --force` + `db:seed --force` idempotente + `pg_dump 18 --data-only -t products` (`Cerámica Brillante Negra 7,5x30`) restaurado (`products=1`). Cutover solo cambiando `DB_HOST/DB_PASSWORD` en Render Environment (sin redeploy de código). Proyecto anterior `sa-east-1` se conserva **48h como rollback** y luego se pausa.
+
+**Verificación post-cutover:** `curl -w total/start` a `https://revestimientos.onrender.com/catalogo` → `0.35-0.72s` (vs `4.6s`), `https://.../build/assets/app-DmkphLA-.css` en `https://` (trustProxies intacto), `SELECT version()` → `18.6`, `users=1/roles=3/categories=4/products=1` en Oregon, `pint/stan/test 116` en verde. `docker-compose.yml:40` permanece `postgres:17-alpine` local (paridad PG18 se evalúa aparte, no en esta migración).
 
 ---
 

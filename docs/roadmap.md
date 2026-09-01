@@ -1,6 +1,6 @@
 # Roadmap
 
-Última actualización: 2026-09-01 (Staging: `docs/deployment/staging.md` operativo con estilos y HTTPS correctos, `Neon` 11 migraciones + seed `users=1`/`roles=3`/`categories=4`, `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3, deploy `https://revestimientos.onrender.com` operativo).
+Última actualización: 2026-09-01 (Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 11 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1`, `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte).
 
 ## Definition of Done (aplica a TODAS las fases y specs)
 

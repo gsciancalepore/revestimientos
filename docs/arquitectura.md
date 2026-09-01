@@ -1,6 +1,6 @@
 # Arquitectura
 
-Última actualización: 2026-09-01 (Fase 0 + Spec 01-04 + Staging docs: `ADR-008`/`ADR-009`, `docs/deployment/staging.md` `Render + RoadRunner` operativo con estilos y HTTPS correctos, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` (TrustProxies) + seed Neon `users=1`/`roles=3`/`categories=4`, `Neon` 11 migraciones, deploy `https://revestimientos.onrender.com` operativo). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
+Última actualización: 2026-09-01 (Fase 0 + Spec 01-04 + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 11 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
 
 ## Visión general
 
@@ -263,13 +263,14 @@ Para no rediseñar después, se reservan estos espacios (ADR-004):
 
 ## Despliegue
 
-- **Desarrollo:** `docker-compose.yml` con nginx + php-fpm + postgres + redis + mailpit (solo dev), ver ADR-002.
-- **Staging:** `Render Free` + `Neon` + `RoadRunner 2 workers` via `Octane` (`docker/koyeb/Dockerfile`, histórico Koyeb) — `php artisan octane:start --server=roadrunner --workers=2` multi-proceso, `PORT` inyectado, `health /up`, `SESSION/CACHE database`, sin `migrate --force` en `CMD`. Ver `docs/deployment/staging.md` y `ADR-009` (fixes: `Telescope` condicional `cb1002b`, `pcntl`/`sockets`/`linux-headers` `10b19a5`/`e56e62c`, `$PORT` `73d2945`, `FrankenPHP EPERM` → `RoadRunner` `6b477bb`, `Mixed Content HTTPS` → `trustProxies at:'*'` `bbfd1fd` en `bootstrap/app.php:17`). Estado 2026-09-01: deploy en `https://revestimientos.onrender.com` operativo con estilos y HTTPS correctos, `Neon` 11 migraciones + seed `users=1`/`roles=3`/`categories=4` (ver `staging.md §15.2/15.3`).
+- **Desarrollo:** `docker-compose.yml` con nginx + php-fpm + `postgres:17-alpine` + redis + mailpit (solo dev, `17` se mantiene; bump a `18` se evalúa aparte), ver ADR-002.
+- **Staging:** `Render Free (Oregon)` + `Neon PG18 (Oregon, us-west-2, 18.6)` + `RoadRunner 2 workers` via `Octane` (`docker/koyeb/Dockerfile`, histórico Koyeb) — `php artisan octane:start --server=roadrunner --workers=2` multi-proceso, `PORT` inyectado, `health /up`, `SESSION/CACHE database`, sin `migrate --force` en `CMD`. Ver `docs/deployment/staging.md` y `ADR-009`/`ADR-010` (fixes: `Telescope` condicional `cb1002b`, `pcntl`/`sockets`/`linux-headers` `10b19a5`/`e56e62c`, `$PORT` `73d2945`, `FrankenPHP EPERM` → `RoadRunner` `6b477bb`, `Mixed Content HTTPS` → `trustProxies at:'*'` `bbfd1fd` en `bootstrap/app.php:17`, `latencia 5s` → `Neon Oregon PG18` `ADR-010`). Estado 2026-09-01: deploy en `https://revestimientos.onrender.com` operativo `~0.3-0.7s` despierto con estilos y HTTPS correctos, `Neon Oregon 18.6` `11` migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` (ver `staging.md §15.4`), rollback `sa-east-1` 48h.
 - **Producción futura:** VPS único (ADR-002).
 - Configuración del runtime PHP en archivos separados dentro de `docker/php/`
   (`php.ini`, `opcache.ini`, `www.conf`); healthchecks declarados por servicio
   en el compose.
 - **Proxy HTTPS:** Render termina TLS y reenvía `X-Forwarded-Proto:https`; `bootstrap/app.php:17` `$middleware->trustProxies(at:'*')` hace que `Request::getScheme()` y `UrlGenerator`/`@vite` generen `https://` (local sin header sigue `http`).
+- **Postgres:** Staging en PG18, local en PG17 por ahora; `channel_binding=require` solo en DSN de Neon Oregon.
 
 ## Estructura de documentación
 
