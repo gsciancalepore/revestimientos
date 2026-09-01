@@ -1,11 +1,11 @@
 # Staging — Deployment Roadmap
 
 **Proyecto:** Sistema de ventas para casa de cerámicas y revestimientos
-**Estado:** En implementación (deploy en Render levantado, sin estilos — ver §15.1)
-**Fecha:** 2026-08-31 (actualizado 2026-08-31: migración Koyeb → Render, ver ADR-009)
+**Estado:** Operativo (deploy en Render con estilos y HTTPS correctos — ver §15 y §15.2)
+**Fecha:** 2026-09-01 (actualizado 2026-09-01: fix HTTPS TrustProxies + seed inicial Neon, ver §15.2/15.3)
 **Objetivo:** disponer de un entorno remoto gratuito y permanente para que el equipo pueda probar el sistema desde distintas computadoras mientras continúa el desarrollo.
 
-> **Nota 2026-08-31:** Koyeb exige plan pago para cuentas nuevas (Mistral AI). Staging actual es **Render Free + RoadRunner + Octane** (ADR-009), manteniendo **Neon** y el contrato `DB_*`. `docs/deployment/staging.md:15.1` y `ADR-009` documentan las 5 incidencias y fixes.
+> **Nota 2026-09-01:** Koyeb exige plan pago para cuentas nuevas (Mistral AI). Staging actual es **Render Free + RoadRunner + Octane** (ADR-009), manteniendo **Neon** y el contrato `DB_*`. `docs/deployment/staging.md:15.2` y `ADR-009` documentan las 7 incidencias y fixes (5 de migración + Mixed Content HTTPS + seed Neon vacío).
 
 ---
 
@@ -432,24 +432,53 @@ se habilitará el deployment automático desde `main`.
 
 Render (migrado desde Koyeb 2026-08-31, ver ADR-009) soporta continuous deployment basado en GitHub: cada push/merge a `main` puede iniciar un nuevo build y deployment. Las migraciones se ejecutan como step controlado posterior al deploy (ver §11), no dentro del `CMD`.
 
-> **Nota 2026-08-31 — 5 incidencias Render + fixes (migrado Koyeb → Render, ver ADR-009):**
+> **Nota 2026-09-01 — 7 incidencias Render + fixes (migrado Koyeb → Render, ver ADR-009 y §15.2/15.3):**
 > 1. **Telescope `require-dev`** (`cb1002b`): Render ejecuta `composer install --no-dev` (`Dockerfile:42`), `Telescope` no se instala en staging. Registro incondicional en `bootstrap/providers.php:4` → `package:discover Class not found`. Fix: registro condicional en `AppServiceProvider.php:12` solo `local && class_exists(TelescopeApplicationServiceProvider)`, `TELESCOPE_ENABLED=false`.
 > 2. **`artisan serve` single-thread** (evidencia `/ 4.68s` bloquea `/ping 4.42s` concurrente): `php artisan serve` 1 thread en `Render Free` bloquea `/up` detrás de Neon. Migración a `Octane RoadRunner 2 workers` (`6b477bb`, `73d2945`).
 > 3. **FrankenPHP `EPERM`** (`/usr/local/bin/frankenphp: Operation not permitted`): `FrankenPHP/Caddy` requiere `CAP_SYS_ADMIN` bloqueado en Render Free. Migración a `RoadRunner` (Golang, sin `CAP`).
 > 4. **`pcntl` + `sockets` faltantes** (`InteractsWithServers.php:174 SIGINT`, `sockets.c:58 linux/sock_diag.h`): `php:8.4-cli-alpine` no trae `pcntl`/`sockets`; `RoadRunner` los requiere. Fixes: `pcntl` (`10b19a5`) + `sockets` + `linux-headers` (`e56e62c`) en `Dockerfile:18`.
 > 5. **`$PORT` no expandido** (`StartFrankenPhpCommand.php:273 string - int`): `CMD ["php", ... "--port=${PORT:-8000}"]` exec JSON no expande `${PORT}` → `adminPort = 2019 + ("${PORT:-8000}" - 8000)` → `Unsupported operand`. Fix: `CMD ["sh","-c","php artisan octane:start ... --port=${PORT:-8000} ..."]` (`73d2945`).
-> **Estado actual:** deploy en `https://revestimientos.onrender.com` levantado con `Octane RoadRunner 2w` (`pcntl`/`sockets`/`linux-headers`, `PORT` OK), `Neon` con 11 migraciones, sin estilos — pendiente `public/build` (ver §15.1).
+> 6. **Mixed Content `http` detrás de proxy TLS** (`2026-09-01`, `bbfd1fd`): `APP_URL=https://revestimientos.onrender.com` correcto, pero Render termina TLS en LB y reenvía `http + X-Forwarded-Proto:https` a RoadRunner. Sin confiar en el proxy, `Request::getScheme()` queda `http` y `UrlGenerator`/`@vite`/`asset()`/`route()` generan `http://` → navegador bloquea CSS/JS y forms. Fix mínimo idiomático Laravel 12: `$middleware->trustProxies(at:'*')` en `bootstrap/app.php:17` (usa `Illuminate\Http\Middleware\TrustProxies` global, respeta `X-Forwarded-Proto`; local sin header sigue `http`).
+> 7. **Neon sin seed — `users` vacío** (`2026-09-01`): deploy OK pero `users`/`roles`=`0` filas (11 migraciones aplicadas, `audit_logs` vacío). `COPY . .` + `.gitignore: rr` impide que el binario/seed viaje; el seed no está en `CMD`. Fix: seed controlado contra Neon: `docker compose run --rm -e DB_HOST=...neon.tech ... app php artisan db:seed --force` (crea `admin@ceramica.local`/`admin1234` + 3 roles + 4 categorías planas, idempotente vía `updateOrCreate`).
+> **Estado actual:** deploy en `https://revestimientos.onrender.com` **operativo** con `Octane RoadRunner 2w` (`pcntl`/`sockets`/`linux-headers`, `PORT` OK, `trustProxies at:'*'` para HTTPS), `Neon` con 11 migraciones + seed completo (`users=1` admin, `roles=3`, `categories=4`), estilos OK vía `public/build`.
 
-### 15.1 Pendiente — Assets sin estilos (deploy levantado, HTML sin CSS)
+### 15.1 Pendiente histórico — Assets sin estilos (resuelto 2026-09-01)
 
 **Síntoma 2026-08-31:** `https://revestimientos.onrender.com` responde `200` pero sin CSS (solo HTML). `public/build/manifest.json` local existe (`app-Izz6OxUL.css`), `node:22-alpine` en `docker/koyeb/Dockerfile:7` y `docker-compose.yml:77` es correcto para `vite 7.3` + `@tailwindcss/vite 4.3` (exige `node >=20`), `vite.config.js:14` `hmr.host=localhost` corrige `public/hot 0.0.0.0`, `.dockerignore` ignora `/public/hot` pero **no** `/public/build`, `Dockerfile:40` `COPY --from=assets` debería copiar `public/build`.
 
-**Verificaciones pendientes (sin fix aún):**
-1. `assets` stage: `docker build --target assets -t test-assets && docker run --rm test-assets cat public/build/manifest.json` + `ls -lh public/build/assets`
-2. Imagen final: `docker build -t test-final . && docker run --rm test-final ls -lh public/build && cat public/build/manifest.json`
-3. Runtime: `docker run -p 8001:8000 -e PORT=8000 test-final` → `curl -I http://localhost:8001/build/assets/app-*.css` (`200` vs `404`) y `curl -s http://localhost:8001/ | grep build/assets`
+**Verificaciones realizadas:**
+1. `assets` stage: `docker build --target assets -t test-assets && docker run --rm test-assets cat public/build/manifest.json` + `ls -lh public/build/assets` — OK.
+2. Imagen final: `docker build -t test-final . && docker run --rm test-final ls -lh public/build && cat public/build/manifest.json` — OK.
+3. Runtime: `docker run -p 8001:8000 -e PORT=8000 test-final` → `curl -I http://localhost:8001/build/assets/app-*.css` (`200`) y `curl -s http://localhost:8001/ | grep build/assets` — OK.
 
-Si 1-3 pasan local y falla en Render con `Dockerfile Path = docker/koyeb/Dockerfile` no configurado (Render Native sin `npm run build`), el fix es solo `Render Settings → Dockerfile Path` + `NODE_VERSION=22`.
+La causa real no era `public/build` ausente sino **Mixed Content por `http`** (ver §15.2): el HTML generaba `<link href="http://revestimientos.onrender.com/build/assets/...">` y el navegador lo bloqueaba. Con el fix `trustProxies` el HTML ya genera `https://` y los assets cargan.
+
+### 15.2 Fix — Mixed Content HTTPS detrás de proxy (2026-09-01, `bbfd1fd`)
+
+**Síntoma:** `https://revestimientos.onrender.com` con estilos bloqueados (Mixed Content) y forms con `action="http://..."` pese a `APP_URL=https://...` en Render y `vite build` OK (`/build/assets/app-DmkphLA-.css`).
+
+**Causa:** Render termina TLS y proxy a RoadRunner vía `http` + `X-Forwarded-Proto:https`. Sin `$middleware->trustProxies(at:'*')` en `bootstrap/app.php:17`, `Illuminate\Http\Middleware\TrustProxies` deja `Request::setTrustedProxies([], ...)` y nunca confía en `X-Forwarded-Proto` (lógica `TrustProxies.php:67-98` con `proxies=null` sin `*.on-forge.com` auto-trust). `UrlGenerator` usa `request->getScheme()` → `http`.
+
+**Fix:** `bootstrap/app.php:17` `$middleware->trustProxies(at:'*');` (método `Middleware::trustProxies()` → `TrustProxies::at('*')`). Valida `APP_URL=https` sin hardcodear `https`, no toca Vite/Dockerfile/Tailwind y respeta `http` local (sin header sigue `http`).
+
+**Verificación post-fix:** `curl -s https://revestimientos.onrender.com/ | grep build/assets` → `https://`; `vendor/bin/pint --test`, `phpstan analyse`, `php artisan test` (116 tests) en verde.
+
+### 15.3 Seed inicial Neon — base vacía (2026-09-01)
+
+**Síntoma:** `/admin/login` con `admin@ceramica.local / admin1234` rechaza login ("credenciales no coinciden") pese a seed documentado en `README` y `spec 01:35`.
+
+**Diagnóstico:** `SELECT count(*) FROM users` en Neon (`ep-cool-morning-aceox6ow-pooler.sa-east-1.aws.neon.tech/neondb`) → `0` (mismo `roles=0`, `categories=0`), `migrations=11`. El deploy se lanzó antes que terminara el pipeline de CI, sin ejecutar el step controlado de `§11`.
+
+**Fix:** seed idempotente contra Neon (secuencia de `§11`):
+```bash
+docker compose run --rm \
+  -e DB_CONNECTION=pgsql -e DB_HOST=ep-cool-morning-aceox6ow-pooler.sa-east-1.aws.neon.tech \
+  -e DB_PORT=5432 -e DB_DATABASE=neondb -e DB_USERNAME=neondb_owner -e DB_PASSWORD=npg_... -e DB_SSLMODE=require \
+  -e ADMIN_NAME=Admin -e ADMIN_EMAIL=admin@ceramica.local -e ADMIN_PASSWORD=admin1234 \
+  app php artisan db:seed --force
+# Database\Seeders\RolesSeeder 2227ms DONE, AdminSeeder 1448ms DONE, CategoriesSeeder 1079ms DONE
+```
+Resultado: `users=1 (Admin)`, `roles=3`, `categories=4` (porcelanatos, ceramicas, pastinas, adhesivos). Login operativo. Futuros deploys no requieren re-seed salvo `migrate:fresh` (nunca en staging, §11).
 
 ---
 

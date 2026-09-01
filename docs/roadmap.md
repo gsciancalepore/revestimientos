@@ -1,6 +1,6 @@
 # Roadmap
 
-Última actualización: 2026-08-31 (Staging: `docs/deployment/staging.md` migrado `Koyeb → Render` + `RoadRunner 2w`, `Neon` con 11 migraciones, deploy `https://revestimientos.onrender.com` levantado sin estilos pendiente `public/build` §15.1, fixes `cb1002b`/`e56e62c`/`73d2945`).
+Última actualización: 2026-09-01 (Staging: `docs/deployment/staging.md` operativo con estilos y HTTPS correctos, `Neon` 11 migraciones + seed `users=1`/`roles=3`/`categories=4`, `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3, deploy `https://revestimientos.onrender.com` operativo).
 
 ## Definition of Done (aplica a TODAS las fases y specs)
 
