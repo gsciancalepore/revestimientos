@@ -8,21 +8,44 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Services\Cart;
 use App\Services\M2Calculator;
+use App\Services\ShippingCalculator;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class CartController extends Controller
 {
-    public function show(Cart $cart): View
+    public function show(Request $request, Cart $cart, ShippingCalculator $calculator): View
     {
         $lines = $cart->lines();
+        $subtotal = $cart->subtotal();
+        $cp = $request->query('cp') !== null ? trim((string) $request->query('cp')) : null;
+        $shippingQuote = null;
+        $shippingError = null;
+
+        if ($cp !== null && $cp !== '') {
+            if (! preg_match('/^[0-9]{4}$/', $cp)) {
+                $shippingError = 'El código postal debe tener 4 dígitos.';
+            } else {
+                $shippingQuote = $calculator->quote($cp);
+            }
+        }
+
+        $total = null;
+        if ($shippingQuote !== null && $shippingQuote->disponible) {
+            $total = $subtotal + $shippingQuote->costoCents;
+        }
 
         return view('cart.show', [
             'lines' => $lines,
-            'subtotal' => $cart->subtotal(),
+            'subtotal' => $subtotal,
             'hasUnpurchasable' => $cart->hasUnpurchasable(),
             'isEmpty' => $cart->isEmpty(),
             'categorias' => Category::query()->orderBy('sort_order')->get(),
+            'cp' => $cp,
+            'shippingQuote' => $shippingQuote,
+            'shippingError' => $shippingError,
+            'total' => $total,
         ]);
     }
 

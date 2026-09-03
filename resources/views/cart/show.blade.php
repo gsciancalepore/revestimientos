@@ -38,12 +38,14 @@
                 @endforeach
             </div>
 
-            <div class="mt-8 flex flex-col items-end gap-4 border-t border-stone-200 pt-6">
+            <div class="mt-8 flex justify-end border-t border-stone-200 pt-6">
                 <div class="text-right">
                     <p class="text-sm text-stone-500">Subtotal</p>
                     <p class="text-2xl font-bold text-stone-900">${{ number_format($subtotal / 100, 2, ',', '.') }}</p>
                 </div>
+            </div>
 
+            <div class="mt-4 flex justify-end">
                 <form action="{{ route('carrito.clear') }}" method="post">
                     @csrf
                     @method('DELETE')
@@ -51,5 +53,26 @@
                 </form>
             </div>
         @endif
+
+        <div class="mt-8 rounded-lg border border-stone-200 bg-white p-4">
+            <h2 class="text-sm font-semibold text-stone-700">Calcular envío</h2>
+            <form method="get" action="{{ route('carrito.show') }}" class="mt-3 flex gap-2">
+                <input type="text" name="cp" value="{{ $cp ?? '' }}" maxlength="4" pattern="[0-9]{4}" placeholder="CP (4 dígitos)" class="w-32 rounded-md border-stone-300 text-sm shadow-sm focus:border-orange-500 focus:ring-orange-500" />
+                <button type="submit" class="rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700">Calcular</button>
+            </form>
+            @isset($shippingError)
+                <p class="mt-2 text-sm text-red-600">{{ $shippingError }}</p>
+            @endisset
+            @isset($shippingQuote)
+                @if ($shippingQuote->disponible)
+                    <p class="mt-2 text-sm text-stone-700">Envío: ${{ number_format($shippingQuote->costoCents / 100, 2, ',', '.') }}</p>
+                    @isset($total)
+                        <p class="mt-1 text-lg font-bold text-stone-900">Total: ${{ number_format($total / 100, 2, ',', '.') }}</p>
+                    @endisset
+                @else
+                    <p class="mt-2 text-sm text-amber-700">Envío no disponible para este CP</p>
+                @endif
+            @endisset
+        </div>
     </div>
 </x-layouts.site>

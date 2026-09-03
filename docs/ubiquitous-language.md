@@ -54,6 +54,10 @@ sentido, es un bug de lenguaje.
 | **Línea del carrito** | Entrada del carrito: referencia a un producto + cantidad comercial entera (cajas si `m2`, unidades si `unidad`). Derivada de m²→cajas con `ceil` y 10 % desperdicio opcional antes de `ceil`. | 3 cajas de porcelanato; 2 bolsas de pastina |
 | **Subtotal** | Suma de subtotales de líneas comprables (`precio_vigente × cantidad`, con precio por caja derivado en `m2` según `Spec 03/ADR-003`). No incluye envío ni total final. | `subtotal = Σ subtotal_línea` |
 | **Comprable / No comprable** | Condición derivada al leer el carrito: línea comprable si `activo && cantidad ≤ stock`; si no, figura como no comprable, se informa y bloquea el avance a checkout hasta corregir/eliminar (sin estado persistente). | "Stock insuficiente — quedan 2 cajas" |
+| **Tarifa de envío** | Costo de entrega por código postal exacto (4 dígitos, string con ceros). Una tarifa activa por CP (`CHECK ≥0`, `costo_cents` en centavos, 0 = gratis). | CP `1407` → $ 15.000,00 |
+| **Cotización de envío** | Resultado de consultar `ShippingCalculator` por CP: `disponible` con costo o `no disponible` sin excepción si no hay tarifa activa. | "Envío: $ 50,00" / "Envío no disponible" |
+| **Código postal (CP)** | Cadena de 4 dígitos (`^[0-9]{4}$`) única variable para tarifa. Conserva ceros iniciales. | `0123`, `1407` |
+| **Total** | `subtotal + shipping` cuando la cotización está disponible; sin cotización no hay total con envío y el checkout no puede continuar. | Total: $ 250,00 |
 
 ## Sinónimos prohibidos
 

@@ -15,6 +15,7 @@ calculadora de m² → cajas y panel para operar productos, pedidos y stock.
 - **Spec 03 — Productos**: [`docs/specs/03-productos.md`](docs/specs/03-productos.md)
 - **Spec 04 — Catálogo público**: [`docs/specs/04-catalogo-publico.md`](docs/specs/04-catalogo-publico.md)
 - **Spec 05 — Carrito**: [`docs/specs/05-carrito.md`](docs/specs/05-carrito.md)
+- **Spec 06 — Envío por CP**: [`docs/specs/06-envio.md`](docs/specs/06-envio.md)
 - **Spec — Calidad de onboarding** (runbook y docs para agentes): [`docs/specs/calidad-onboarding.md`](docs/specs/calidad-onboarding.md)
 - **Arquitectura**: [`docs/arquitectura.md`](docs/arquitectura.md)
 - **Roadmap** (fases + Definition of Done): [`docs/roadmap.md`](docs/roadmap.md)
