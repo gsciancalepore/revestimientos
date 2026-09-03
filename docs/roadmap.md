@@ -1,6 +1,6 @@
 # Roadmap
 
-Última actualización: 2026-09-03 (Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 11 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1`, `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte; Spec 05 Carrito cerrada 135 tests).
+Última actualización: 2026-09-03 (Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 12 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates`, `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte; Spec 06 Envío cerrada 158 tests).
 
 ## Definition of Done (aplica a TODAS las fases y specs)
 
@@ -42,7 +42,7 @@ Cada spec se implementa en orden; cada una depende de la anterior
 | 03 | Productos | Dos modos de venta (m² y unidad), atributos híbridos (columnas tipadas + `specs` JSONB por familia), código único, precios, ofertas, stock, imágenes | Products | ✅ cerrada (2026-08-05): 93 tests en verde, Pint/PHPStan alineados |
 | 04 | Catálogo público | Home, categorías, filtros, ficha con calculadora m²→cajas (modo m²), stock visible, ofertas | Products | ✅ cerrada (2026-08-06): 116 tests en verde, Pint/PHPStan alineados |
 | 05 | Carrito | Carrito anónimo en sesión, líneas por producto, derivación m²→cajas con `M2Calculator` y 10 % desperdicio antes de `ceil`, validación `cantidad ≤ stock` e `activo`, acumulación/actualización/eliminar/vaciar, `subtotal` sí / `total` no, condición derivada no comprable (sin estado) | Orders | ✅ cerrada (2026-09-03): 135 tests en verde, Pint/PHPStan alineados |
-| 06 | Envío | Adaptador de envío por CP (ADR-006) — `ShippingCalculator` + tarifas por zona | Orders | pendiente |
+| 06 | Envío | Tarifa única por CP exacto 4 dígitos, `ShippingCalculator` + `ManualShippingCalculator` con `shipping_rates` (CHECK ≥0, único parcial activo), cotización `disponible`/no disponible sin excepción, CRUD admin y `total = subtotal + shipping` en carrito | Orders | ✅ cerrada (2026-09-03): 158 tests en verde, Pint/PHPStan alineados |
 | 07 | Checkout | Compra anónima, MercadoPago, transferencia con confirmación manual, creación del pedido | Orders + Payments | pendiente |
 | 08 | Gestión de pedidos | Estados, vista depósito, ventas WhatsApp manuales, restitución de stock | Orders | pendiente |
 | 09 | Descuentos (opcional) | Por forma de pago y por monto de compra | Orders | pendiente |
@@ -66,7 +66,7 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 ## Cómo continuar
 
-- **Próximo paso**: implementar la **Spec 06 (Envío)** — adaptador de envío por CP (`ShippingCalculator` + tarifas por zona, ADR-006) sobre el carrito de Spec 05.
+- **Próximo paso**: implementar la **Spec 07 (Checkout)** — compra anónima, MercadoPago y transferencia con creación de pedido (congela `subtotal + shipping`).
 - **Proceso**: spec aprobada por el dueño → rama nueva (`feat/...`) → TDD (red → green → refactor) →
   verificación local (Pint, PHPStan nivel 8, Pest) → Pull Request a `main` con CI en verde → merge (el CI
   valida la misma secuencia; `main` despliega a staging).
@@ -78,5 +78,6 @@ Cada spec se implementa en orden; cada una depende de la anterior
   ficha con calculadora m²→cajas (Alpine), slug de producto y layout público
   `layouts/site`.
 - **Nota (2026-09-03)**: la **Spec 05 quedó cerrada** — carrito anónimo en sesión (reglas 81–92, `Cart` + `M2Calculator` reuso, `subtotal` sí / `total` no), validación stock `cantidad ≤ stock` e `activo`, condición derivada no comprable sin estado, 19 tests nuevos (135 totales).
+- **Nota (2026-09-03)**: la **Spec 06 quedó cerrada** — envío por CP exacto 4 dígitos con una tarifa activa por CP (`shipping_rates` CHECK ≥0, único parcial), `ShippingCalculator` + `ManualShippingCalculator` (cotización `disponible`/no disponible sin excepción, ceros iniciales, costo 0), CRUD admin y `total = subtotal + shipping` en carrito, 23 tests nuevos (158 totales).
 - **Contexto para agentes nuevos**: `.ai/rules/index.md` mapea las reglas
   durables del repo; el runbook de arranque está en el README.

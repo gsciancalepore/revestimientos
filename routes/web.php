@@ -5,6 +5,7 @@ use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ShippingRateController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +43,9 @@ Route::middleware('auth')->prefix('admin')->group(function () {
         Route::resource('productos', ProductController::class)
             ->except(['show'])
             ->parameters(['productos' => 'product']);
+
+        Route::resource('tarifas-envio', ShippingRateController::class)
+            ->parameters(['tarifas-envio' => 'tarifa_envio']);
     });
 });
 

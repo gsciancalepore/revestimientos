@@ -1,6 +1,6 @@
 # Arquitectura
 
-Última actualización: 2026-09-03 (Fase 0 + Spec 01-05 + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 11 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto; Spec 05 Carrito en sesión con `Cart` + `M2Calculator` reuso). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
+Última actualización: 2026-09-03 (Fase 0 + Spec 01-06 + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 12 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto; Spec 06 Envío por CP con `ShippingCalculator` + `ManualShippingCalculator`). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
 
 ## Visión general
 
@@ -119,10 +119,10 @@ Implementado en la Spec 01 (Breeze + Spatie, ver ADR-007):
 Implementado en la Spec 02 (revisada 2026-08-05: **categorías planas**):
 
 - **Layout del panel**: `layouts/app` con **sidebar lateral** (`layouts/navigation`)
-  + área de contenido. El sidebar muestra las secciones según el rol del usuario:
-  Dashboard (todos), Usuarios y Categorías (solo admin); **placeholders
-  deshabilitados** de Productos, Pedidos y Ventas WhatsApp (recordatorio de las
-  specs 03/07/08).
+   + área de contenido. El sidebar muestra las secciones según el rol del usuario:
+   Dashboard (todos), Usuarios, Categorías, Productos y Tarifas de envío (solo admin); **placeholders
+   deshabilitados** de Pedidos y Ventas WhatsApp (recordatorio de las
+   specs 07/08).
 - **Categorías** en `/admin/categorias` (middleware `role:admin` +
   `CategoryPolicy`): modelo `Category` **sin jerarquía** (`name`, `slug`,
   `sort_order`). La revisión del 2026-08-05 **elimina `parent_id`** (las
@@ -223,11 +223,15 @@ Implementado en la **Spec 05** (cliente anónimo, sin reserva de stock, `subtota
   automática de tarjeta).
 - Transferencia bancaria: confirmación manual desde el admin (`ConfirmPaymentAction`).
 
-## Envíos (Shipping)
+## Envíos (Shipping — Spec 06)
 
-- Puerto: interfaz `ShippingCalculator` (`quote(PostalCode, ...) → Money`).
-- Implementación inicial: tarifas internas (por CP o zona, cargadas desde admin).
-- Futuro: API de cotización externa sin tocar el dominio (ADR-006).
+Implementado en la **Spec 06** (tarifa única por CP exacto, `total = subtotal + shipping` cuando disponible):
+
+- **Tabla `shipping_rates`** (`id`, `cp` varchar 4, `costo_cents` bigint con `CHECK >=0`, `activo` bool, índice `cp` + índice único parcial `UNIQUE(cp) WHERE activo=true` para garantizar una tarifa activa por CP). `cp` como string conserva ceros (`0123`). Modelo `ShippingRate` con scope `activo()`.
+- **Puerto `ShippingCalculator` + `ManualShippingCalculator`** (ADR-006): `quote(string $cp): ShippingQuote` consulta `shipping_rates` por `cp` exacto `trim` y `activo`; `disponible=true` con `costoCents` o `disponible=false` sin excepción si no hay tarifa. Binding en `AppServiceProvider`. Validación CP `^[0-9]{4}$` (422 si vacío/inválido); `costo 0` = envío gratis.
+- **Administración** en `/admin/tarifas-envio` (solo `role:admin` + `ShippingRatePolicy`): CRUD con Form Requests o equivalente, validación CP 4 dígitos + unicidad parcial tarifa activa + `costo_cents` entero ≥0. Sidebar `Tarifas de envío` habilitada.
+- **Integración en carrito** (`CartController::show` + `cart/show`): campo CP → `ShippingCalculator::quote()` → muestra `Envío: $` o `Envío no disponible`, y `Total: $` cuando `disponible`. `subtotal` no cambia por cotizar; `total = subtotal + shipping` solo si `disponible`, sino checkout bloqueado (regla 100).
+- **Sin anticipación**: sin zonas/rangos/precedencias/peso/distancia/API externa; evolución solo como reemplazo del binding (sin diseñar contrato API en esta spec).
 
 ## Stock (Inventory mínimo)
 
