@@ -16,7 +16,7 @@ Una fase/spec se considera terminada **solo** cuando cumple todo:
 - [ ] Sin TODOs
 - [ ] Sin código comentado
 - [ ] Sin warnings
-- [ ] Merge a `main`
+- [ ] Merge a `main` vía Pull Request ( `main` es protegida y despliega a staging; no se hace push directo)
 
 ## Estado de fases
 
@@ -67,9 +67,9 @@ Cada spec se implementa en orden; cada una depende de la anterior
 ## Cómo continuar
 
 - **Próximo paso**: implementar la **Spec 06 (Envío)** — adaptador de envío por CP (`ShippingCalculator` + tarifas por zona, ADR-006) sobre el carrito de Spec 05.
-- **Proceso**: spec aprobada por el dueño → TDD (red → green → refactor) →
-  verificación local (Pint, PHPStan nivel 8, Pest) → merge a `main` (el CI
-  valida la misma secuencia).
+- **Proceso**: spec aprobada por el dueño → rama nueva (`feat/...`) → TDD (red → green → refactor) →
+  verificación local (Pint, PHPStan nivel 8, Pest) → Pull Request a `main` con CI en verde → merge (el CI
+  valida la misma secuencia; `main` despliega a staging).
 - **Nota (revisión 2026-08-05)**: la Spec 02 quedó revisada a **categorías
   planas** (se eliminó `parent_id` de `categories` con migración) y la **Spec 03
   quedó cerrada** (productos con dos modos de venta y atributos híbridos).

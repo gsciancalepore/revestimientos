@@ -93,3 +93,8 @@ no necesita PHP ni Node. El Makefile lo resume:
   (ver `PROJECT_PRINCIPLES.md`).
 - CI en GitHub Actions: Pint → PHPStan → Pest (`ci.yml`).
 - Definition of Done por fase en `docs/roadmap.md`.
+
+## Flujo de trabajo (desde 2026-09-03)
+
+- `main` es **staging** (protegida) y despliega a `Render + Neon` (`docs/deployment/staging.md`). No se hace push directo.
+- Todo desarrollo va en rama nueva (`feat/...`, `fix/...`) → Pull Request a `main` con CI en verde → merge.

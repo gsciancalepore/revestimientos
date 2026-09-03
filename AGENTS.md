@@ -192,6 +192,7 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
   tarea lo solicite explícitamente. Única excepción a `docs/roadmap.md`:
   actualizar la columna "Estado" de la fila de la spec en curso y la fecha de
   "Última actualización". `docs/specs/` y `docs/adr/` jamás se editan.**
+- **Flujo de ramas y PRs (vigente desde 2026-09-03): `main` es staging y está protegida — apunta a `Render + Neon` (`docs/deployment/staging.md`). Todo desarrollo va en rama nueva (`feat/...`, `fix/...`) y se integra a `main` vía Pull Request con CI en verde. Push directo a `main` queda como excepción histórica (Spec 05, `a8bd92d`); a partir de ahora no se usa.**
 
 ## Orden de lectura antes de implementar
 
