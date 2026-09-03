@@ -1,3 +1,5 @@
+@props(['categorias' => null])
+
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
@@ -23,6 +25,7 @@
                     <nav class="flex items-center gap-6 text-sm font-medium text-stone-600">
                         <a href="{{ route('catalogo.index') }}" class="hover:text-orange-700">Catálogo</a>
                         <a href="{{ route('catalogo.ofertas') }}" class="hover:text-orange-700">Ofertas</a>
+                        <a href="{{ route('carrito.show') }}" class="hover:text-orange-700">Carrito</a>
                     </nav>
                 </div>
 

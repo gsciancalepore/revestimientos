@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
@@ -12,6 +13,12 @@ Route::get('/catalogo', [CatalogController::class, 'catalogo'])->name('catalogo.
 Route::get('/categorias/{categoria:slug}', [CatalogController::class, 'categoria'])->name('catalogo.categoria');
 Route::get('/ofertas', [CatalogController::class, 'ofertas'])->name('catalogo.ofertas');
 Route::get('/productos/{producto:slug}', [CatalogController::class, 'producto'])->name('catalogo.producto');
+
+Route::get('/carrito', [CartController::class, 'show'])->name('carrito.show');
+Route::post('/carrito/agregar', [CartController::class, 'add'])->name('carrito.add');
+Route::patch('/carrito/{producto:slug}', [CartController::class, 'update'])->name('carrito.update');
+Route::delete('/carrito/{producto:slug}', [CartController::class, 'remove'])->name('carrito.remove');
+Route::delete('/carrito', [CartController::class, 'clear'])->name('carrito.clear');
 
 Route::middleware('auth')->prefix('admin')->group(function () {
     Route::get('/', function () {

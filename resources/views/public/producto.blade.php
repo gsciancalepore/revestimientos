@@ -73,9 +73,34 @@
                     </div>
                 @endif
 
+                <div class="mt-6 flex flex-col gap-3">
+                    <form action="{{ route('carrito.add') }}" method="post" class="rounded-lg border border-stone-200 bg-white p-4">
+                        @csrf
+                        <input type="hidden" name="producto" value="{{ $producto->slug }}">
+                        @if ($esPorM2)
+                            <h2 class="text-sm font-semibold uppercase tracking-wide text-stone-500">Agregar al carrito</h2>
+                            <div class="mt-3">
+                                <label for="add-superficie" class="text-sm font-medium text-stone-700">Superficie (m²)</label>
+                                <input id="add-superficie" type="number" name="superficie" step="0.01" min="0.01" placeholder="Ej. 12.5" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
+                            </div>
+                            <label class="mt-3 flex items-center gap-2 text-sm font-medium text-stone-700">
+                                <input type="checkbox" name="desperdicio" value="1" class="rounded border-stone-300 text-orange-600 shadow-sm focus:ring-orange-500">
+                                Incluir 10 % de desperdicio
+                            </label>
+                            <p class="mt-2 text-xs text-stone-400">Se calcularán las cajas necesarias ({{ $producto->m2_por_caja }} m² por caja).</p>
+                        @else
+                            <h2 class="text-sm font-semibold uppercase tracking-wide text-stone-500">Agregar al carrito</h2>
+                            <div class="mt-3">
+                                <label for="add-cantidad" class="text-sm font-medium text-stone-700">Cantidad (unidades)</label>
+                                <input id="add-cantidad" type="number" name="cantidad" min="1" value="1" class="mt-1 block w-24 rounded-md border-stone-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
+                            </div>
+                        @endif
+                        <button type="submit" class="mt-4 w-full rounded-md bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800">Agregar al carrito</button>
+                    </form>
+
                 @if ($esPorM2)
                     <div
-                        class="mt-6 rounded-lg border border-stone-200 bg-white p-4"
+                        class="rounded-lg border border-stone-200 bg-white p-4"
                         x-data="calculadoraM2({{ $producto->m2_por_caja ?? 1 }})"
                     >
                         <h2 class="text-sm font-semibold uppercase tracking-wide text-stone-500">Calculadora m² → cajas</h2>
@@ -139,6 +164,7 @@
                         <p class="mt-3 text-xs text-stone-400">La calculadora solo estima las cajas; el pedido se confirma con un asesor.</p>
                     </div>
                 @endif
+                </div>
             </div>
         </div>
     </div>

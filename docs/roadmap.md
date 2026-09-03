@@ -1,6 +1,6 @@
 # Roadmap
 
-Última actualización: 2026-09-01 (Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 11 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1`, `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte).
+Última actualización: 2026-09-03 (Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 11 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1`, `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte; Spec 05 Carrito cerrada 135 tests).
 
 ## Definition of Done (aplica a TODAS las fases y specs)
 
@@ -41,8 +41,8 @@ Cada spec se implementa en orden; cada una depende de la anterior
 | 02 | Panel + Categorías | Layout admin con sidebar, CRUD de categorías | Products | ✅ cerrada (2026-08-05): 79 tests en verde, Pint/PHPStan alineados. **Revisada (2026-08-05): categorías planas** (Porcelanatos, Cerámicas, Pastinas, Adhesivos; sin jerarquía) para el modelo de Spec 03 |
 | 03 | Productos | Dos modos de venta (m² y unidad), atributos híbridos (columnas tipadas + `specs` JSONB por familia), código único, precios, ofertas, stock, imágenes | Products | ✅ cerrada (2026-08-05): 93 tests en verde, Pint/PHPStan alineados |
 | 04 | Catálogo público | Home, categorías, filtros, ficha con calculadora m²→cajas (modo m²), stock visible, ofertas | Products | ✅ cerrada (2026-08-06): 116 tests en verde, Pint/PHPStan alineados |
-| 05 | Reglas del carrito | Spec de reglas: cajas enteras, desperdicio 10 %, stock/precio en cambio, reserva y vencimiento | Orders | pendiente |
-| 06 | Carrito + Envío | Implementación del carrito + adaptador de envío por CP (ADR-006) | Orders | pendiente |
+| 05 | Carrito | Carrito anónimo en sesión, líneas por producto, derivación m²→cajas con `M2Calculator` y 10 % desperdicio antes de `ceil`, validación `cantidad ≤ stock` e `activo`, acumulación/actualización/eliminar/vaciar, `subtotal` sí / `total` no, condición derivada no comprable (sin estado) | Orders | ✅ cerrada (2026-09-03): 135 tests en verde, Pint/PHPStan alineados |
+| 06 | Envío | Adaptador de envío por CP (ADR-006) — `ShippingCalculator` + tarifas por zona | Orders | pendiente |
 | 07 | Checkout | Compra anónima, MercadoPago, transferencia con confirmación manual, creación del pedido | Orders + Payments | pendiente |
 | 08 | Gestión de pedidos | Estados, vista depósito, ventas WhatsApp manuales, restitución de stock | Orders | pendiente |
 | 09 | Descuentos (opcional) | Por forma de pago y por monto de compra | Orders | pendiente |
@@ -66,9 +66,7 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 ## Cómo continuar
 
-- **Próximo paso**: escribir y aprobar la **Spec 05 (Reglas del carrito)** —
-  cajas enteras, desperdicio 10 %, stock/precio en cambio, reserva y vencimiento
-  (dominio Orders). Seguir el mismo formato de las specs existentes.
+- **Próximo paso**: implementar la **Spec 06 (Envío)** — adaptador de envío por CP (`ShippingCalculator` + tarifas por zona, ADR-006) sobre el carrito de Spec 05.
 - **Proceso**: spec aprobada por el dueño → TDD (red → green → refactor) →
   verificación local (Pint, PHPStan nivel 8, Pest) → merge a `main` (el CI
   valida la misma secuencia).
@@ -79,5 +77,6 @@ Cada spec se implementa en orden; cada una depende de la anterior
   público: home con destacados, listados con filtros combinables y búsqueda,
   ficha con calculadora m²→cajas (Alpine), slug de producto y layout público
   `layouts/site`.
+- **Nota (2026-09-03)**: la **Spec 05 quedó cerrada** — carrito anónimo en sesión (reglas 81–92, `Cart` + `M2Calculator` reuso, `subtotal` sí / `total` no), validación stock `cantidad ≤ stock` e `activo`, condición derivada no comprable sin estado, 19 tests nuevos (135 totales).
 - **Contexto para agentes nuevos**: `.ai/rules/index.md` mapea las reglas
   durables del repo; el runbook de arranque está en el README.

@@ -1,6 +1,6 @@
 # Arquitectura
 
-Última actualización: 2026-09-01 (Fase 0 + Spec 01-04 + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 11 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
+Última actualización: 2026-09-03 (Fase 0 + Spec 01-05 + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 11 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto; Spec 05 Carrito en sesión con `Cart` + `M2Calculator` reuso). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
 
 ## Visión general
 
@@ -203,8 +203,19 @@ Implementado en la **Spec 04** (cliente web anónimo, Spec 00 regla 27):
   calculadora de la ficha es un widget Alpine de estimación (no agrega al
   carrito).
 - **Stock visible** (regla 73–74): "Quedan N cajas/unidades"; sin stock se
-  muestra el badge "Sin stock" y no hay acción de compra (el carrito llega con
-  las Specs 05/06).
+   muestra el badge "Sin stock" y no hay acción de compra (el carrito llega con
+   las Specs 05/06).
+
+## Carrito (Orders — Spec 05)
+
+Implementado en la **Spec 05** (cliente anónimo, sin reserva de stock, `subtotal` sí / `total` no):
+
+- **Carrito en sesión** (regla 81): `session('cart')` como `array<product_id, cantidad>` (YAGNI: sin tabla `carts`, `docs/arquitectura.md:58-65`). No reserva stock; no persiste en DB.
+- **Líneas**: cada línea referencia `Product` + `cantidad` entera (cajas si `M2`, unidades si `Unidad`, regla 82). Derivación m²→cajas con `M2Calculator::cajasNecesarias` y `aplicarDesperdicio` (10 % antes de `ceil`, regla 84); la cantidad almacenada es siempre entero de cajas. Subtotal línea reutiliza semántica `Spec 03/ADR-003`: `precio_cents` directo en `Unidad`, `precio_caja_cents = round(precio_cents × m2_por_caja)` en `M2` (regla 87).
+- **Validaciones** (reglas 85–86): `cantidad ≤ stock` en la unidad de `unidad_venta` y `activo==true`; agregar acumula (regla 89) y actualizar reemplaza (regla 90); cantidad 0 elimina. Exceder stock (ej. 3→4) se rechaza con error.
+- **Condición derivada al leer** (regla 92): línea comprable si `activo && cantidad ≤ stock`; si no, figura como no comprable (sin estado persistente `no_disponible`) y bloquea avance a checkout. `Cart::lines()` enriquece con `precioUnitario`, `subtotal`, `comprable`; `subtotal()` suma solo líneas comprables; `hasUnpurchasable()` indica bloqueo.
+- **`Cart` + `CartController` delgado** (`show`, `add`, `update`, `remove`, `clear`) + `AddToCartRequest`/`UpdateCartRequest`. Rutas públicas `GET /carrito`, `POST /carrito/agregar`, `PATCH /carrito/{producto:slug}`, `DELETE /carrito/{producto:slug}`, `DELETE /carrito`.
+- **Vistas**: `cart/show` (layout `layouts/site` con `categorias` prop) + componente `cart-line` (precio, cantidad, subtotal, badge no comprable). Form de agregar en `public/producto` (superficie + desperdicio para `M2`, cantidad para `Unidad`). Sin `ShippingCalculator`/`DiscountCalculator`/`precio_congelado_cents` en esta spec; evolución `06: total=subtotal+shipping`, `09: total=subtotal+shipping-discount` solo documentada; reserva diferida vinculada a `ADR-005`.
 
 ## Pagos (Payments)
 

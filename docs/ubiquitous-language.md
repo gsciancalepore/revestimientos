@@ -50,6 +50,10 @@ sentido, es un bug de lenguaje.
 | **Ficha de producto** | Página pública de un producto con specs de la familia, precio según unidad de venta, oferta, stock y calculadora (solo modo m²). | URL `/productos/{slug}` |
 | **Destacados** | Productos activos con oferta activa mostrados en la home. | "Destacados con oferta" |
 | **Slug** | Identificador legible y único de una categoría o producto, usado en las URLs públicas. Se auto-genera del nombre y es editable por el admin. | `/productos/porcelanato-gris` |
+| **Carrito** | Contenedor anónimo en sesión del cliente: conjunto de líneas con productos y cantidades a comprar. No reserva stock; vive en sesión del navegador. | `/carrito` — subtotal sí, total no (sin envío en Spec 05) |
+| **Línea del carrito** | Entrada del carrito: referencia a un producto + cantidad comercial entera (cajas si `m2`, unidades si `unidad`). Derivada de m²→cajas con `ceil` y 10 % desperdicio opcional antes de `ceil`. | 3 cajas de porcelanato; 2 bolsas de pastina |
+| **Subtotal** | Suma de subtotales de líneas comprables (`precio_vigente × cantidad`, con precio por caja derivado en `m2` según `Spec 03/ADR-003`). No incluye envío ni total final. | `subtotal = Σ subtotal_línea` |
+| **Comprable / No comprable** | Condición derivada al leer el carrito: línea comprable si `activo && cantidad ≤ stock`; si no, figura como no comprable, se informa y bloquea el avance a checkout hasta corregir/eliminar (sin estado persistente). | "Stock insuficiente — quedan 2 cajas" |
 
 ## Sinónimos prohibidos
 
