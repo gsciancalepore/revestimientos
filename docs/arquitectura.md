@@ -1,6 +1,6 @@
 # Arquitectura
 
-Última actualización: 2026-09-03 (Fase 0 + Spec 01-06 + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 12 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto; Spec 06 Envío por CP con `ShippingCalculator` + `ManualShippingCalculator`). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
+Última actualización: 2026-09-03 (Fase 0 + Spec 01-06 + Spec 07.1 borrador aprobado + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto; Spec 06 Envío por CP con `ShippingCalculator` + `ManualShippingCalculator`; Spec 07.1 Fase 1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway` `name()` solo). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
 
 ## Visión general
 
@@ -24,6 +24,7 @@ Dominios actuales (ADR-001): **Products, Orders, Payments, Users**.
 ```
 app/
 ├── Actions/          → un caso de uso por clase (CreateProductAction, ConfirmPaymentAction…)
+├── Contracts/        → puertos / interfaces (PaymentGateway — Fase 1 solo name(), Fase 2 resuelve multi-gateway)
 ├── DTOs/             → contratos tipados que cruzan capas (ej: CheckoutData)
 ├── Enums/            → estados y opciones cerradas (OrderStatus, PaymentMethod, Role…)
 ├── Events/           → eventos de dominio (OrderPaid, ProductPriceChanged…)
@@ -38,7 +39,7 @@ app/
 └── Services/         → servicios de infraestructura (pagos, envíos, imágenes)
 ```
 
-> De las carpetas del árbol, hoy existen: `Actions/`, `Enums/`, `Http/`,
+> De las carpetas del árbol, hoy existen: `Actions/`, `Contracts/` (excepción aprobada: puertos externos `PaymentGateway` Fase 1 `name()` solo, análogo a `ShippingCalculator` en `Services/`), `Enums/`, `Http/`,
 > `Models/`, `Policies/`, `Services/` (y `View/`, `Providers/` del framework).
 > `DTOs/`, `Events/`, `Listeners/` y `Jobs/` son **previstas**: se crean cuando
 > la primera spec las justifique (no crearlas antes).
@@ -217,11 +218,22 @@ Implementado en la **Spec 05** (cliente anónimo, sin reserva de stock, `subtota
 - **`Cart` + `CartController` delgado** (`show`, `add`, `update`, `remove`, `clear`) + `AddToCartRequest`/`UpdateCartRequest`. Rutas públicas `GET /carrito`, `POST /carrito/agregar`, `PATCH /carrito/{producto:slug}`, `DELETE /carrito/{producto:slug}`, `DELETE /carrito`.
 - **Vistas**: `cart/show` (layout `layouts/site` con `categorias` prop) + componente `cart-line` (precio, cantidad, subtotal, badge no comprable). Form de agregar en `public/producto` (superficie + desperdicio para `M2`, cantidad para `Unidad`). Sin `ShippingCalculator`/`DiscountCalculator`/`precio_congelado_cents` en esta spec; evolución `06: total=subtotal+shipping`, `09: total=subtotal+shipping-discount` solo documentada; reserva diferida vinculada a `ADR-005`.
 
-## Pagos (Payments)
+## Pedidos (Orders — Spec 07.1 Fase 1 Estructura)
 
-- MercadoPago: se integra detrás de un puerto `PaymentGateway` (confirmación
-  automática de tarjeta).
-- Transferencia bancaria: confirmación manual desde el admin (`ConfirmPaymentAction`).
+Estructura aprobada en `docs/specs/07-checkout.md:1` (borrador 07.1). Fase 1 **solo persistencia y contratos**, sin lógica.
+
+- **Tablas `orders`/`order_lines`** (`2026_09_03_162109`/`162110`): `orders` (`status` string enum `OrderStatus`, `customer_name/email/phone`, `shipping_cp` varchar 4, `shipping_address` nullable, `shipping_cost_cents`/`subtotal_cents`/`total_cents` bigint `CHECK >=0`, `payment_method` nullable string, índices `status`/`customer_email`); `order_lines` (`order_id` FK `cascadeOnDelete`, `product_id` FK `restrictOnDelete` — trazabilidad + snapshot histórico, `product_name/codigo/marca/unidad_venta/m2_por_caja` decimal(8,2) nullable, `cantidad` unsignedInteger `CHECK >0` entero positivo `M2→cajas`/`Unidad→unidades`, `precio_unitario_cents`/`subtotal_cents` bigint `CHECK >=0`, `specs` jsonb).
+- **Congelado**: `order_lines` snapshot desnormalizado (`product_name/codigo/marca/specs/m2_por_caja`) independiente de `products`; `shipping_cost_cents` snapshot de `ShippingQuote` al crear pedido, no se recalcula; DB solo garantiza `>=0`, Fase 2 garantiza `subtotal_linea = cantidad×precio_unitario` y `total = subtotal+shipping` con `bcmath`.
+- **Estados** `OrderStatus` (`PendingPayment='pending_payment'`, `Paid`, `Shipped`, `Delivered`, `Cancelled`) valores inglés + `label()` español; grafo `pending_payment→paid→shipped→delivered` con `cancelled` desde `pending_payment/paid/shipped` — Fase 1 solo enum como contrato, sin state machine.
+- **Modelos** `Order` (`status` cast `OrderStatus`, casts centavos `integer`, `lines(): HasMany`, scopes `pendingPayment/paid/byEmail/byStatus`) y `OrderLine` (`order()/product(): BelongsTo`, `m2_por_caja string` nunca float, `specs array`).
+- **Factories** `OrderFactory`/`OrderLineFactory` con estados `paid/shipped/cancelled` y `m2Mode/unitMode`.
+
+## Pagos (Payments — Spec 07.1 Fase 1)
+
+Fase 1 solo puerto minimalista.
+
+- **Contrato** `App\Contracts\PaymentGateway` con únicamente `name(): string`; `App\Services\ManualTransferGateway` devuelve `transferencia`; binding `AppServiceProvider` adaptador inicial. `ShippingCalculator` permanece en `Services/` por `ADR-006`; `Contracts/` es excepción aprobada para puertos externos. Estrategia `payment_method → gateway` y operaciones `createPreference/webhook/confirm` pertenecen a Fase 2 (YAGNI).
+- MercadoPago/transferencia completos: `ConfirmPaymentAction` y multi-gateway en Fase 2.
 
 ## Envíos (Shipping — Spec 06)
 
@@ -243,9 +255,9 @@ Implementado en la **Spec 06** (tarifa única por CP exacto, `total = subtotal +
 ## Dinero y unidades
 
 - Montos en **centavos (BIGINT)**; m² como decimal con precisión controlada;
-  cálculos con bcmath (ADR-003).
+  cálculos con bcmath (ADR-003). `Order`/`OrderLine` congelan `subtotal_cents`/`total_cents`/`shipping_cost_cents` como snapshot, no recalculan.
 - **Dos modos de venta** (`unidad_venta`): precio/stock en cajas (modo `m2`) o en
-  unidades (modo `unidad`); `precio_caja` se deriva solo en modo `m2` (Spec 03).
+  unidades (modo `unidad`); `precio_caja` se deriva solo en modo `m2` (Spec 03). `OrderLine.cantidad` entera positiva (`M2→cajas`, `Unidad→unidades`), `m2_por_caja` `decimal(8,2) → string` nunca float.
 
 ## Observabilidad (estructura reservada — no implementar en MVP)
 
