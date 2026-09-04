@@ -1,6 +1,6 @@
 # Spec 07 Fase 3 — Checkout: HTTP + formulario + confirmación
-
 - **Estado**: cerrada (2026-09-03) — 196 tests verde, implementada en `feat/checkout-07-fase3-http` (extiende 07.1 estructura + 07.2 `PlaceOrderAction`; no modifica `07-checkout.md` ni `07-checkout-fase2.md`; no implementa `ConfirmPaymentAction`)
+
 - **Fuentes**: Spec 07.1 (101–107 estructura `orders`/`order_lines`, `OrderStatus`, `PaymentGateway name()` solo), Spec 07.2 (108–114 `PlaceOrderAction`, `Cart::clear` post-commit, `bcmath`, `lockForUpdate`, `ShippingQuote`, `audit`), Spec 00 (13–14 anónimo, 15–18 envío, 19–23 pedido, 24–26 pagos), Spec 05 (81–92 carrito, 88 subtotal, 92 `hasUnpurchasable`), Spec 06 (93–100 `ShippingCalculator`/`ShippingQuote`), ADR-003 (centavos + `M2Calculator`), ADR-004 (audit), ADR-006 (puertos), `AGENTS.md` (controladores delgados, `FormRequest`, `Policies`), `.ai/rules/*`
 
 ## Objetivo
