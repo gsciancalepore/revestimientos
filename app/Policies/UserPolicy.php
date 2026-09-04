@@ -12,7 +12,11 @@ class UserPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->role() === UserRole::Admin;
+        try {
+            return $user->role() === UserRole::Admin;
+        } catch (\DomainException $e) {
+            return false;
+        }
     }
 
     /**
@@ -20,7 +24,11 @@ class UserPolicy
      */
     public function create(User $user): bool
     {
-        return $user->role() === UserRole::Admin;
+        try {
+            return $user->role() === UserRole::Admin;
+        } catch (\DomainException $e) {
+            return false;
+        }
     }
 
     /**
@@ -28,7 +36,11 @@ class UserPolicy
      */
     public function update(User $user, User $target): bool
     {
-        return $user->role() === UserRole::Admin;
+        try {
+            return $user->role() === UserRole::Admin;
+        } catch (\DomainException $e) {
+            return false;
+        }
     }
 
     /**
@@ -36,6 +48,10 @@ class UserPolicy
      */
     public function toggleActive(User $user, User $target): bool
     {
-        return $user->role() === UserRole::Admin;
+        try {
+            return $user->role() === UserRole::Admin;
+        } catch (\DomainException $e) {
+            return false;
+        }
     }
 }

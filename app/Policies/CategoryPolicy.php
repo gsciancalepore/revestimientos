@@ -13,7 +13,11 @@ class CategoryPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->role() === UserRole::Admin;
+        try {
+            return $user->role() === UserRole::Admin;
+        } catch (\DomainException $e) {
+            return false;
+        }
     }
 
     /**
@@ -21,7 +25,11 @@ class CategoryPolicy
      */
     public function create(User $user): bool
     {
-        return $user->role() === UserRole::Admin;
+        try {
+            return $user->role() === UserRole::Admin;
+        } catch (\DomainException $e) {
+            return false;
+        }
     }
 
     /**
@@ -29,7 +37,11 @@ class CategoryPolicy
      */
     public function update(User $user, Category $category): bool
     {
-        return $user->role() === UserRole::Admin;
+        try {
+            return $user->role() === UserRole::Admin;
+        } catch (\DomainException $e) {
+            return false;
+        }
     }
 
     /**
@@ -37,6 +49,10 @@ class CategoryPolicy
      */
     public function delete(User $user, Category $category): bool
     {
-        return $user->role() === UserRole::Admin;
+        try {
+            return $user->role() === UserRole::Admin;
+        } catch (\DomainException $e) {
+            return false;
+        }
     }
 }

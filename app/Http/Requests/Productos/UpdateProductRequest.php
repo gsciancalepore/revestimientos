@@ -3,8 +3,7 @@
 namespace App\Http\Requests\Productos;
 
 use App\Enums\ProductSaleUnit;
-use App\Models\Category;
-use App\Services\ProductSpecs;
+use App\Rules\AllowedSpecs;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -31,27 +30,8 @@ class UpdateProductRequest extends FormRequest
             'stock' => ['required', 'integer', 'min:0'],
             'activo' => ['sometimes', 'boolean'],
             'imagenes' => ['nullable', 'array'],
-            'specs' => ['nullable', 'array', $this->validateSpecsKeys()],
+            'specs' => ['nullable', 'array', new AllowedSpecs],
             'specs.*' => ['nullable', 'string'],
         ];
-    }
-
-    private function validateSpecsKeys(): \Closure
-    {
-        return function (string $attribute, mixed $value, \Closure $fail): void {
-            $category = Category::where('id', $this->input('category_id'))->first();
-
-            if ($category === null) {
-                return;
-            }
-
-            $allowed = app(ProductSpecs::class)->allowedKeysFor($category);
-
-            $unknown = array_diff(array_keys($value ?? []), $allowed);
-
-            if ($unknown !== []) {
-                $fail('Los atributos no están permitidos para la familia "'.$category->name.'".');
-            }
-        };
     }
 }
