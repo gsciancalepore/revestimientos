@@ -57,6 +57,12 @@ class User extends Authenticatable
 
     public function role(): UserRole
     {
-        return UserRole::from($this->roles->first()->name ?? UserRole::Vendedor->value);
+        $role = $this->roles->first();
+
+        if ($role === null) {
+            throw new \DomainException('El usuario no tiene rol asignado.');
+        }
+
+        return UserRole::from($role->name);
     }
 }

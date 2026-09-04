@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\CreateShippingRateAction;
+use App\Actions\DeleteShippingRateAction;
+use App\Actions\UpdateShippingRateAction;
 use App\Http\Requests\ShippingRates\StoreShippingRateRequest;
 use App\Http\Requests\ShippingRates\UpdateShippingRateRequest;
 use App\Models\ShippingRate;
@@ -11,6 +14,12 @@ use Illuminate\View\View;
 
 class ShippingRateController extends Controller
 {
+    public function __construct(
+        private CreateShippingRateAction $createShippingRate,
+        private UpdateShippingRateAction $updateShippingRate,
+        private DeleteShippingRateAction $deleteShippingRate,
+    ) {}
+
     public function index(): View
     {
         Gate::authorize('viewAny', ShippingRate::class);
@@ -31,11 +40,11 @@ class ShippingRateController extends Controller
     {
         Gate::authorize('create', ShippingRate::class);
 
-        ShippingRate::query()->create([
-            'cp' => $request->validated('cp'),
-            'costo_cents' => $request->validated('costo_cents'),
-            'activo' => $request->boolean('activo', true),
-        ]);
+        $this->createShippingRate->execute(
+            $request->validated('cp'),
+            $request->validated('costo_cents'),
+            $request->boolean('activo', true),
+        );
 
         return redirect()->route('tarifas-envio.index')->with('status', 'Tarifa creada.');
     }
@@ -53,11 +62,12 @@ class ShippingRateController extends Controller
     {
         Gate::authorize('update', $tarifa_envio);
 
-        $tarifa_envio->update([
-            'cp' => $request->validated('cp'),
-            'costo_cents' => $request->validated('costo_cents'),
-            'activo' => $request->boolean('activo', true),
-        ]);
+        $this->updateShippingRate->execute(
+            $tarifa_envio,
+            $request->validated('cp'),
+            $request->validated('costo_cents'),
+            $request->boolean('activo', true),
+        );
 
         return redirect()->route('tarifas-envio.index')->with('status', 'Tarifa actualizada.');
     }
@@ -66,7 +76,7 @@ class ShippingRateController extends Controller
     {
         Gate::authorize('delete', $tarifa_envio);
 
-        $tarifa_envio->delete();
+        $this->deleteShippingRate->execute($tarifa_envio);
 
         return redirect()->route('tarifas-envio.index')->with('status', 'Tarifa eliminada.');
     }
