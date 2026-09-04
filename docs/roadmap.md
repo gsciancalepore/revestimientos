@@ -1,6 +1,6 @@
 # Roadmap
 
-Última actualización: 2026-09-03 (Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines` (Spec 07.1 borrador aprobado), `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte; Spec 06 Envío cerrada 158 tests; Spec 07.1 borrador aprobado).
+Última actualización: 2026-09-03 (Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines` (Spec 07.1/07.2 borradores), `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte; Spec 06 Envío cerrada 158 tests; Spec 07.1 Fase 1 171 tests + 07.2 `PlaceOrderAction` 184 tests en `feat/checkout-07-fase2`).
 
 ## Definition of Done (aplica a TODAS las fases y specs)
 
@@ -43,7 +43,7 @@ Cada spec se implementa en orden; cada una depende de la anterior
 | 04 | Catálogo público | Home, categorías, filtros, ficha con calculadora m²→cajas (modo m²), stock visible, ofertas | Products | ✅ cerrada (2026-08-06): 116 tests en verde, Pint/PHPStan alineados |
 | 05 | Carrito | Carrito anónimo en sesión, líneas por producto, derivación m²→cajas con `M2Calculator` y 10 % desperdicio antes de `ceil`, validación `cantidad ≤ stock` e `activo`, acumulación/actualización/eliminar/vaciar, `subtotal` sí / `total` no, condición derivada no comprable (sin estado) | Orders | ✅ cerrada (2026-09-03): 135 tests en verde, Pint/PHPStan alineados |
 | 06 | Envío | Tarifa única por CP exacto 4 dígitos, `ShippingCalculator` + `ManualShippingCalculator` con `shipping_rates` (CHECK ≥0, único parcial activo), cotización `disponible`/no disponible sin excepción, CRUD admin y `total = subtotal + shipping` en carrito | Orders | ✅ cerrada (2026-09-03): 158 tests en verde, Pint/PHPStan alineados |
-| 07 | Checkout | Compra anónima, MercadoPago, transferencia con confirmación manual, creación del pedido | Orders + Payments | 🟡 07.1 borrador aprobado (2026-09-03): Fase 1 estructura — `orders`/`order_lines` snapshot (`cantidad` entera `M2→cajas`/`Unidad→unidades`, `m2_por_caja` decimal→string, centavos bcmath), `OrderStatus` inglés + `label()` español (grafo `pending_payment→paid→shipped→delivered` + `cancelled`), `PaymentGateway` `name()` solo + `ManualTransferGateway`, 14 migraciones, 171 tests |
+| 07 | Checkout | Compra anónima, MercadoPago, transferencia con confirmación manual, creación del pedido | Orders + Payments | 🟡 07.1 borrador aprobado + 07.2 Fase 2 `PlaceOrderAction` en `feat/checkout-07-fase2` (2026-09-03): Fase 1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway` `name()`; Fase 2 `PlaceOrderAction` (`Cart` + `lockForUpdate` + `bcmath` vía `precioCajaCents`/`M2Calculator` + `ShippingQuote` snapshot + `audit order.created` + `Cart::clear` post-commit, 13 tests PlaceOrder), 14 migraciones, 184 tests |
 | 08 | Gestión de pedidos | Estados, vista depósito, ventas WhatsApp manuales, restitución de stock | Orders | pendiente |
 | 09 | Descuentos (opcional) | Por forma de pago y por monto de compra | Orders | pendiente |
 
@@ -66,7 +66,7 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 ## Cómo continuar
 
-- **Próximo paso**: implementar **Spec 07 Fase 1** estructura ya en `feat/pedidos-07-estructura` (borrador 07.1 aprobado) — migraciones `orders`/`order_lines`, `OrderStatus`, `PaymentGateway` `name()` → luego **Spec 07 Fase 2** `PlaceOrderAction` (congela `subtotal + shipping` con bcmath).
+- **Próximo paso**: mergear `feat/pedidos-07-estructura` (07.1) → `main`, luego mergear `feat/checkout-07-fase2` (07.2 `PlaceOrderAction`) → **Higiene 01** `chore/higiene-01-shippingrate-allowedspecs-userrole` (respeta tu orden).
 - **Proceso**: spec aprobada por el dueño → rama nueva (`feat/...`) → TDD (red → green → refactor) →
   verificación local (Pint, PHPStan nivel 8, Pest) → Pull Request a `main` con CI en verde → merge (el CI
   valida la misma secuencia; `main` despliega a staging).

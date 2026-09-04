@@ -1,6 +1,6 @@
 # Arquitectura
 
-Última actualización: 2026-09-03 (Fase 0 + Spec 01-06 + Spec 07.1 borrador aprobado + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto; Spec 06 Envío por CP con `ShippingCalculator` + `ManualShippingCalculator`; Spec 07.1 Fase 1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway` `name()` solo). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
+Última actualización: 2026-09-03 (Fase 0 + Spec 01-06 + Spec 07.1/07.2 borradores + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto; Spec 06 Envío por CP con `ShippingCalculator` + `ManualShippingCalculator`; Spec 07.1 Fase 1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway` `name()` solo; Spec 07.2 `PlaceOrderAction` con `lockForUpdate` + `bcmath` + `Cart::clear` post-commit). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
 
 ## Visión general
 
@@ -74,8 +74,7 @@ devuelve el resultado. Las Actions no conocen HTTP.
 Ejemplos implementados: `CreateUserAction`, `UpdateUserAction`,
 `SetUserActiveAction` (Spec 01); `CreateCategoryAction`, `UpdateCategoryAction`,
 `DeleteCategoryAction` (Spec 02); `CreateProductAction`, `UpdateProductAction`,
-`DeleteProductAction` (Spec 03). Previstos: `PlaceOrderAction`,
-`ConfirmPaymentAction`, `RegisterWhatsAppSaleAction`, `DispatchOrderAction`,
+`DeleteProductAction` (Spec 03); `PlaceOrderAction` (Spec 07.2, `lockForUpdate` + `bcmath` + snapshot + `Cart::clear` post-commit). Previstos: `ConfirmPaymentAction`, `RegisterWhatsAppSaleAction`, `DispatchOrderAction`,
 `CancelOrderAction`.
 
 ## Eventos y listeners
@@ -228,12 +227,20 @@ Estructura aprobada en `docs/specs/07-checkout.md:1` (borrador 07.1). Fase 1 **s
 - **Modelos** `Order` (`status` cast `OrderStatus`, casts centavos `integer`, `lines(): HasMany`, scopes `pendingPayment/paid/byEmail/byStatus`) y `OrderLine` (`order()/product(): BelongsTo`, `m2_por_caja string` nunca float, `specs array`).
 - **Factories** `OrderFactory`/`OrderLineFactory` con estados `paid/shipped/cancelled` y `m2Mode/unitMode`.
 
-## Pagos (Payments — Spec 07.1 Fase 1)
+## Pedidos — Checkout Fase 2 (PlaceOrderAction — Spec 07.2)
 
-Fase 1 solo puerto minimalista.
+Implementado en `docs/specs/07-checkout-fase2.md:1` (borrador 07.2, sin rutas).
 
-- **Contrato** `App\Contracts\PaymentGateway` con únicamente `name(): string`; `App\Services\ManualTransferGateway` devuelve `transferencia`; binding `AppServiceProvider` adaptador inicial. `ShippingCalculator` permanece en `Services/` por `ADR-006`; `Contracts/` es excepción aprobada para puertos externos. Estrategia `payment_method → gateway` y operaciones `createPreference/webhook/confirm` pertenecen a Fase 2 (YAGNI).
-- MercadoPago/transferencia completos: `ConfirmPaymentAction` y multi-gateway en Fase 2.
+- **`PlaceOrderAction`** (`app/Actions/PlaceOrderAction.php`): inyecta `Cart` + `ShippingCalculator` + `AuditRecorder`; `execute(customer_name/email/phone, shipping_cp/address, payment_method): Order` valida `cart no vacío` + prevalidación `hasUnpurchasable()` (regla 108), luego `DB::transaction` + `Product::lockForUpdate()` valida definitivamente `activo` y `cantidad ≤ stock` (regla 109, `M2→cajas`/`Unidad→unidades`); calcula `precio_unitario` vía `Product::precioCajaCents()` / `M2Calculator` para `M2` y `precio_cents` para `Unidad` con `bcmul/bcadd` (regla 110, nunca `float`, `m2_por_caja string`); `ShippingQuote` `quote(trim cp)` → `shipping_cost = disponible? costo:0` snapshot (no recalcula); crea `Order` (`PendingPayment`) + `OrderLines` snapshot (`product_name/codigo/marca/unidad_venta/m2_por_caja/specs`) + `audit order.created` (ADR-004, `actor null` anónimo); **no descuenta stock** (ADR-005 → Spec 08). `Cart::clear()` **solo tras `COMMIT`**, fuera de transacción; `rollback` mantiene carrito (regla 112).
+- **Tests**: `tests/Feature/Orders/PlaceOrderTest.php` (13 tests: vacío, `hasUnpurchasable`, `activo/stock` bajo lock, `M2/Unidad`, `shipping disp/no-disp`, snapshot independencia, `audit`, `clear` vs `rollback`, concurrencia PG `lockForUpdate`; cantidad surge de behaviours).
+- **Sin anticipación**: no controladores/rutas, no `ConfirmPaymentAction`, no `DTOs/Events/Listeners/Jobs`, no `PaymentGateway` `confirm/createPreference` (Fase 2 solo `name()`).
+
+## Pagos (Payments — Spec 07.1/07.2)
+
+Fase 1 solo puerto minimalista; Fase 2 lo consume.
+
+- **Contrato** `App\Contracts\PaymentGateway` con únicamente `name(): string`; `App\Services\ManualTransferGateway` devuelve `transferencia`; binding `AppServiceProvider` adaptador inicial. `ShippingCalculator` permanece en `Services/` por `ADR-006`; `Contracts/` es excepción aprobada para puertos externos. Estrategia `payment_method → gateway` y operaciones `createPreference/webhook/confirm` pertenecen a Fase 3 (YAGNI).
+- MercadoPago/transferencia completos: `ConfirmPaymentAction` y multi-gateway en Fase 3.
 
 ## Envíos (Shipping — Spec 06)
 
