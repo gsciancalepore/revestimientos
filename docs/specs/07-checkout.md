@@ -1,6 +1,6 @@
 # Spec 07 — Checkout (Compra anónima y creación del pedido)
 
-- **Estado**: borrador 07.1 (2026-09-03) — pendiente de aprobación del dueño (revisión 07.1 incorpora grafo explícito de estados, cantidad entera, `m2_por_caja` string, snapshot shipping y `PaymentGateway` minimalista)
+- **Estado**: cerrada (2026-09-03) — Fase 1 implementada y mergeada a `main` (PR #2)
 - **Fuentes**: Spec 00 (reglas 13–14 carrito anónimo, 15–18 envío, 19–23 pedido, 24–26 pagos, 27 cliente anónimo), Spec 05 (reglas 81–92 carrito, 88 subtotal), Spec 06 (reglas 93–100 envío por CP, 100 total), ADR-003 (unidades m²/cajas, dinero centavos + bcmath), ADR-005 (stock al confirmar pago), ADR-006 (puertos ShippingCalculator/PaymentGateway), visión (compra anónima MercadoPago/transferencia)
 
 ## Objetivo

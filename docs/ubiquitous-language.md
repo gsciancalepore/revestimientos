@@ -57,7 +57,10 @@ sentido, es un bug de lenguaje.
 | **Tarifa de envío** | Costo de entrega por código postal exacto (4 dígitos, string con ceros). Una tarifa activa por CP (`CHECK ≥0`, `costo_cents` en centavos, 0 = gratis). | CP `1407` → $ 15.000,00 |
 | **Cotización de envío** | Resultado de consultar `ShippingCalculator` por CP: `disponible` con costo o `no disponible` sin excepción si no hay tarifa activa. | "Envío: $ 50,00" / "Envío no disponible" |
 | **Código postal (CP)** | Cadena de 4 dígitos (`^[0-9]{4}$`) única variable para tarifa. Conserva ceros iniciales. | `0123`, `1407` |
-| **Total** | `subtotal + shipping` cuando la cotización está disponible; sin cotización no hay total con envío y el checkout no puede continuar. | Total: $ 250,00 |
+| **Total** | `subtotal + shipping_cost`, congelado en la `Order` al ejecutar `PlaceOrderAction` (fuente de verdad). Si existe cotización de envío se utiliza su costo; si no existe cotización, `shipping_cost = 0`. La ausencia de cotización **no bloquea** la creación de la orden (Spec 07.2:110/114, 07.3:118). | Total: $ 250,00 |
+| **Preferencia de MercadoPago** | Objeto creado en MercadoPago que define el cobro: items (título, cantidad entera, precio), `external_reference` (id de la orden), `back_urls` y retorno automático. Su creación devuelve `mp_preference_id` e `init_point`, que se persisten en la orden. | Se crea al confirmar un checkout con MercadoPago |
+| **init_point** | URL de MercadoPago a la que se redirige al comprador para completar el pago de una preferencia. | "Continuar al pago en MercadoPago" |
+| **Reintento de pago** | Nueva creación de preferencia para una orden `mercadopago` en `pending_payment`, vía `POST /checkout/mercadopago/reintentar`; sobrescribe `mp_preference_id/mp_init_point`. El `GET /checkout/exito` nunca crea preferencias (solo lectura). | Botón "Reintentar pago" ante `payment_error` |
 
 ## Sinónimos prohibidos
 

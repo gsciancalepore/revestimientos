@@ -1,6 +1,6 @@
 # Spec 07 Fase 2 — Checkout: lógica `PlaceOrderAction` (compra anónima)
 
-- **Estado**: borrador (2026-09-03) — pendiente de aprobación del dueño (extiende 07.1 borrador 07.1; no implementa `ConfirmPaymentAction` ni rutas)
+- **Estado**: cerrada (2026-09-03) — implementada y mergeada a `main` (PR #3)
 - **Fuentes**: Spec 07.1 (reglas 101–107, estructura `orders`/`order_lines`, `OrderStatus`, `PaymentGateway name()` solo), Spec 00 (19–23 pedido, 24–26 pagos, 27 anónimo), Spec 05 (81–92 carrito, 88 subtotal), Spec 06 (93–100 envío, `ShippingCalculator` + `ShippingQuote`), ADR-003 (bcmath, centavos, `M2Calculator`), ADR-005 (stock al confirmar pago, `lockForUpdate`), ADR-004 (audit), ADR-006 (puertos)
 
 ## Objetivo
