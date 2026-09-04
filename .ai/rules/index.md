@@ -5,6 +5,9 @@ Before planning or editing, find the row whose globs match the file's path and r
 | Applies to | Rule file |
 | --- | --- |
 | app/Actions/*Category*.php, app/Actions/*Product*.php | .ai/rules/actions.md |
+| app/Actions/PlaceOrderAction.php, app/Models/Order*.php | .ai/rules/models.md |
+| app/Services/*Gateway*.php, app/Contracts/PaymentGateway.php | .ai/rules/contracts.md |
+| app/Http/Controllers/CheckoutController.php, app/Http/Controllers/CartController.php, app/Http/Requests/Checkout/**, app/Http/Requests/Cart/** | .ai/rules/cart.md |
 | app/** | .ai/rules/app.md |
 | app/Http/Requests/Categorias/** | .ai/rules/categorias.md |
 | app/Http/Controllers/** | .ai/rules/controllers.md |

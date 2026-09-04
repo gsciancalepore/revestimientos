@@ -1,6 +1,6 @@
 # Spec 07 Fase 4 — MercadoPago: creación de preferencia y redirección
 
-- **Estado**: borrador (2026-09-03) — pendiente de aprobación del dueño (extiende 07.1 estructura + 07.2 `PlaceOrderAction` + 07.3 HTTP; no modifica `07-checkout.md`, `07-checkout-fase2.md` ni `07-checkout-fase3-http.md`; no implementa webhook/confirmación/stock)
+- **Estado**: cerrada (2026-09-04) — aprobada por el dueño, implementada y mergeada a `main` (`cb9fd2b`, PR #8)
 - **Fuentes**: Spec 07.1 (101–107 `orders`/`order_lines`, `OrderStatus`, `PaymentGateway name()` solo), Spec 07.2 (108–114 `PlaceOrderAction` `lockForUpdate`/`bcmath`/`audit`/`clear` post-commit), Spec 07.3 (115–120 `CheckoutController` `session order_id`, `StoreCheckoutRequest`, `shipping !disponible → 0`), Spec 00 (24–26 pagos), ADR-003 (centavos + bcmath), ADR-004 (audit), ADR-006 (puertos), `PROJECT_PRINCIPLES.md`, `AGENTS.md`, `.ai/rules/*`
 
 ## Objetivo

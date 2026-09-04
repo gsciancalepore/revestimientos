@@ -1,6 +1,6 @@
 # Roadmap
 
-Última actualización: 2026-09-04 (Spec 07.4 MercadoPago en `feat/checkout-07-fase4-mercadopago`: `MercadoPagoGateway` + `mp_*` + retry `POST`, 205 tests; Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines` (Spec 07.1/07.2/07.3 borradores), `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte; Spec 06 Envío cerrada 158 tests; Spec 07.1/07.2 184 tests + 07.3 HTTP checkout 196 tests en `feat/checkout-07-fase3-http`).
+Última actualización: 2026-09-04 (Spec 07 cerrada: 07.1/07.2/07.3/07.4 implementadas y mergeadas a `main` — 07.4 `cb9fd2b`/PR #8 — 205 tests; Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte; Spec 06 Envío cerrada 158 tests).
 
 ## Definition of Done (aplica a TODAS las fases y specs)
 
@@ -67,7 +67,7 @@ Cada spec se implementa en orden; cada una depende de la anterior
 ## Cómo continuar
 
 - **Próximo paso**: Spec 08 Gestión de pedidos (estados, `ConfirmPaymentAction` con descuento stock, vista depósito, WhatsApp).
-- **Nota**: `chore/higiene-01` ya mergeado en `main` (`bc45b67`), `feat/checkout-07-fase3-http` listo para PR `feat` → `main`.
+- **Nota**: `chore/higiene-01` ya mergeado en `main` (`bc45b67`); Spec 07 completa mergeada a `main` (07.3 PR #6 `aac924b`, 07.4 PR #8 `5bb9ddd`).
 - **Proceso**: spec aprobada por el dueño → rama nueva (`feat/...`) → TDD (red → green → refactor) →
   verificación local (Pint, PHPStan nivel 8, Pest) → Pull Request a `main` con CI en verde → merge (el CI
   valida la misma secuencia; `main` despliega a staging).

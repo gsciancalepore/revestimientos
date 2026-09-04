@@ -1,6 +1,6 @@
 # Arquitectura
 
-Última actualización: 2026-09-04 (Fase 0 + Spec 01-06 + Spec 07.1/07.2/07.3 + Spec 07.4 MercadoPago `MercadoPagoGateway`/`mp_*`/retry `POST` + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto; Spec 06 Envío por CP con `ShippingCalculator` + `ManualShippingCalculator`; Spec 07.1 Fase 1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway` `name()` solo; Spec 07.2 `PlaceOrderAction` con `lockForUpdate` + `bcmath` + `Cart::clear` post-commit; Spec 07.3 HTTP `CheckoutController` + `StoreCheckoutRequest` + `session order_id`). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
+Última actualización: 2026-09-04 (Fase 0 + Spec 01-06 cerradas + Spec 07.1/07.2/07.3/07.4 cerradas — 07.4 `MercadoPagoGateway`/`mp_*`/retry `POST` mergeada PR #8 — + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto; Spec 06 Envío por CP con `ShippingCalculator` + `ManualShippingCalculator`; Spec 07.1 Fase 1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway` `name()` solo; Spec 07.2 `PlaceOrderAction` con `lockForUpdate` + `bcmath` + `Cart::clear` post-commit; Spec 07.3 HTTP `CheckoutController` + `StoreCheckoutRequest` + `session order_id`). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
 
 ## Visión general
 
@@ -219,7 +219,7 @@ Implementado en la **Spec 05** (cliente anónimo, sin reserva de stock, `subtota
 
 ## Pedidos (Orders — Spec 07.1 Fase 1 Estructura)
 
-Estructura aprobada en `docs/specs/07-checkout.md:1` (borrador 07.1). Fase 1 **solo persistencia y contratos**, sin lógica.
+Estructura cerrada en `docs/specs/07-checkout.md:1`. Fase 1 **solo persistencia y contratos**, sin lógica.
 
 - **Tablas `orders`/`order_lines`** (`2026_09_03_162109`/`162110`): `orders` (`status` string enum `OrderStatus`, `customer_name/email/phone`, `shipping_cp` varchar 4, `shipping_address` nullable, `shipping_cost_cents`/`subtotal_cents`/`total_cents` bigint `CHECK >=0`, `payment_method` nullable string, índices `status`/`customer_email`); `order_lines` (`order_id` FK `cascadeOnDelete`, `product_id` FK `restrictOnDelete` — trazabilidad + snapshot histórico, `product_name/codigo/marca/unidad_venta/m2_por_caja` decimal(8,2) nullable, `cantidad` unsignedInteger `CHECK >0` entero positivo `M2→cajas`/`Unidad→unidades`, `precio_unitario_cents`/`subtotal_cents` bigint `CHECK >=0`, `specs` jsonb).
 - **Congelado**: `order_lines` snapshot desnormalizado (`product_name/codigo/marca/specs/m2_por_caja`) independiente de `products`; `shipping_cost_cents` snapshot de `ShippingQuote` al crear pedido, no se recalcula; DB solo garantiza `>=0`, Fase 2 garantiza `subtotal_linea = cantidad×precio_unitario` y `total = subtotal+shipping` con `bcmath`.
@@ -229,7 +229,7 @@ Estructura aprobada en `docs/specs/07-checkout.md:1` (borrador 07.1). Fase 1 **s
 
 ## Pedidos — Checkout Fase 2 (PlaceOrderAction — Spec 07.2)
 
-Implementado en `docs/specs/07-checkout-fase2.md:1` (borrador 07.2, sin rutas).
+Implementado en `docs/specs/07-checkout-fase2.md:1` (cerrada, sin rutas).
 
 - **`PlaceOrderAction`** (`app/Actions/PlaceOrderAction.php`): inyecta `Cart` + `ShippingCalculator` + `AuditRecorder`; `execute(customer_name/email/phone, shipping_cp/address, payment_method): Order` valida `cart no vacío` + prevalidación `hasUnpurchasable()` (regla 108), luego `DB::transaction` + `Product::lockForUpdate()` valida definitivamente `activo` y `cantidad ≤ stock` (regla 109, `M2→cajas`/`Unidad→unidades`); calcula `precio_unitario` vía `Product::precioCajaCents()` / `M2Calculator` para `M2` y `precio_cents` para `Unidad` con `bcmul/bcadd` (regla 110, nunca `float`, `m2_por_caja string`); `ShippingQuote` `quote(trim cp)` → `shipping_cost = disponible? costo:0` snapshot (no recalcula); crea `Order` (`PendingPayment`) + `OrderLines` snapshot (`product_name/codigo/marca/unidad_venta/m2_por_caja/specs`) + `audit order.created` (ADR-004, `actor null` anónimo); **no descuenta stock** (ADR-005 → Spec 08). `Cart::clear()` **solo tras `COMMIT`**, fuera de transacción; `rollback` mantiene carrito (regla 112).
 - **Tests**: `tests/Feature/Orders/PlaceOrderTest.php` (13 tests: vacío, `hasUnpurchasable`, `activo/stock` bajo lock, `M2/Unidad`, `shipping disp/no-disp`, snapshot independencia, `audit`, `clear` vs `rollback`, concurrencia PG `lockForUpdate`; cantidad surge de behaviours).
@@ -237,7 +237,7 @@ Implementado en `docs/specs/07-checkout-fase2.md:1` (borrador 07.2, sin rutas).
 
 ## Checkout — HTTP Fase 3 (Spec 07.3)
 
-Implementado en `docs/specs/07-checkout-fase3-http.md:1` (borrador, sin `ConfirmPaymentAction`).
+Implementado en `docs/specs/07-checkout-fase3-http.md:1` (cerrada, sin `ConfirmPaymentAction`).
 
 - **Rutas públicas anónimas** (sin `auth`, sin `Policy`): `GET /checkout` (`checkout.show`), `POST /checkout` (`checkout.store`), `GET /checkout/exito` (`checkout.success`) en `routes/web.php` (sin `Route::resource`, coherente con carrito).
 - **`StoreCheckoutRequest`** (`app/Http/Requests/Checkout/StoreCheckoutRequest.php`): `customer_name/email/phone` required, `shipping_cp` `regex:/^[0-9]{4}$/` con `trim`, `shipping_address` nullable, `payment_method` `Rule::in(['transferencia','mercadopago'])` mensajes ES; no valida `cart` (lo hace `PlaceOrderAction` regla 108/109).
