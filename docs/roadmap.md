@@ -1,6 +1,6 @@
 # Roadmap
 
-Última actualización: 2026-09-03 (Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines` (Spec 07.1/07.2 borradores), `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte; Spec 06 Envío cerrada 158 tests; Spec 07.1 Fase 1 171 tests + 07.2 `PlaceOrderAction` 184 tests en `feat/checkout-07-fase2`).
+Última actualización: 2026-09-03 (Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines` (Spec 07.1/07.2/07.3 borradores), `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte; Spec 06 Envío cerrada 158 tests; Spec 07.1/07.2 184 tests + 07.3 HTTP checkout 196 tests en `feat/checkout-07-fase3-http`).
 
 ## Definition of Done (aplica a TODAS las fases y specs)
 
@@ -43,7 +43,7 @@ Cada spec se implementa en orden; cada una depende de la anterior
 | 04 | Catálogo público | Home, categorías, filtros, ficha con calculadora m²→cajas (modo m²), stock visible, ofertas | Products | ✅ cerrada (2026-08-06): 116 tests en verde, Pint/PHPStan alineados |
 | 05 | Carrito | Carrito anónimo en sesión, líneas por producto, derivación m²→cajas con `M2Calculator` y 10 % desperdicio antes de `ceil`, validación `cantidad ≤ stock` e `activo`, acumulación/actualización/eliminar/vaciar, `subtotal` sí / `total` no, condición derivada no comprable (sin estado) | Orders | ✅ cerrada (2026-09-03): 135 tests en verde, Pint/PHPStan alineados |
 | 06 | Envío | Tarifa única por CP exacto 4 dígitos, `ShippingCalculator` + `ManualShippingCalculator` con `shipping_rates` (CHECK ≥0, único parcial activo), cotización `disponible`/no disponible sin excepción, CRUD admin y `total = subtotal + shipping` en carrito | Orders | ✅ cerrada (2026-09-03): 158 tests en verde, Pint/PHPStan alineados |
-| 07 | Checkout | Compra anónima, MercadoPago, transferencia con confirmación manual, creación del pedido | Orders + Payments | 🟡 07.1 borrador aprobado + 07.2 Fase 2 `PlaceOrderAction` en `feat/checkout-07-fase2` (2026-09-03): Fase 1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway` `name()`; Fase 2 `PlaceOrderAction` (`Cart` + `lockForUpdate` + `bcmath` vía `precioCajaCents`/`M2Calculator` + `ShippingQuote` snapshot + `audit order.created` + `Cart::clear` post-commit, 13 tests PlaceOrder), 14 migraciones, 184 tests |
+| 07 | Checkout | Compra anónima, MercadoPago, transferencia con confirmación manual, creación del pedido | Orders + Payments | ✅ cerrada (2026-09-03): 07.1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway`; 07.2 `PlaceOrderAction` (`Cart` + `lockForUpdate` + `bcmath` + `audit`); 07.3 HTTP `GET /checkout`, `POST /checkout`, `GET /checkout/exito` con `StoreCheckoutRequest` + `CheckoutController` delgado + `session order_id` (sin `{order}`), `shipping !disponible → 0` permitido, 12 tests Checkout, 14 migraciones, **196 tests** |
 | 08 | Gestión de pedidos | Estados, vista depósito, ventas WhatsApp manuales, restitución de stock | Orders | pendiente |
 | 09 | Descuentos (opcional) | Por forma de pago y por monto de compra | Orders | pendiente |
 
@@ -66,7 +66,8 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 ## Cómo continuar
 
-- **Próximo paso**: mergear `feat/pedidos-07-estructura` (07.1) → `main`, luego mergear `feat/checkout-07-fase2` (07.2 `PlaceOrderAction`) → **Higiene 01** `chore/higiene-01-shippingrate-allowedspecs-userrole` (respeta tu orden).
+- **Próximo paso**: Spec 08 Gestión de pedidos (estados, `ConfirmPaymentAction` con descuento stock, vista depósito, WhatsApp).
+- **Nota**: `chore/higiene-01` ya mergeado en `main` (`bc45b67`), `feat/checkout-07-fase3-http` listo para PR `feat` → `main`.
 - **Proceso**: spec aprobada por el dueño → rama nueva (`feat/...`) → TDD (red → green → refactor) →
   verificación local (Pint, PHPStan nivel 8, Pest) → Pull Request a `main` con CI en verde → merge (el CI
   valida la misma secuencia; `main` despliega a staging).
@@ -79,5 +80,6 @@ Cada spec se implementa en orden; cada una depende de la anterior
   `layouts/site`.
 - **Nota (2026-09-03)**: la **Spec 05 quedó cerrada** — carrito anónimo en sesión (reglas 81–92, `Cart` + `M2Calculator` reuso, `subtotal` sí / `total` no), validación stock `cantidad ≤ stock` e `activo`, condición derivada no comprable sin estado, 19 tests nuevos (135 totales).
 - **Nota (2026-09-03)**: la **Spec 06 quedó cerrada** — envío por CP exacto 4 dígitos con una tarifa activa por CP (`shipping_rates` CHECK ≥0, único parcial), `ShippingCalculator` + `ManualShippingCalculator` (cotización `disponible`/no disponible sin excepción, ceros iniciales, costo 0), CRUD admin y `total = subtotal + shipping` en carrito, 23 tests nuevos (158 totales).
+- **Nota (2026-09-03)**: la **Spec 07 quedó cerrada** — 07.1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway`; 07.2 `PlaceOrderAction` (`lockForUpdate` + `bcmath` + `audit` + `Cart::clear` post-commit); 07.3 HTTP `CheckoutController` + `StoreCheckoutRequest` + `session order_id` (sin `{order}`), `shipping !disponible → 0` permitido; 38 tests nuevos (196 totales).
 - **Contexto para agentes nuevos**: `.ai/rules/index.md` mapea las reglas
   durables del repo; el runbook de arranque está en el README.

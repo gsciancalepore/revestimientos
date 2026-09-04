@@ -1,6 +1,6 @@
 # Arquitectura
 
-Última actualización: 2026-09-03 (Fase 0 + Spec 01-06 + Spec 07.1/07.2 borradores + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto; Spec 06 Envío por CP con `ShippingCalculator` + `ManualShippingCalculator`; Spec 07.1 Fase 1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway` `name()` solo; Spec 07.2 `PlaceOrderAction` con `lockForUpdate` + `bcmath` + `Cart::clear` post-commit). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
+Última actualización: 2026-09-03 (Fase 0 + Spec 01-06 + Spec 07.1/07.2/07.3 borradores + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto; Spec 06 Envío por CP con `ShippingCalculator` + `ManualShippingCalculator`; Spec 07.1 Fase 1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway` `name()` solo; Spec 07.2 `PlaceOrderAction` con `lockForUpdate` + `bcmath` + `Cart::clear` post-commit; Spec 07.3 HTTP `CheckoutController` + `StoreCheckoutRequest` + `session order_id`). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
 
 ## Visión general
 
@@ -235,12 +235,22 @@ Implementado en `docs/specs/07-checkout-fase2.md:1` (borrador 07.2, sin rutas).
 - **Tests**: `tests/Feature/Orders/PlaceOrderTest.php` (13 tests: vacío, `hasUnpurchasable`, `activo/stock` bajo lock, `M2/Unidad`, `shipping disp/no-disp`, snapshot independencia, `audit`, `clear` vs `rollback`, concurrencia PG `lockForUpdate`; cantidad surge de behaviours).
 - **Sin anticipación**: no controladores/rutas, no `ConfirmPaymentAction`, no `DTOs/Events/Listeners/Jobs`, no `PaymentGateway` `confirm/createPreference` (Fase 2 solo `name()`).
 
-## Pagos (Payments — Spec 07.1/07.2)
+## Checkout — HTTP Fase 3 (Spec 07.3)
 
-Fase 1 solo puerto minimalista; Fase 2 lo consume.
+Implementado en `docs/specs/07-checkout-fase3-http.md:1` (borrador, sin `ConfirmPaymentAction`).
 
-- **Contrato** `App\Contracts\PaymentGateway` con únicamente `name(): string`; `App\Services\ManualTransferGateway` devuelve `transferencia`; binding `AppServiceProvider` adaptador inicial. `ShippingCalculator` permanece en `Services/` por `ADR-006`; `Contracts/` es excepción aprobada para puertos externos. Estrategia `payment_method → gateway` y operaciones `createPreference/webhook/confirm` pertenecen a Fase 3 (YAGNI).
-- MercadoPago/transferencia completos: `ConfirmPaymentAction` y multi-gateway en Fase 3.
+- **Rutas públicas anónimas** (sin `auth`, sin `Policy`): `GET /checkout` (`checkout.show`), `POST /checkout` (`checkout.store`), `GET /checkout/exito` (`checkout.success`) en `routes/web.php` (sin `Route::resource`, coherente con carrito).
+- **`StoreCheckoutRequest`** (`app/Http/Requests/Checkout/StoreCheckoutRequest.php`): `customer_name/email/phone` required, `shipping_cp` `regex:/^[0-9]{4}$/` con `trim`, `shipping_address` nullable, `payment_method` `Rule::in(['transferencia','mercadopago'])` mensajes ES; no valida `cart` (lo hace `PlaceOrderAction` regla 108/109).
+- **`CheckoutController` delgado** (`app/Http/Controllers/CheckoutController.php`): `show` (si `isEmpty` o `hasUnpurchasable` → redirect `carrito.show`; sino `view('checkout.show', lines/subtotal/categorias)`); `store` (`validated()` → `PlaceOrderAction->execute(...)` → `session(['order_id' => $order->id])` → redirect `checkout.success`; `catch DomainException → back withErrors` carrito intacto); `success` (lee `session('order_id')` sin `{order}` en URL, si null → redirect `carrito.show`; `Order::with('lines')->findOrFail` snapshot, `view('checkout.success')`).
+- **Vistas** `checkout/show.blade.php` (form `@csrf` + `old()` + `number_format` centavos) y `success.blade.php` (snapshot `Order`/`lines`, `status->label()`, `payment_method` instrucciones) con ` <x-layouts.site :categorias="$categorias">` (`.ai/rules/views.md`).
+- **Shipping**: `store` reutiliza `PlaceOrderAction` (regla 110) `quote !disponible → shipping_cost=0` (permitido, sin bloqueo UI).
+
+## Pagos (Payments — Spec 07.1/07.2/07.3)
+
+Fase 1 solo puerto minimalista; Fase 2 lo consume; Fase 3 ofrece ambas opciones en UI.
+
+- **Contrato** `App\Contracts\PaymentGateway` con únicamente `name(): string`; `App\Services\ManualTransferGateway` devuelve `transferencia`; binding `AppServiceProvider` adaptador inicial. `ShippingCalculator` permanece en `Services/` por `ADR-006`; `Contracts/` es excepción aprobada para puertos externos. Estrategia `payment_method → gateway` y operaciones `createPreference/webhook/confirm` pertenecen a Fase 4/Spec 08 (YAGNI).
+- MercadoPago/transferencia completos: `ConfirmPaymentAction` y multi-gateway en Spec 08.
 
 ## Envíos (Shipping — Spec 06)
 

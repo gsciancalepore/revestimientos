@@ -3,6 +3,7 @@
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShippingRateController;
@@ -20,6 +21,10 @@ Route::post('/carrito/agregar', [CartController::class, 'add'])->name('carrito.a
 Route::patch('/carrito/{producto:slug}', [CartController::class, 'update'])->name('carrito.update');
 Route::delete('/carrito/{producto:slug}', [CartController::class, 'remove'])->name('carrito.remove');
 Route::delete('/carrito', [CartController::class, 'clear'])->name('carrito.clear');
+
+Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show');
+Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+Route::get('/checkout/exito', [CheckoutController::class, 'success'])->name('checkout.success');
 
 Route::middleware('auth')->prefix('admin')->group(function () {
     Route::get('/', function () {
