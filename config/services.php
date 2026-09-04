@@ -28,6 +28,11 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'mercadopago' => [
+        'access_token' => env('MERCADOPAGO_ACCESS_TOKEN'),
+        'public_key' => env('MERCADOPAGO_PUBLIC_KEY'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

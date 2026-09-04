@@ -24,6 +24,7 @@ Route::delete('/carrito', [CartController::class, 'clear'])->name('carrito.clear
 
 Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show');
 Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+Route::post('/checkout/mercadopago/reintentar', [CheckoutController::class, 'retryMercadoPago'])->name('checkout.mercadopago.retry');
 Route::get('/checkout/exito', [CheckoutController::class, 'success'])->name('checkout.success');
 
 Route::middleware('auth')->prefix('admin')->group(function () {

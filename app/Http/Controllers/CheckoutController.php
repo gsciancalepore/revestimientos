@@ -3,12 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Actions\PlaceOrderAction;
+use App\Enums\OrderStatus;
 use App\Http\Requests\Checkout\StoreCheckoutRequest;
 use App\Models\Category;
 use App\Models\Order;
 use App\Services\Cart;
+use App\Services\MercadoPagoGateway;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
+use Throwable;
 
 class CheckoutController extends Controller
 {
@@ -50,7 +55,45 @@ class CheckoutController extends Controller
 
         session(['order_id' => $order->id]);
 
+        if ($request->validated('payment_method') === 'mercadopago') {
+            try {
+                $url = app(MercadoPagoGateway::class)->paymentUrl($order);
+
+                return redirect()->away($url);
+            } catch (Throwable $e) {
+                Log::error('mp preference failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+
+                return redirect()->route('checkout.success')->with('payment_error', 'No pudimos generar el link de pago, reintentá.');
+            }
+        }
+
         return redirect()->route('checkout.success');
+    }
+
+    public function retryMercadoPago(Request $request): RedirectResponse
+    {
+        $orderId = session('order_id');
+
+        if ($orderId === null) {
+            return redirect()->route('carrito.show');
+        }
+
+        /** @var Order $order */
+        $order = Order::query()->findOrFail($orderId);
+
+        if ($order->payment_method !== 'mercadopago' || $order->status !== OrderStatus::PendingPayment) {
+            abort(403);
+        }
+
+        try {
+            $url = app(MercadoPagoGateway::class)->paymentUrl($order);
+
+            return redirect()->away($url);
+        } catch (Throwable $e) {
+            Log::error('mp preference failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+
+            return redirect()->route('checkout.success')->with('payment_error', 'No pudimos generar el link de pago, reintentá.');
+        }
     }
 
     public function success(Cart $cart): View|RedirectResponse
