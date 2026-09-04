@@ -7,10 +7,11 @@ RUN apk add --no-cache \
         libpq-dev \
         libzip-dev \
         icu-dev \
+        linux-headers \
         zip \
         unzip \
         $PHPIZE_DEPS \
-    && docker-php-ext-install pdo_pgsql bcmath intl zip opcache \
+    && docker-php-ext-install pdo_pgsql bcmath intl zip opcache pcntl sockets \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && apk del $PHPIZE_DEPS

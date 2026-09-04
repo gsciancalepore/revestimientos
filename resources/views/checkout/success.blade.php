@@ -36,6 +36,20 @@
             @else
                 <p class="mt-4 text-sm text-stone-600">Serás redirigido a MercadoPago para completar el pago.</p>
             @endif
+
+            @if($order->payment_method === 'mercadopago' && $order->mp_init_point)
+                <a href="{{ $order->mp_init_point }}" class="mt-4 inline-block rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600">Continuar al pago en MercadoPago</a>
+            @endif
+
+            @if(session('payment_error'))
+                <p class="mt-4 text-sm font-medium text-red-700">{{ session('payment_error') }}</p>
+                @if($order->payment_method === 'mercadopago')
+                    <form method="POST" action="{{ route('checkout.mercadopago.retry') }}" class="mt-2">
+                        @csrf
+                        <button type="submit" class="rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700">Reintentar pago</button>
+                    </form>
+                @endif
+            @endif
         </div>
 
         <div class="mt-6 text-center">

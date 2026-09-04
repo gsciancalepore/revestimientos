@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Contracts\PaymentGateway;
 use App\Services\ManualShippingCalculator;
 use App\Services\ManualTransferGateway;
+use App\Services\MercadoPagoGateway;
 use App\Services\ShippingCalculator;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Telescope\TelescopeApplicationServiceProvider;
@@ -22,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(ShippingCalculator::class, ManualShippingCalculator::class);
         $this->app->bind(PaymentGateway::class, ManualTransferGateway::class);
+        $this->app->bind(MercadoPagoGateway::class);
     }
 
     /**

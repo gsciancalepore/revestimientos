@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property-read Collection<int, OrderLine> $lines
+ * @property OrderStatus $status
  */
 class Order extends Model
 {
@@ -29,6 +30,8 @@ class Order extends Model
         'subtotal_cents',
         'total_cents',
         'payment_method',
+        'mp_preference_id',
+        'mp_init_point',
     ];
 
     /**
@@ -41,6 +44,8 @@ class Order extends Model
             'shipping_cost_cents' => 'integer',
             'subtotal_cents' => 'integer',
             'total_cents' => 'integer',
+            'mp_preference_id' => 'string',
+            'mp_init_point' => 'string',
         ];
     }
 

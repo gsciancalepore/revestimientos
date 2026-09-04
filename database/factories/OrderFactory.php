@@ -29,6 +29,8 @@ class OrderFactory extends Factory
             'subtotal_cents' => 200000,
             'total_cents' => 350000,
             'payment_method' => null,
+            'mp_preference_id' => null,
+            'mp_init_point' => null,
         ];
     }
 
