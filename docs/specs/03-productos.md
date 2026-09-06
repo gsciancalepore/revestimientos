@@ -129,8 +129,9 @@ para las categorías base del seeder:
 - [x] `codigo` duplicado → error.
 - [x] `specs` válido según la familia; claves no permitidas → error.
 - [x] Producto con 0 stock no comprable (validación lista para Spec 05).
-- [x] Cambio de `unidad_venta` en producto con pedidos → bloqueado (check
-      preparado; se activa con la tabla `orders`, Spec 05).
+- [x] Cambio de `unidad_venta` en producto con pedidos → bloqueado (activo
+      desde 2026-09-06, `UpdateProductAction` + `Product::tienePedidos()`;
+      cubierto por `tests/Feature/Productos/ProductOrderGuardTest.php`).
 - [x] Cambios de precio y stock quedan en la auditoría.
 - [x] `CategoriesSeeder` crea las 4 categorías base planas y define sus claves
       de `specs`.

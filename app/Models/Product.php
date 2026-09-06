@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property ProductSaleUnit $unidad_venta
@@ -66,6 +67,25 @@ class Product extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    /**
+     * Líneas de pedido que referencian este producto (Spec 03, regla 67).
+     *
+     * @return HasMany<OrderLine, $this>
+     */
+    public function orderLines(): HasMany
+    {
+        return $this->hasMany(OrderLine::class);
+    }
+
+    /**
+     * Un producto con historial de pedidos no se borra ni cambia de
+     * `unidad_venta` (Spec 03, regla 67).
+     */
+    public function tienePedidos(): bool
+    {
+        return $this->orderLines()->exists();
     }
 
     public function isM2Mode(): bool
