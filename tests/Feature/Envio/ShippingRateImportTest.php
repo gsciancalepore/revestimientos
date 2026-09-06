@@ -444,6 +444,33 @@ test('abrir el importador no purga un temporal vigente', function () {
     expect(importTempFiles())->toHaveCount(1);
 });
 
+test('un fallo durante la confirmación revierte toda la importación', function () {
+    $admin = importAdminUser();
+    $aActualizar = ShippingRate::factory()->create(['cp' => '1000', 'costo_cents' => 500000, 'activo' => true]);
+    $ausenteDelSnapshot = ShippingRate::factory()->create(['cp' => '9999', 'costo_cents' => 700000, 'activo' => true]);
+
+    $token = importPendingToken($this, "codigo_postal,precio_envio\n1000,10000\n1001,18000\n", $admin);
+
+    // Falla al crear la segunda tarifa, con el UPDATE de la primera ya aplicado
+    // dentro de la transacción (regla 138).
+    ShippingRate::creating(function (ShippingRate $rate): void {
+        if ($rate->cp === '1001') {
+            throw new RuntimeException('fallo simulado durante la importación');
+        }
+    });
+
+    $this->withoutExceptionHandling();
+
+    expect(fn () => $this->actingAs($admin)->post(route('tarifas-envio.import.confirm'), ['token' => $token]))
+        ->toThrow(RuntimeException::class);
+
+    // Rollback total: el UPDATE previo al fallo se revierte y no queda nada creado.
+    expect($aActualizar->fresh()->costo_cents)->toBe(500000);
+    expect(ShippingRate::query()->where('cp', '1001')->exists())->toBeFalse();
+    expect($ausenteDelSnapshot->fresh()->activo)->toBeTrue();
+    expect(ShippingRate::query()->count())->toBe(2);
+});
+
 test('bom y finales de línea crlf se aceptan', function () {
     $admin = importAdminUser();
     $token = importPendingToken($this, "\xEF\xBB\xBFcodigo_postal,precio_envio\r\n1000,10000\r\n1001,18000\r\n", $admin);
