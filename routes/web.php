@@ -7,6 +7,7 @@ use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShippingRateController;
+use App\Http\Controllers\ShippingRateImportController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -49,6 +50,17 @@ Route::middleware('auth')->prefix('admin')->group(function () {
         Route::resource('productos', ProductController::class)
             ->except(['show'])
             ->parameters(['productos' => 'product']);
+
+        Route::get('tarifas-envio/importar', [ShippingRateImportController::class, 'import'])
+            ->name('tarifas-envio.import');
+        Route::post('tarifas-envio/importar', [ShippingRateImportController::class, 'upload'])
+            ->name('tarifas-envio.import.upload');
+        Route::get('tarifas-envio/importar/preview', [ShippingRateImportController::class, 'preview'])
+            ->name('tarifas-envio.import.preview');
+        Route::post('tarifas-envio/importar/confirmar', [ShippingRateImportController::class, 'confirm'])
+            ->name('tarifas-envio.import.confirm');
+        Route::post('tarifas-envio/importar/cancelar', [ShippingRateImportController::class, 'cancel'])
+            ->name('tarifas-envio.import.cancel');
 
         Route::resource('tarifas-envio', ShippingRateController::class)
             ->parameters(['tarifas-envio' => 'tarifa_envio']);
