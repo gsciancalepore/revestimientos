@@ -56,7 +56,7 @@ Fase 1 no expone rutas. Los modelos son internos.
 
 - `customer_email` inválido, `customer_name/phone` vacío, `shipping_cp` no `^[0-9]{4}$` → validación Fase 2 (422); Fase 1 solo persiste lo que Fase 2 valide.
 - Producto con `precio_cents` cambiado entre carrito y pedido → línea congela el precio del momento de creación, no el vigente.
-- `shipping_cost_cents` sin tarifa activa → `disponible=false` (Spec 06:96); Fase 2 decidirá si bloquea checkout (regla 100). `shipping_cost_cents` snapshot no cambia aunque la tarifa cambie después.
+- `shipping_cost_cents` sin tarifa activa → `disponible=false` (Spec 06:96); resuelto en Fase 3 por la regla 118: **no bloquea** el checkout y el pedido se crea con `shipping_cost_cents = 0` (ratificado por el dueño el 2026-09-06; reemplaza el bloqueo original de la regla 100). `shipping_cost_cents` snapshot no cambia aunque la tarifa cambie después.
 - `cantidad = 0` o negativa → `CHECK cantidad > 0` en `order_lines` + validación Fase 2.
 - `m2_por_caja` null en modo `Unidad` → snapshot null, sin cálculo caja; en `M2` nunca null (Spec 03:59).
 - `m2_por_caja` como `string` evita `float`; cálculos Fase 2 con `bcmul`.

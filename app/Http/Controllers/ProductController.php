@@ -11,6 +11,7 @@ use App\Http\Requests\Productos\UpdateProductRequest;
 use App\Models\Category;
 use App\Models\Product;
 use App\Services\ProductSpecs;
+use DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -83,23 +84,29 @@ class ProductController extends Controller
     {
         Gate::authorize('update', $product);
 
-        $action->execute(
-            product: $product,
-            categoryId: $request->validated('category_id'),
-            name: $request->validated('name'),
-            slug: $request->validated('slug'),
-            codigo: $request->validated('codigo'),
-            unidadVenta: ProductSaleUnit::from($request->validated('unidad_venta')),
-            precioCents: $request->validated('precio_cents'),
-            marca: $request->validated('marca'),
-            descripcion: $request->validated('descripcion'),
-            precioOfertaCents: $request->validated('precio_oferta_cents'),
-            m2PorCaja: $request->validated('m2_por_caja'),
-            stock: $request->validated('stock'),
-            activo: $request->boolean('activo'),
-            imagenes: $request->validated('imagenes'),
-            specs: $request->validated('specs'),
-        );
+        try {
+            $action->execute(
+                product: $product,
+                categoryId: $request->validated('category_id'),
+                name: $request->validated('name'),
+                slug: $request->validated('slug'),
+                codigo: $request->validated('codigo'),
+                unidadVenta: ProductSaleUnit::from($request->validated('unidad_venta')),
+                precioCents: $request->validated('precio_cents'),
+                marca: $request->validated('marca'),
+                descripcion: $request->validated('descripcion'),
+                precioOfertaCents: $request->validated('precio_oferta_cents'),
+                m2PorCaja: $request->validated('m2_por_caja'),
+                stock: $request->validated('stock'),
+                activo: $request->boolean('activo'),
+                imagenes: $request->validated('imagenes'),
+                specs: $request->validated('specs'),
+            );
+        } catch (DomainException $e) {
+            return redirect()
+                ->route('productos.index')
+                ->withErrors(['unidad_venta' => $e->getMessage()]);
+        }
 
         return redirect()
             ->route('productos.index')
@@ -110,7 +117,13 @@ class ProductController extends Controller
     {
         Gate::authorize('delete', $product);
 
-        $action->execute($product);
+        try {
+            $action->execute($product);
+        } catch (DomainException $e) {
+            return redirect()
+                ->route('productos.index')
+                ->withErrors(['delete' => $e->getMessage()]);
+        }
 
         return redirect()
             ->route('productos.index')

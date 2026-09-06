@@ -1,6 +1,6 @@
 # Arquitectura
 
-Última actualización: 2026-09-06 (Spec 06 fase 2 cerrada: importador administrativo de tarifas por CP — `ShippingRatesCsvParser` + `ImportShippingRatesAction` fila-por-fila en transacción + flujo 422/preview/confirmar/cancelar, ADR-011 aceptada; Fase 0 + Spec 01-06 cerradas + Spec 07.1/07.2/07.3/07.4 cerradas — 07.4 `MercadoPagoGateway`/`mp_*`/retry `POST` mergeada PR #8 — + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto; Spec 06 Envío por CP con `ShippingCalculator` + `ManualShippingCalculator`; Spec 07.1 Fase 1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway` `name()` solo; Spec 07.2 `PlaceOrderAction` con `lockForUpdate` + `bcmath` + `Cart::clear` post-commit; Spec 07.3 HTTP `CheckoutController` + `StoreCheckoutRequest` + `session order_id`). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
+Última actualización: 2026-09-06 (Sincronía SDD previa a Spec 08: reglas del importador renumeradas `101–114 → 129–142` para no colisionar con Spec 07; regla 118 ratificada como vigente sobre la regla 100 —el checkout **no** se bloquea sin cotización de envío—; regla 67 activada `Product::tienePedidos()`; testsuite `Unit` incorporado a `phpunit.xml`; 253 tests. Spec 06 fase 2 cerrada: importador administrativo de tarifas por CP — `ShippingRatesCsvParser` + `ImportShippingRatesAction` fila-por-fila en transacción + flujo 422/preview/confirmar/cancelar, ADR-011 aceptada; Fase 0 + Spec 01-06 cerradas + Spec 07.1/07.2/07.3/07.4 cerradas — 07.4 `MercadoPagoGateway`/`mp_*`/retry `POST` mergeada PR #8 — + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto; Spec 06 Envío por CP con `ShippingCalculator` + `ManualShippingCalculator`; Spec 07.1 Fase 1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway` `name()` solo; Spec 07.2 `PlaceOrderAction` con `lockForUpdate` + `bcmath` + `Cart::clear` post-commit; Spec 07.3 HTTP `CheckoutController` + `StoreCheckoutRequest` + `session order_id`). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
 
 ## Visión general
 
@@ -171,8 +171,13 @@ Implementado en la **Spec 03**:
   cambios de precio (`product.price_changed`), stock (`product.stock_changed`) y
   la baja por desactivación (`product.deactivated`) reusando `AuditRecorder`
   (ADR-004).
-- El check de "producto con pedidos" (regla 67: no borrar, no cambiar
-  `unidad_venta`) se activa cuando exista la tabla `orders` (Spec 05).
+- El check de "producto con pedidos" (regla 67) está **activo desde 2026-09-06**
+  (la tabla `orders` existe desde la Spec 07.1): `Product::tienePedidos()` sobre
+  la relación `orderLines`. `DeleteProductAction` lanza `DomainException` si el
+  producto tiene pedidos (se desactiva en su lugar) y `UpdateProductAction` la
+  lanza si se intenta cambiar `unidad_venta` con pedidos históricos — cambiarla
+  haría que la `cantidad` congelada en `order_lines` se leyera en otra unidad.
+  `ProductController` las traduce a errores de formulario, nunca a un 500.
 
 ## Catálogo público (Products)
 
@@ -260,20 +265,20 @@ Implementado en la **Spec 06** (tarifa única por CP exacto, `total = subtotal +
 - **Tabla `shipping_rates`** (`id`, `cp` varchar 4, `costo_cents` bigint con `CHECK >=0`, `activo` bool, índice `cp` + índice único parcial `UNIQUE(cp) WHERE activo=true` para garantizar una tarifa activa por CP). `cp` como string conserva ceros (`0123`). Modelo `ShippingRate` con scope `activo()`.
 - **Puerto `ShippingCalculator` + `ManualShippingCalculator`** (ADR-006): `quote(string $cp): ShippingQuote` consulta `shipping_rates` por `cp` exacto `trim` y `activo`; `disponible=true` con `costoCents` o `disponible=false` sin excepción si no hay tarifa. Binding en `AppServiceProvider`. Validación CP `^[0-9]{4}$` (422 si vacío/inválido); `costo 0` = envío gratis.
 - **Administración** en `/admin/tarifas-envio` (solo `role:admin` + `ShippingRatePolicy`): CRUD con Form Requests o equivalente, validación CP 4 dígitos + unicidad parcial tarifa activa + `costo_cents` entero ≥0. Sidebar `Tarifas de envío` habilitada.
-- **Integración en carrito** (`CartController::show` + `cart/show`): campo CP → `ShippingCalculator::quote()` → muestra `Envío: $` o `Envío no disponible`, y `Total: $` cuando `disponible`. `subtotal` no cambia por cotizar; `total = subtotal + shipping` solo si `disponible`, sino checkout bloqueado (regla 100).
+- **Integración en carrito** (`CartController::show` + `cart/show`): campo CP → `ShippingCalculator::quote()` → muestra `Envío: $` o `Envío no disponible`, y `Total: $` cuando `disponible`. `subtotal` no cambia por cotizar; `total = subtotal + shipping` solo si `disponible`. Si no hay cotización, el carrito informa la no disponibilidad y **no bloquea** el avance: el pedido se crea con `shipping_cost_cents = 0` (regla 118, que reemplaza el bloqueo original de la regla 100).
 - **Sin anticipación**: sin zonas/rangos/precedencias/peso/distancia/API externa; evolución solo como reemplazo del binding (sin diseñar contrato API en esta spec).
 
 ## Envíos — Importador de tarifas (Shipping — Spec 06 fase 2)
 
-Implementado en `docs/specs/06-envio-fase2-importador.md:1` (cerrada, reglas 101–114, ADR-011). Laravel **no calcula** tarifas: solo aplica un snapshot externo.
+Implementado en `docs/specs/06-envio-fase2-importador.md:1` (cerrada, reglas 129–142, ADR-011). Laravel **no calcula** tarifas: solo aplica un snapshot externo.
 
-- **`ShippingRatesCsvParser`** (`app/Services/`): servicio puro que parsea y valida el CSV completo sin persistir. Cabecera exacta `codigo_postal,precio_envio`, BOM y CRLF/LF tolerados, `str_getcsv` con `$escape` explícito (obligatorio en PHP 8.4). Por fila devuelve el nº de línea en el error: CP `^[0-9]{4}$` tras `trim` (string, conserva ceros), `precio_envio` entero `>= 0` y `<= 92233720368547758` (regla 102, anti-overflow de `bigint`), duplicado dentro del archivo y fila vacía. Conversión `precio × 100 = costo_cents` con aritmética entera nativa, sin `float` ni BCMath (regla 101).
-- **`ImportShippingRatesAction`** (`app/Actions/`): aplica el snapshot **fila-por-fila** dentro de una única `DB::transaction()` (ADR-011, sin `upsert()`): sin tarifa activa → `create` (reglas 103/106, nunca reactiva una histórica); activa con distinto costo → `update` de la misma fila (regla 105); activa con igual costo → no-op sin tocar `updated_at` (regla 104); activa ausente del snapshot → `activo = false` (regla 107). **Cero deletes** (regla 108). Devuelve `created/updated/unchanged/deactivated`.
+- **`ShippingRatesCsvParser`** (`app/Services/`): servicio puro que parsea y valida el CSV completo sin persistir. Cabecera exacta `codigo_postal,precio_envio`, BOM y CRLF/LF tolerados, `str_getcsv` con `$escape` explícito (obligatorio en PHP 8.4). Por fila devuelve el nº de línea en el error: CP `^[0-9]{4}$` tras `trim` (string, conserva ceros), `precio_envio` entero `>= 0` y `<= 92233720368547758` (regla 130, anti-overflow de `bigint`), duplicado dentro del archivo y fila vacía. Conversión `precio × 100 = costo_cents` con aritmética entera nativa, sin `float` ni BCMath (regla 129).
+- **`ImportShippingRatesAction`** (`app/Actions/`): aplica el snapshot **fila-por-fila** dentro de una única `DB::transaction()` (ADR-011, sin `upsert()`): sin tarifa activa → `create` (reglas 131/134, nunca reactiva una histórica); activa con distinto costo → `update` de la misma fila (regla 133); activa con igual costo → no-op sin tocar `updated_at` (regla 132); activa ausente del snapshot → `activo = false` (regla 135). **Cero deletes** (regla 136). Devuelve `created/updated/unchanged/deactivated`.
 - **`ShippingRateImportController`** delgado con el flujo de 4 pasos de la spec: `GET .../importar` (form + barrido de temporales vencidos), `POST .../importar` (valida todo; error → **422** re-renderizando el formulario con los errores por línea, nada persiste; éxito → temporal en `storage/app/private/tmp` + manifiesto en caché con `user_id`, `path`, `hash`, conteos y expiración de 30 min, y **redirect** al preview), `GET .../importar/preview?token=` (resumen; token ajeno, inexistente o vencido → rechazo sin mutación) y `POST .../importar/confirmar` (re-parsea y revalida desde el temporal antes de aplicar). El patrón PRG evita que refrescar el preview re-suba el archivo.
 - **422, no redirect**: el importador responde `422` ante cualquier error de validación —de contenido y de archivo, este último vía `failedValidation()` en `ImportShippingRatesRequest`— por exigencia de la spec. Es una **excepción deliberada** a la convención del resto del panel (redirect 302 con `withErrors`), que no se modificó.
 - **Limpieza del temporal** (ADR-011 punto 5): descarte al confirmar, ante manipulación detectada por `hash`, en `POST .../importar/cancelar`, y barrido de vencidos al abrir el importador. Sin scheduler, porque ningún entorno del proyecto lo ejecuta.
 - **Autorización**: ability `import` en `ShippingRatePolicy` (solo admin) con `Gate::authorize`; rutas bajo `auth` + `role:admin` y declaradas **antes** del `Route::resource` para no colisionar con `{tarifa_envio}`.
-- **Sin anticipación**: sin tabla de historial de importaciones (regla 114, ADR-011), sin cálculo de tarifas, sin tocar `ShippingCalculator`/`ManualShippingCalculator`.
+- **Sin anticipación**: sin tabla de historial de importaciones (regla 142, ADR-011), sin cálculo de tarifas, sin tocar `ShippingCalculator`/`ManualShippingCalculator`.
 
 ## Stock (Inventory mínimo)
 
@@ -309,6 +314,12 @@ Para no rediseñar después, se reservan estos espacios (ADR-004):
 - Pest: Feature Tests por caso de uso (el estándar), Unit Tests para lógica
   compleja (cálculo de cajas, descuentos, DTOs). La suite `tests/Unit` existe
   desde la **Spec 04** (`M2CalculatorTest`).
+- **Ambos testsuites deben estar declarados en `phpunit.xml`** (`Unit` y
+  `Feature`). Hasta el 2026-09-06 solo estaba declarado `Feature`, de modo que
+  `tests/Unit` no se ejecutaba ni localmente ni en CI pese a existir en el
+  repo. `php artisan test` (el mismo comando que corre `ci.yml`) ejecuta todos
+  los testsuites declarados: si se agrega un directorio de tests nuevo, hay que
+  declararlo ahí o queda invisible sin que nada falle.
 - TDD obligatorio (principio 3).
 - Base de datos de tests: PostgreSQL (`ceramica_test`), mismo motor que producción.
 

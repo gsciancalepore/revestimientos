@@ -6,6 +6,7 @@ use App\Enums\ProductSaleUnit;
 use App\Models\Product;
 use App\Services\AuditRecorder;
 use App\Services\ProductSlugGenerator;
+use DomainException;
 
 class UpdateProductAction
 {
@@ -35,9 +36,13 @@ class UpdateProductAction
         ?array $imagenes = null,
         ?array $specs = null,
     ): Product {
-        // Spec 03, regla 67: si el producto tuviera pedidos, se bloquea el
-        // cambio de unidad_venta. Se activa cuando exista la tabla `orders`
-        // (Spec 05).
+        // Spec 03, regla 67: con pedidos históricos, cambiar `unidad_venta`
+        // haría que la `cantidad` congelada en `order_lines` se lea en otra
+        // unidad (cajas vs unidades), corrompiendo el histórico.
+        if ($unidadVenta !== $product->unidad_venta && $product->tienePedidos()) {
+            throw new DomainException('No se puede cambiar la unidad de venta de un producto con pedidos (Spec 03, regla 67).');
+        }
+
         $product->fill([
             'category_id' => $categoryId,
             'name' => $name,
