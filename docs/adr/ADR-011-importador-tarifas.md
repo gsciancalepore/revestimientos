@@ -5,7 +5,7 @@
 
 ## Decisión
 
-1. **No se utiliza `upsert()`; se procesa fila-por-fila (búsqueda + `create`/`update`/no-op).** La semántica requerida distingue explícitamente tarifa activa, histórica inactiva, no-op y creación (reglas 103–107 de la spec fase 2); la estrategia fila-por-fila expresa esa semántica de forma clara y es compatible con ella, además de respetar `UpdateShippingRateAction`.
+1. **No se utiliza `upsert()`; se procesa fila-por-fila (búsqueda + `create`/`update`/no-op).** La semántica requerida distingue explícitamente tarifa activa, histórica inactiva, no-op y creación (reglas 131–135 de la spec fase 2); la estrategia fila-por-fila expresa esa semántica de forma clara y es compatible con ella, además de respetar `UpdateShippingRateAction`.
 2. **Fila-por-fila en una `DB::transaction()`.** Para ~1900 registros el costo es despreciable (una transacción, N queries simples); se prioriza claridad y atomicidad (Principios 5/8) sobre optimización sin medición (Principio 7).
 3. **Temporal server-side + token en vez de sesión.** ~1907 filas no pertenecen a la sesión (tamaño, serialización, riesgo de manipular el preview en el cliente). Se guarda el crudo en `storage/app/private/tmp` y un manifiesto mínimo en caché con token no predecible, `user_id`, `hash` y expiración; al confirmar se re-parsea y revalida.
 4. **Sin tabla de historial de importaciones.** El requerimiento se cumple con hash + temporal efímero; una entidad nueva violaría YAGNI (Principio 5/8). Si a futuro se exige auditoría de importaciones, se creará su spec.
