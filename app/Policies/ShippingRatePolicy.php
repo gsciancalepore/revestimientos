@@ -52,4 +52,13 @@ class ShippingRatePolicy
             return false;
         }
     }
+
+    public function import(User $user): bool
+    {
+        try {
+            return $user->role() === UserRole::Admin;
+        } catch (\DomainException $e) {
+            return false;
+        }
+    }
 }
