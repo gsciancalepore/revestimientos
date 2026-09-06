@@ -314,6 +314,12 @@ Para no rediseñar después, se reservan estos espacios (ADR-004):
 - Pest: Feature Tests por caso de uso (el estándar), Unit Tests para lógica
   compleja (cálculo de cajas, descuentos, DTOs). La suite `tests/Unit` existe
   desde la **Spec 04** (`M2CalculatorTest`).
+- **Ambos testsuites deben estar declarados en `phpunit.xml`** (`Unit` y
+  `Feature`). Hasta el 2026-09-06 solo estaba declarado `Feature`, de modo que
+  `tests/Unit` no se ejecutaba ni localmente ni en CI pese a existir en el
+  repo. `php artisan test` (el mismo comando que corre `ci.yml`) ejecuta todos
+  los testsuites declarados: si se agrega un directorio de tests nuevo, hay que
+  declararlo ahí o queda invisible sin que nada falle.
 - TDD obligatorio (principio 3).
 - Base de datos de tests: PostgreSQL (`ceramica_test`), mismo motor que producción.
 
