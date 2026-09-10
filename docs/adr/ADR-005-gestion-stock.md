@@ -1,6 +1,7 @@
 # ADR-005 — Gestión del stock: cuándo baja el stock
 
-- **Estado**: aceptado (2026-08-05)
+- **Estado**: aceptado (2026-08-05) — **en revisión desde 2026-09-10**: la Spec 08 propone revertir esta decisión y reservar stock al crear el pedido. Ver [ADR-012](ADR-012-reserva-stock-al-crear-pedido.md) (propuesta). Mientras ADR-012 no se apruebe, la decisión vigente es la de este documento.
+- **Nota (2026-09-10)**: esta decisión **nunca llegó a implementarse**. `PlaceOrderAction` valida stock pero no lo descuenta, y `ConfirmPaymentAction` no existe: hoy el stock no baja en ningún momento del ciclo de vida del pedido.
 - **Contexto**: el stock es físico y único (compartido entre la web y las ventas de
   WhatsApp registradas manualmente). La unidad del stock la define el producto por
   su `unidad_venta` (ADR-003): **cajas** en modo `m2`, **unidades** (bolsas/piezas)
