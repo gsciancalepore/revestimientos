@@ -24,6 +24,7 @@ calculadora de m² → cajas y panel para operar productos, pedidos y stock.
 - **Spec — Calidad de onboarding** (runbook y docs para agentes): [`docs/specs/calidad-onboarding.md`](docs/specs/calidad-onboarding.md)
 - **Arquitectura**: [`docs/arquitectura.md`](docs/arquitectura.md)
 - **Roadmap** (fases + Definition of Done): [`docs/roadmap.md`](docs/roadmap.md)
+- **Desarrollo local — probar MercadoPago de punta a punta** (túnel, DNS en WSL2, cuentas de prueba): [`docs/deployment/desarrollo-local.md`](docs/deployment/desarrollo-local.md)
 - **Decisiones (ADRs)**: [`docs/adr/`](docs/adr/)
 
 ## Acceso al panel

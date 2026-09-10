@@ -69,6 +69,44 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 ## Cómo continuar
 
+### Punto de retome — cierre del 2026-09-10
+
+Estado exacto al terminar la jornada, para que cualquiera (persona o agente) retome sin reconstruir
+contexto:
+
+**Trabajo en curso**: rama `docs/spec-08-borrador`, **9 commits sin pushear**, árbol limpio, 261
+tests en verde. El nombre le quedó chico: contiene la Spec 08, la auditoría documental, la Spec
+Higiene 02 y dos agentes nuevos. Nada de esto está en `main` todavía. `gh` está instalado y
+autenticado, así que el PR se puede abrir desde la CLI.
+
+**Dos specs esperando aprobación del dueño**, en este orden:
+
+1. `docs/specs/higiene-02-auditoria-validacion-cobertura.md` (HIG-04–HIG-09) — **va primero**: dos
+   de sus reglas son precondiciones de la Spec 08.
+2. `docs/specs/08-gestion-pedidos.md` (reglas 143–166, fases 08.a/08.b/08.c) — ya revisada por el
+   agente `revisor-spec` y corregida.
+
+Ninguna se implementa hasta que el dueño las apruebe (`AGENTS.md`: nunca programar sin spec
+aprobada).
+
+**Lo que se hizo hoy y ya está en `main`** (PRs #11 y #12): verificación de la Spec 07.4 contra la
+API real de MercadoPago, con dos enmiendas a la regla 123 (`auto_return` condicionado a back_url
+pública, envío en `shipments.cost`), credenciales externas neutralizadas en `phpunit.xml`, y el
+botón "Finalizar compra" que faltaba en el carrito.
+
+**Estado del entorno local**: restaurado a su configuración normal — `APP_URL=http://localhost:8080`,
+Vite con hot reload, túnel cerrado. Para volver a probar MercadoPago hay que rehacer el
+procedimiento de `docs/deployment/desarrollo-local.md`; la URL del túnel cambia en cada arranque.
+
+**Agentes disponibles** (`.claude/agents/`, versionados): `revisor-spec` para borradores antes de
+aprobar, `verificador-spec-codigo` para comprobar que una spec cerrada esté realmente implementada.
+El segundo produjo la Spec Higiene 02 y conviene volver a correrlo sobre las specs 01, 02 y 04, que
+quedaron sin revisar.
+
+**Pendiente sin fecha**: verificar si staging tiene aplicadas las migraciones de `orders` (ver más
+abajo); el dueño lo parkeó hasta el próximo deploy manual.
+
+
 - **Próximo paso**: aprobar el borrador de la **Spec Higiene 02**
   (`docs/specs/higiene-02-auditoria-validacion-cobertura.md`), que **va antes que la Spec 08**: dos
   de sus reglas son precondiciones de la 08. Surgió de verificar las specs cerradas contra el código
