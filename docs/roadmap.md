@@ -45,7 +45,7 @@ Cada spec se implementa en orden; cada una depende de la anterior
 | 06 | Envío | Tarifa única por CP exacto 4 dígitos, `ShippingCalculator` + `ManualShippingCalculator` con `shipping_rates` (CHECK ≥0, único parcial activo), cotización `disponible`/no disponible sin excepción, CRUD admin y `total = subtotal + shipping` en carrito | Orders | ✅ cerrada (2026-09-03): 158 tests en verde, Pint/PHPStan alineados |
 | 06.2 | Envío — Importador de tarifas | Importación administrativa del CSV snapshot `codigo_postal,precio_envio`: validación total previa (422 sin persistir), temporal server-side + token con manifiesto en caché, preview con conteos, aplicación fila-por-fila en una única transacción, idempotente y sin borrados físicos | Orders | ✅ cerrada (2026-09-06): 253 tests en verde, Pint/PHPStan alineados |
 | 07 | Checkout | Compra anónima, MercadoPago, transferencia con confirmación manual, creación del pedido | Orders + Payments | ✅ cerrada (2026-09-03): 07.1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway`; 07.2 `PlaceOrderAction` (`Cart` + `lockForUpdate` + `bcmath` + `audit`); 07.3 HTTP `GET /checkout`, `POST /checkout`, `GET /checkout/exito` con `StoreCheckoutRequest` + `CheckoutController` delgado + `session order_id` (sin `{order}`), `shipping !disponible → 0` permitido, 12 tests Checkout, 14 migraciones, **196 tests**; ✅ 07.4 MercadoPago (2026-09-04; verificada contra la API real el 2026-09-10): `MercadoPagoGateway` (SDK `dx-php` pineado, `Preference` + `redirect away init_point`) + `mp_preference_id/mp_init_point` + `POST /checkout/mercadopago/reintentar` + `success` solo lectura (botón continuar/reintentar), 9 tests MP, **205 tests** |
-| 08 | Gestión de pedidos | Máquina de estados, reserva y restitución de stock, vencimiento de pedidos impagos, `ConfirmPaymentAction`, webhook de MercadoPago con validación de firma y verificación de monto, panel de pedidos y vista depósito | Orders | 📝 **borrador (2026-09-10)** — `docs/specs/08-gestion-pedidos.md`, pendiente de aprobación del dueño. Requiere aprobar también **ADR-012** (revierte ADR-005). Ventas WhatsApp diferidas a 08.2 |
+| 08 | Gestión de pedidos | Máquina de estados, `ConfirmPaymentAction` con descuento de stock (ADR-005), restitución al cancelar un pedido pagado, webhook de MercadoPago con validación de firma y verificación de monto, panel de pedidos y vista depósito | Orders | 📝 **borrador (2026-09-10)** — `docs/specs/08-gestion-pedidos.md`, reglas 143–165, pendiente de aprobación del dueño. Ventas WhatsApp diferidas a 08.2 |
 | 08.2 | Ventas manuales por WhatsApp | Alta de pedido desde el panel, opcionalmente con link de pago de MercadoPago | Orders | pendiente (diferida por decisión del dueño, 2026-09-10) |
 | 09 | Descuentos (opcional) | Por forma de pago y por monto de compra | Orders | pendiente |
 
@@ -68,12 +68,14 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 ## Cómo continuar
 
-- **Próximo paso**: aprobar el borrador de la **Spec 08** (`docs/specs/08-gestion-pedidos.md`) junto con
-  **ADR-012**, y resolver sus dos puntos abiertos: cómo se dispara el vencimiento de pedidos impagos
-  (no hay scheduler en ningún entorno) y cuál es el plazo real de vencimiento por medio de pago.
-- **Decisión pendiente de alto impacto (2026-09-10)**: la Spec 08 propone **reservar stock al crear el
-  pedido**, lo que **revierte ADR-005** (aceptada, que decidió descontar al pagar). La reversión está
-  razonada en ADR-012 (propuesta). Aprobar la Spec 08 implica aprobar ADR-012.
+- **Próximo paso**: aprobar el borrador de la **Spec 08** (`docs/specs/08-gestion-pedidos.md`) y
+  responder su punto abierto 1: qué hacer cuando se cobró un pago y no hay stock (regla 145), que es
+  una decisión de negocio y define las acciones del panel de incidentes.
+- **Nota (2026-09-10)**: se evaluó **reservar stock al crear el pedido** —lo que habría revertido
+  ADR-005— y se **descartó** el mismo día por el costo de la infraestructura que exigía (vencimiento
+  automático de pedidos impagos, con un scheduler que ningún entorno ejecuta). **ADR-005 queda
+  ratificada** y la Spec 08 la implementa; el análisis de la alternativa queda archivado en ADR-012,
+  marcada como descartada. Ninguna spec cerrada necesita enmienda.
 - **Nota (2026-09-10)**: verificación manual de la 07.4 contra MercadoPago sandbox. El flujo
   `/carrito → /checkout → MercadoPago → /checkout/exito` funciona completo; el pedido queda en
   `PendingPayment` y el stock no se descuenta aunque el pago se apruebe, tal como fija la regla 128.

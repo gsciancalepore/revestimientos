@@ -1,8 +1,18 @@
 # ADR-012 — Reserva de stock al crear el pedido
 
-- **Estado**: **propuesta — pendiente de aprobación del dueño**
-- **Reemplazaría a**: [ADR-005](ADR-005-gestion-stock.md) (aceptada 2026-08-05), que decidió lo contrario
-- **Origen**: decisión del dueño del 2026-09-10 al definir el alcance de la Spec 08
+- **Estado**: **descartada (2026-09-10)** — propuesta y retirada el mismo día, antes de escribir
+  código. **[ADR-005](ADR-005-gestion-stock.md) sigue vigente**: el stock desciende al confirmarse
+  el pago.
+- **Por qué se descartó**: al ver el alcance real de la reversión —enmendar la regla 21 de la spec
+  fundacional `00-dominio.md`, más `05-carrito.md` y `07-checkout-fase2.md`— y sobre todo la
+  infraestructura que exigía —un vencimiento automático de pedidos impagos, con un scheduler que
+  **ningún entorno del proyecto ejecuta**—, el dueño optó por mantener ADR-005 por ser más viable
+  en este momento del proyecto.
+- **Se conserva** este documento, en lugar de borrarlo, porque el análisis de la disyuntiva sigue
+  siendo útil: si en el futuro la sobreventa se vuelve un problema real, acá está el razonamiento
+  completo y lo que costaría adoptarla.
+- **Origen**: decisión del dueño del 2026-09-10 al definir el alcance de la Spec 08, revertida por
+  el mismo dueño ese día.
 
 ## Contexto
 
