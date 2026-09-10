@@ -45,7 +45,8 @@ Cada spec se implementa en orden; cada una depende de la anterior
 | 06 | Envío | Tarifa única por CP exacto 4 dígitos, `ShippingCalculator` + `ManualShippingCalculator` con `shipping_rates` (CHECK ≥0, único parcial activo), cotización `disponible`/no disponible sin excepción, CRUD admin y `total = subtotal + shipping` en carrito | Orders | ✅ cerrada (2026-09-03): 158 tests en verde, Pint/PHPStan alineados |
 | 06.2 | Envío — Importador de tarifas | Importación administrativa del CSV snapshot `codigo_postal,precio_envio`: validación total previa (422 sin persistir), temporal server-side + token con manifiesto en caché, preview con conteos, aplicación fila-por-fila en una única transacción, idempotente y sin borrados físicos | Orders | ✅ cerrada (2026-09-06): 253 tests en verde, Pint/PHPStan alineados |
 | 07 | Checkout | Compra anónima, MercadoPago, transferencia con confirmación manual, creación del pedido | Orders + Payments | ✅ cerrada (2026-09-03): 07.1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway`; 07.2 `PlaceOrderAction` (`Cart` + `lockForUpdate` + `bcmath` + `audit`); 07.3 HTTP `GET /checkout`, `POST /checkout`, `GET /checkout/exito` con `StoreCheckoutRequest` + `CheckoutController` delgado + `session order_id` (sin `{order}`), `shipping !disponible → 0` permitido, 12 tests Checkout, 14 migraciones, **196 tests**; ✅ 07.4 MercadoPago (2026-09-04; verificada contra la API real el 2026-09-10): `MercadoPagoGateway` (SDK `dx-php` pineado, `Preference` + `redirect away init_point`) + `mp_preference_id/mp_init_point` + `POST /checkout/mercadopago/reintentar` + `success` solo lectura (botón continuar/reintentar), 9 tests MP, **205 tests** |
-| 08 | Gestión de pedidos | Estados, vista depósito, ventas WhatsApp manuales, restitución de stock | Orders | pendiente |
+| 08 | Gestión de pedidos | Máquina de estados, `ConfirmPaymentAction` con descuento de stock (ADR-005), restitución al cancelar un pedido pagado, webhook de MercadoPago con validación de firma y verificación de monto, panel de pedidos y vista depósito | Orders | 📝 **borrador (2026-09-10)** — `docs/specs/08-gestion-pedidos.md`, reglas 143–166, pendiente de aprobación del dueño. Se entrega **en 3 fases** (08.1 dominio, 08.2 webhook, 08.3 panel y despacho). Ventas WhatsApp diferidas a una spec posterior |
+| 08.2 | Ventas manuales por WhatsApp | Alta de pedido desde el panel, opcionalmente con link de pago de MercadoPago | Orders | pendiente (diferida por decisión del dueño, 2026-09-10) |
 | 09 | Descuentos (opcional) | Por forma de pago y por monto de compra | Orders | pendiente |
 
 ## Fase 3 — Post-MVP (candidatas, sin compromiso)
@@ -67,7 +68,18 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 ## Cómo continuar
 
-- **Próximo paso**: Spec 08 Gestión de pedidos (estados, `ConfirmPaymentAction` con descuento stock, vista depósito, WhatsApp).
+- **Próximo paso**: aprobar el borrador de la **Spec 08** (`docs/specs/08-gestion-pedidos.md`,
+  reglas 143–166). Sus puntos abiertos de negocio quedaron resueltos por el dueño el 2026-09-10.
+- **Decisión de negocio (2026-09-10)**: el comercio se abastece **directo del fabricante**, así que
+  la mercadería siempre se consigue. Un pago cobrado con stock insuficiente **no** se rechaza: el
+  pedido pasa a `paid`, el stock puede quedar negativo y se marca como reposición pendiente
+  (reglas 145–146). El stock **sigue siendo una cantidad concreta y visible** en el catálogo: nunca
+  se muestra ilimitado ni en negativo al cliente.
+- **Nota (2026-09-10)**: se evaluó **reservar stock al crear el pedido** —lo que habría revertido
+  ADR-005— y se **descartó** el mismo día por el costo de la infraestructura que exigía (vencimiento
+  automático de pedidos impagos, con un scheduler que ningún entorno ejecuta). **ADR-005 queda
+  ratificada** y la Spec 08 la implementa; el análisis de la alternativa queda archivado en ADR-012,
+  marcada como descartada. Ninguna spec cerrada necesita enmienda.
 - **Nota (2026-09-10)**: verificación manual de la 07.4 contra MercadoPago sandbox. El flujo
   `/carrito → /checkout → MercadoPago → /checkout/exito` funciona completo; el pedido queda en
   `PendingPayment` y el stock no se descuenta aunque el pago se apruebe, tal como fija la regla 128.
@@ -89,5 +101,11 @@ Cada spec se implementa en orden; cada una depende de la anterior
 - **Nota (2026-09-03)**: la **Spec 05 quedó cerrada** — carrito anónimo en sesión (reglas 81–92, `Cart` + `M2Calculator` reuso, `subtotal` sí / `total` no), validación stock `cantidad ≤ stock` e `activo`, condición derivada no comprable sin estado, 19 tests nuevos (135 totales).
 - **Nota (2026-09-03)**: la **Spec 06 quedó cerrada** — envío por CP exacto 4 dígitos con una tarifa activa por CP (`shipping_rates` CHECK ≥0, único parcial), `ShippingCalculator` + `ManualShippingCalculator` (cotización `disponible`/no disponible sin excepción, ceros iniciales, costo 0), CRUD admin y `total = subtotal + shipping` en carrito, 23 tests nuevos (158 totales).
 - **Nota (2026-09-03)**: la **Spec 07 quedó cerrada** — 07.1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway`; 07.2 `PlaceOrderAction` (`lockForUpdate` + `bcmath` + `audit` + `Cart::clear` post-commit); 07.3 HTTP `CheckoutController` + `StoreCheckoutRequest` + `session order_id` (sin `{order}`), `shipping !disponible → 0` permitido; 38 tests nuevos (196 totales).
+- **Discrepancia detectada en la auditoría documental (2026-09-10) — sin resolver**: el repositorio
+  tiene **15 migraciones**, pero los documentos no coinciden sobre cuántas están aplicadas en staging:
+  `docs/deployment/staging.md` dice `11` (snapshot del 2026-09-01) y este roadmap decía `14`. Como las
+  migraciones en staging son un **step manual** (`staging.md §11`, no van en el `CMD`), es posible que
+  `orders`/`order_lines`/`add_mp_fields_to_orders` **no estén aplicadas** y que el checkout de staging
+  esté roto. **Verificar con `php artisan migrate:status` contra Neon antes de dar staging por bueno.**
 - **Contexto para agentes nuevos**: `.ai/rules/index.md` mapea las reglas
   durables del repo; el runbook de arranque está en el README.
