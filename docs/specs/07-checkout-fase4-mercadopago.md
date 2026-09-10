@@ -1,6 +1,6 @@
 # Spec 07 Fase 4 — MercadoPago: creación de preferencia y redirección
 
-- **Estado**: cerrada (2026-09-04) — aprobada por el dueño, implementada y mergeada a `main` (`cb9fd2b`, PR #8)
+- **Estado**: cerrada (2026-09-04) — aprobada por el dueño, implementada y mergeada a `main` (`cb9fd2b`, PR #8). **Verificada de punta a punta contra la API real el 2026-09-10** (ver *Sincronía 2026-09-10*), con dos enmiendas a la regla 123.
 - **Fuentes**: Spec 07.1 (101–107 `orders`/`order_lines`, `OrderStatus`, `PaymentGateway name()` solo), Spec 07.2 (108–114 `PlaceOrderAction` `lockForUpdate`/`bcmath`/`audit`/`clear` post-commit), Spec 07.3 (115–120 `CheckoutController` `session order_id`, `StoreCheckoutRequest`, `shipping !disponible → 0`), Spec 00 (24–26 pagos), ADR-003 (centavos + bcmath), ADR-004 (audit), ADR-006 (puertos), `PROJECT_PRINCIPLES.md`, `AGENTS.md`, `.ai/rules/*`
 
 ## Objetivo
@@ -66,6 +66,83 @@ Implementación real de `PaymentGateway` para **MercadoPago**: `MercadoPagoGatew
 - **SDK oficial vs `Http` nativo**: se elige SDK por decisión explícita (tu respuesta), asumiendo mantenimiento vendor; descartado `Http` documentado como alternativa.
 - **Sin DTO**: `init_point` + `preference_id` bastan (YAGNI hasta webhook).
 - **Sin webhook/stock**: 07.4 no cambia `status` ni descuenta stock (08 lo hace con `ConfirmPaymentAction` + `lock`).
+
+## Sincronía 2026-09-10 — primera verificación contra la API real
+
+Hasta esta fecha la 07.4 solo estaba verificada con gateway fake: **ningún test ni prueba manual
+había llegado nunca a la API de MercadoPago**. Al configurar credenciales `TEST-` reales y
+recorrer el flujo completo (`/carrito → /checkout → MercadoPago → /checkout/exito`) aparecieron
+dos defectos que el fake no podía revelar. Ambos enmiendan la **regla 123**; el resto de la spec
+queda intacto y la spec no se reabre.
+
+### Enmienda 1 a la regla 123 — `auto_return` condicionado a back_url pública
+
+La regla 123 fijaba `auto_return: 'approved'` de forma incondicional. MercadoPago **rechaza la
+preferencia con `400 invalid_auto_return`** (`"auto_return invalid. back_url.success must be
+defined"`) cuando las `back_urls` no son alcanzables desde internet, que es el caso de cualquier
+entorno local (`APP_URL=http://localhost:8080`). Como `paymentUrl()` lanza ante error de API
+(regla 125), el efecto era que **MercadoPago resultaba inutilizable en desarrollo**: todo intento
+de pago caía en el `catch` de la regla 124 y devolvía `payment_error`.
+
+`MercadoPagoGateway::preferencePayload()` ahora envía `auto_return` **solo cuando el host de la
+back_url es alcanzable desde internet**. Se descartan `localhost`, `127.0.0.1`, `::1`, los sufijos
+`.localhost`/`.local`/`.test` y los rangos IP privados o reservados. En staging y producción el
+payload es idéntico al que fijaba la regla original.
+
+Para desarrollo local se documenta el uso de un túnel (`cloudflared tunnel --url
+http://localhost:8080`) con `APP_URL` apuntando a la URL pública: con eso `auto_return` vuelve a
+enviarse y el flujo es el mismo que en producción. El túnel además será **requisito** para probar
+el webhook de la Spec 08.
+
+### Enmienda 2 a la regla 123 — el costo de envío viaja en `shipments`
+
+La regla 123 detallaba `items` a partir de las líneas del pedido y **nunca contemplaba
+`shipping_cost_cents`**. Consecuencia: MercadoPago cobraba el **subtotal** en lugar del **total**,
+y el cliente pagaba de menos exactamente el costo del envío. Verificado con el pedido #10 en
+sandbox: total del pedido $120.500 (subtotal $112.500 + envío $8.000), monto cobrado por MP
+$112.500.
+
+El payload ahora incluye, **solo cuando `shipping_cost_cents > 0`**:
+
+```php
+'shipments' => [
+    'mode' => 'not_specified',
+    'cost' => (float) bcdiv((string) $order->shipping_cost_cents, '100', 2),
+],
+```
+
+Se elige `shipments.cost` y no un ítem extra en `items` porque el envío **no es un producto**:
+MercadoPago lo discrimina en el detalle de pago igual que lo hace el carrito, y el dominio no
+queda contaminado con una línea que no existe en `order_lines`. La conversión a `float` es el
+mismo borde de SDK ya documentado para `unit_price` (ADR-003: el dominio sigue en centavos).
+
+Un pedido con `shipping !disponible → 0` (regla 118) no declara `shipments`, evitando enviar a MP
+un costo cero sin significado.
+
+### Aprendizaje de proceso — los tests no deben heredar credenciales reales
+
+`phpunit.xml` no neutralizaba `MERCADOPAGO_ACCESS_TOKEN`, de modo que la suite heredaba el `.env`
+del desarrollador. Con el token vacío esto pasaba inadvertido; apenas se configuró un token real,
+**la suite empezó a crear preferencias verdaderas contra la API de MercadoPago**. Además dejó al
+descubierto que el test `POST /checkout mercadopago tambien crea pedido` (Spec 07.3) pasaba por el
+motivo equivocado: afirmaba el redirect a `/checkout/exito`, que es el **camino de error** de la
+regla 124, y solo se sostenía mientras no hubiera credenciales.
+
+`phpunit.xml` ahora fuerza `MERCADOPAGO_ACCESS_TOKEN` y `MERCADOPAGO_PUBLIC_KEY` vacías, y ese
+test bindea un gateway explícito en lugar de depender del ambiente. **Ningún test alcanza la red.**
+
+### Deuda de UI saldada en la misma tanda
+
+El carrito no tenía ningún enlace a `/checkout`: la pantalla solo era accesible escribiendo la URL
+a mano. Los tests de la 07.3 entraban por ruta directa, así que el gate nunca lo detectó. Se agrega
+el botón "Finalizar compra", deshabilitado cuando hay líneas no comprables (coherente con el
+redirect que ya hacía `CheckoutController::show`).
+
+### Sigue fuera de alcance
+
+La regla 128 no cambia. El pedido queda en `PendingPayment` aunque el pago se apruebe, y el stock
+no se descuenta: eso requiere el webhook y `ConfirmPaymentAction` de la **Spec 08**. Verificado con
+el pedido #10 (pago aprobado en sandbox, `status = pending_payment`, stock sin tocar).
 
 ## Evolución documentada (no anticipada)
 
