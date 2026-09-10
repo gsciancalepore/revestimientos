@@ -257,3 +257,33 @@ test('carrito usa layout site y muestra categorías', function () {
 
     $this->get(route('carrito.show'))->assertOk()->assertSee('Porcelanatos');
 });
+
+test('carrito con líneas comprables ofrece enlace a checkout', function () {
+    $product = Product::factory()->unitMode()->create(['stock' => 10, 'precio_cents' => 1000]);
+
+    $this->post(route('carrito.add'), ['producto' => $product->slug, 'cantidad' => 2])->assertRedirect(route('carrito.show'));
+
+    $this->get(route('carrito.show'))
+        ->assertOk()
+        ->assertSee('Finalizar compra')
+        ->assertSee(route('checkout.show'));
+});
+
+test('carrito vacío no ofrece enlace a checkout', function () {
+    $this->get(route('carrito.show'))
+        ->assertOk()
+        ->assertDontSee('Finalizar compra');
+});
+
+test('carrito con líneas no comprables no enlaza a checkout', function () {
+    $product = Product::factory()->unitMode()->create(['stock' => 10, 'precio_cents' => 1000]);
+
+    $this->post(route('carrito.add'), ['producto' => $product->slug, 'cantidad' => 2])->assertRedirect(route('carrito.show'));
+
+    $product->update(['activo' => false]);
+
+    $this->get(route('carrito.show'))
+        ->assertOk()
+        ->assertSee('Finalizar compra')
+        ->assertDontSee(route('checkout.show'));
+});

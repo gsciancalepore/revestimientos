@@ -45,12 +45,18 @@
                 </div>
             </div>
 
-            <div class="mt-4 flex justify-end">
+            <div class="mt-4 flex items-center justify-end gap-6">
                 <form action="{{ route('carrito.clear') }}" method="post">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="text-sm text-stone-500 hover:text-red-600">Vaciar carrito</button>
                 </form>
+
+                @if ($hasUnpurchasable)
+                    <span class="cursor-not-allowed rounded-md bg-stone-300 px-6 py-2 text-sm font-medium text-stone-500">Finalizar compra</span>
+                @else
+                    <a href="{{ route('checkout.show') }}" class="rounded-md bg-orange-600 px-6 py-2 text-sm font-medium text-white hover:bg-orange-500">Finalizar compra</a>
+                @endif
             </div>
         @endif
 

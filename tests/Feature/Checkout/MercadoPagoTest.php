@@ -1,11 +1,13 @@
 <?php
 
 use App\Models\Order;
+use App\Models\OrderLine;
 use App\Models\Product;
 use App\Services\Cart;
 use App\Services\ManualTransferGateway;
 use App\Services\MercadoPagoGateway;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\URL;
 
 beforeEach(function () {
     Session::flush();
@@ -37,6 +39,17 @@ class FakeMercadoPagoGatewaySuccess extends MercadoPagoGateway
         ]);
 
         return 'https://mercadopago.test/checkout/pref-'.$order->id;
+    }
+}
+
+class PayloadInspectorGateway extends MercadoPagoGateway
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function payloadFor(Order $order): array
+    {
+        return $this->preferencePayload($order);
     }
 }
 
@@ -185,4 +198,83 @@ test('POST retry con transferencia responde 403 sin crear preferencia', function
 
 test('POST retry sin session redirige a carrito', function () {
     $this->post(route('checkout.mercadopago.retry'))->assertRedirect(route('carrito.show'));
+});
+
+test('auto_return se envía cuando la back_url es pública', function () {
+    URL::forceRootUrl('https://revestimientos.onrender.com');
+
+    $order = Order::factory()->create(['payment_method' => 'mercadopago']);
+    OrderLine::factory()->create(['order_id' => $order->id]);
+    $order->load('lines');
+
+    $payload = (new PayloadInspectorGateway)->payloadFor($order);
+
+    expect($payload['auto_return'])->toBe('approved');
+    expect($payload['back_urls']['success'])->toContain('revestimientos.onrender.com');
+});
+
+test('auto_return se omite cuando la back_url es localhost', function () {
+    URL::forceRootUrl('http://localhost:8080');
+
+    $order = Order::factory()->create(['payment_method' => 'mercadopago']);
+    OrderLine::factory()->create(['order_id' => $order->id]);
+    $order->load('lines');
+
+    $payload = (new PayloadInspectorGateway)->payloadFor($order);
+
+    expect($payload)->not->toHaveKey('auto_return');
+    expect($payload['back_urls']['success'])->toContain('localhost');
+});
+
+test('auto_return se omite cuando la back_url apunta a una IP privada', function () {
+    URL::forceRootUrl('http://192.168.0.10:8080');
+
+    $order = Order::factory()->create(['payment_method' => 'mercadopago']);
+    OrderLine::factory()->create(['order_id' => $order->id]);
+    $order->load('lines');
+
+    $payload = (new PayloadInspectorGateway)->payloadFor($order);
+
+    expect($payload)->not->toHaveKey('auto_return');
+});
+
+test('el costo de envío viaja en shipments y el payload suma el total del pedido', function () {
+    $order = Order::factory()->create([
+        'payment_method' => 'mercadopago',
+        'subtotal_cents' => 11250000,
+        'shipping_cost_cents' => 800000,
+        'total_cents' => 12050000,
+    ]);
+    OrderLine::factory()->create([
+        'order_id' => $order->id,
+        'cantidad' => 6,
+        'precio_unitario_cents' => 1875000,
+        'subtotal_cents' => 11250000,
+    ]);
+    $order->load('lines');
+
+    $payload = (new PayloadInspectorGateway)->payloadFor($order);
+
+    expect($payload['shipments']['cost'])->toBe(8000.0);
+    expect($payload['shipments']['mode'])->toBe('not_specified');
+
+    $itemsTotal = array_sum(array_map(
+        fn (array $item): float => $item['unit_price'] * $item['quantity'],
+        $payload['items']
+    ));
+
+    expect($itemsTotal + $payload['shipments']['cost'])->toBe((float) bcdiv((string) $order->total_cents, '100', 2));
+});
+
+test('sin costo de envío el payload no declara shipments', function () {
+    $order = Order::factory()->create([
+        'payment_method' => 'mercadopago',
+        'shipping_cost_cents' => 0,
+    ]);
+    OrderLine::factory()->create(['order_id' => $order->id]);
+    $order->load('lines');
+
+    $payload = (new PayloadInspectorGateway)->payloadFor($order);
+
+    expect($payload)->not->toHaveKey('shipments');
 });
