@@ -79,7 +79,7 @@ El carrito es **público y anónimo** (como el catálogo, Spec 04:80). No hay ro
 - **Controlador delgado**: `CartController` (`show`, `add`, `update`, `destroy`, `clear`) delega en un servicio de dominio `Cart`/`CartService` puro (sin HTTP), que aplica reglas 81–92 y revalida contra `Product` (`activo`, `stock`, `unidad_venta`).
 - **Rutas públicas** (sin auth) en `routes/web.php`: `GET /carrito` (`carrito.show`), `POST /carrito/agregar` (`carrito.add`), `PATCH /carrito/{producto}` (`carrito.update`), `DELETE /carrito/{producto}` (`carrito.remove`), `DELETE /carrito` (`carrito.clear`). No se usa `Route::resource` para mantener verbos explícitos del carrito.
 - **Vistas**: `resources/views/cart/show.blade.php` con layout `layouts/site` (como catálogo, Spec 04), componente `cart-line`; Alpine solo para cantidad/desperdicio; mensajes de validación en español.
-- **Sin reserva de stock**: coherente con ADR-005; el descuento de stock ocurre en `ConfirmPaymentAction` (Spec 07), no aquí.
+- **Sin reserva de stock**: coherente con ADR-005; el descuento de stock ocurre en `ConfirmPaymentAction` (Spec 08 — no Spec 07; corregido en la auditoría documental del 2026-09-10), no aquí.
 
 ## Evolución documentada (no arquitectura anticipada)
 
