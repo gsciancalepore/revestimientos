@@ -31,8 +31,18 @@ Para **cada regla numerada** de la spec que te indiquen:
 
 Cuando la duda se resuelva ejecutando algo, ejecutalo. Los contenedores están arriba:
 `docker compose exec -T app php artisan ...`, `docker compose exec -T app php artisan test --filter=...`.
-Verificar contra la base o corriendo un test vale más que deducir leyendo. **Nunca** ejecutes nada
-que escriba en servicios externos.
+Verificar corriendo un test vale más que deducir leyendo.
+
+**Límites de ejecución, sin excepción:**
+
+- **Nunca** ejecutes nada que escriba en servicios externos. Hay credenciales reales en el `.env`.
+- **Nunca escribas en la base de desarrollo.** Consultas de lectura, todas las que quieras. Si
+  necesitás comprobar un comportamiento que muta datos, escribilo como un **test de Pest** y
+  corrélo con `--filter`: la base de tests es efímera y se migra en cada corrida. Un `tinker` con
+  `update()`, `create()` o `delete()` contra la base de desarrollo está prohibido aunque después
+  restaures los valores: el `updated_at` queda alterado y, si hay observers, se disparan.
+- Si una verificación te resulta imposible dentro de estos límites, reportala como **no verificable
+  por lectura** y explicá qué haría falta. Eso es un resultado válido.
 
 ## Reglas de tu propio trabajo
 

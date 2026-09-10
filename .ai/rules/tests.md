@@ -13,3 +13,6 @@ La base de test es PostgreSQL dedicada ceramica_test (phpunit.xml). Dos php arti
 
 ## Ningún test alcanza servicios externos
 Las credenciales de servicios externos se neutralizan en phpunit.xml (MERCADOPAGO_ACCESS_TOKEN/MERCADOPAGO_PUBLIC_KEY vacías): sin eso la suite hereda el .env del desarrollador y, con un token real configurado, los tests crean recursos verdaderos contra la API (ocurrió con MercadoPago el 2026-09-10). Un test nunca debe depender de que el ambiente esté sin configurar para tomar el camino de error: bindear el gateway explícitamente en el contenedor. PreferenceClient del SDK de MercadoPago es final y no se puede mockear — por eso MercadoPagoGateway expone preferencePayload() protected y el test verifica el payload en vez del cliente.
+
+## Un test de auditoría verifica el payload, no que la fila exista
+assertDatabaseHas(audit_logs, [action, subject_id]) no cubre una regla de auditoría: lo que la regla promete es el contenido. Durante meses `product.price_changed` guardó el valor nuevo como "previous" (UpdateProductAction leía getOriginal() después del save(), cuando syncOriginal() ya lo había pisado) y el test pasaba igual porque solo miraba que existiera la fila. Assertar siempre previous y new con sus valores reales.
