@@ -86,3 +86,31 @@ Exponer el **checkout anónimo vía HTTP**: formulario público, validación, in
 
 Fase 3 es solo HTTP; no tocar `PlaceOrderAction`/`M2Calculator`/`Cart`. TDD: red `GET /checkout` → `POST` → `success` (sesión), con `Cart` en sesión y `ShippingQuote` mock. Rama `feat/checkout-07-fase3-http` desde `main` (post 07.2 merge). Seguir `AGENTS.md`, `.ai/rules`, `PROJECT_PRINCIPLES.md`, `make` Docker.
 
+
+## Sincronía 2026-09-10 — enmienda a la regla 117 (HIG-09)
+
+La verificación de las specs cerradas contra el código encontró dos desviaciones en la regla 117.
+**Ninguna se corrige en el código: se corrige la spec.**
+
+### `success` usa `find` + redirect, no `findOrFail` + 404
+
+La regla 117 y los casos borde de esta spec y de la 07.4 dicen que un `order_id` de sesión que no
+existe responde **404** vía `findOrFail`. `CheckoutController::success()` usa `find()` y **redirige a
+`carrito.show`** cuando es `null`.
+
+**Queda vigente el comportamiento del código.** El redirect es mejor experiencia que un 404 —el
+cliente llega a una pantalla útil en vez de a un error—, y el escenario de tamper que motivaba el
+`findOrFail` no existe: el `order_id` vive en la **sesión server-side**, no en la URL ni en una
+cookie manipulable. El caso real que queda es una sesión que sobrevivió a un `migrate:fresh` en
+desarrollo, donde el 404 no aporta nada.
+
+Donde esta spec y la 07.4 dicen *"`order_id` tamper/otro navegador → `findOrFail` 404"*, léase
+**`find` → redirect a `carrito.show`**. La regla 126 (reintento de MercadoPago) **sí** conserva su
+`findOrFail`: ahí un id inexistente con sesión viva es una anomalía, no un cliente perdido.
+
+### `show` pasa tres variables a la vista, no seis
+
+La regla 117 enumera `['lines','subtotal','hasUnpurchasable','isEmpty','categorias','cart']`; el
+controlador pasa `lines`, `subtotal` y `categorias`. Es inocuo: `show` redirige antes en los dos
+casos que usarían `hasUnpurchasable` e `isEmpty`, así que la vista nunca los necesita. **Se anota y
+no se toca**: agregar variables muertas a la vista sería peor que la desviación.

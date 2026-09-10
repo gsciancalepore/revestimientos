@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\Product;
@@ -188,6 +189,26 @@ test('POST retry con transferencia responde 403 sin crear preferencia', function
     $this->app->bind(MercadoPagoGateway::class, fn () => new FakeMercadoPagoGatewaySuccess);
 
     $order = Order::factory()->create(['payment_method' => 'transferencia']);
+
+    $this->withSession(['order_id' => $order->id])
+        ->post(route('checkout.mercadopago.retry'))
+        ->assertForbidden();
+
+    expect(FakeMercadoPagoGatewaySuccess::$calls)->toBe(0);
+});
+
+// HIG-08: el guard de la regla 126 valida medio de pago Y estado, pero solo la
+// primera condición estaba cubierta. Hoy ningún pedido llega a `paid` (regla 128);
+// cuando la fase 08.b los mueva por webhook, un guard roto dejaría que un cliente
+// con la sesión viva genere una preferencia nueva sobre un pedido ya pagado.
+test('POST retry sobre un pedido mercadopago ya pagado responde 403 sin crear preferencia', function () {
+    FakeMercadoPagoGatewaySuccess::$calls = 0;
+    $this->app->bind(MercadoPagoGateway::class, fn () => new FakeMercadoPagoGatewaySuccess);
+
+    $order = Order::factory()->create([
+        'payment_method' => 'mercadopago',
+        'status' => OrderStatus::Paid,
+    ]);
 
     $this->withSession(['order_id' => $order->id])
         ->post(route('checkout.mercadopago.retry'))
