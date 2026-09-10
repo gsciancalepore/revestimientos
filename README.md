@@ -17,6 +17,7 @@ calculadora de m² → cajas y panel para operar productos, pedidos y stock.
 - **Spec 05 — Carrito**: [`docs/specs/05-carrito.md`](docs/specs/05-carrito.md)
 - **Spec 06 — Envío por CP**: [`docs/specs/06-envio.md`](docs/specs/06-envio.md) (Fase 1 tarifa por CP), [`docs/specs/06-envio-fase2-importador.md`](docs/specs/06-envio-fase2-importador.md) (Fase 2 importador CSV de tarifas)
 - **Spec 07 — Checkout** (compra anónima y creación del pedido): [`docs/specs/07-checkout.md`](docs/specs/07-checkout.md) (Fase 1 estructura), [`docs/specs/07-checkout-fase2.md`](docs/specs/07-checkout-fase2.md) (`PlaceOrderAction`), [`docs/specs/07-checkout-fase3-http.md`](docs/specs/07-checkout-fase3-http.md) (HTTP + formulario), [`docs/specs/07-checkout-fase4-mercadopago.md`](docs/specs/07-checkout-fase4-mercadopago.md) (MercadoPago)
+- **Spec 08 — Gestión de pedidos** (borrador, pendiente de aprobación): [`docs/specs/08-gestion-pedidos.md`](docs/specs/08-gestion-pedidos.md)
 - **Higiene ShippingRate/AllowedSpecs/UserRole**: [`docs/specs/higiene-01-shippingrate-allowedspecs-userrole.md`](docs/specs/higiene-01-shippingrate-allowedspecs-userrole.md)
 - **Spec — Calidad de análisis estático** (PHPStan↔Pest, gates): [`docs/specs/calidad-analisis-estatico.md`](docs/specs/calidad-analisis-estatico.md)
 - **Spec — Calidad de onboarding** (runbook y docs para agentes): [`docs/specs/calidad-onboarding.md`](docs/specs/calidad-onboarding.md)
