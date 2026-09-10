@@ -68,7 +68,7 @@ como entidad propia (ADR-005: eso es *Extract Stock*, Fase 3). Sin multi-gateway
              └───────────┘
 
     paid ──┐
-           ├──► cancelled  con RESTITUCIÓN de stock (regla 146).
+           ├──► cancelled  con RESTITUCIÓN de stock (regla 147).
  shipped ──┘                La devolución del dinero es un trámite fuera del sistema.
 ```
 
@@ -85,79 +85,100 @@ dinero, y eso es otra spec.
 144. La validación de la regla 110 (`cantidad > stock` en `PlaceOrderAction`) se mantiene tal cual,
      pero **no es garantía**: el stock puede haberse agotado entre el pedido y el pago. Por eso
      `ConfirmPaymentAction` **revalida bajo lock** antes de descontar.
-145. **Pago cobrado sin stock disponible**: si al confirmar el pago no alcanza el stock, el pedido
-     **no pasa a `paid`** y la transacción no descuenta nada. Se registra
-     `order.payment_without_stock` en `audit` y el pedido queda destacado en el panel como
-     incidente. Es el riesgo que ADR-005 aceptó de forma explícita, y se resuelve con una persona,
-     no automáticamente: hay plata cobrada y mercadería que no existe.
-146. **Restitución de stock** al cancelar un pedido `paid` o `shipped`: se devuelve exactamente
+145. **Pago cobrado con stock insuficiente**: el pedido **pasa a `paid` igual** y el stock se
+     descuenta aunque quede en negativo. Nunca se rechaza un pago ya cobrado: eso dejaría un pedido
+     pagado sin poder avanzar, que es peor que un stock negativo. Se registra
+     `order.stock_en_negativo` en `audit` y el pedido queda destacado en el panel como
+     **reposición pendiente**.
+
+     Fundamento del negocio (dueño, 2026-09-10): *el comercio trabaja directo con el fabricante, así
+     que la mercadería siempre se consigue*. El stock negativo no significa "no se puede cumplir"
+     sino "hay que reponer N unidades antes de despachar". Esto vuelve teórico el riesgo que ADR-005
+     aceptó y refuerza su elección frente a la reserva.
+
+     Habilitado por el esquema actual: `products.stock` se declaró `unsignedInteger`, pero Laravel
+     lo mapea en PostgreSQL a `integer` **sin `CHECK >= 0`** (verificado el 2026-09-10), a diferencia
+     de `shipping_rates.costo_cents`, que sí lo tiene. No hace falta migración. Queda anotada la
+     inconsistencia de convención entre ambas columnas.
+146. **El stock sigue siendo una cantidad concreta y visible** (dueño, 2026-09-10): que la
+     mercadería siempre se consiga del fabricante **no** convierte al stock en ilimitado ni lo
+     esconde. El catálogo sigue mostrando un número, como hasta hoy (reglas 55–60 y 75), y ese
+     número se administra desde el panel. El negativo es un estado interno de excepción, nunca algo
+     que el cliente vea:
+
+     - **Público** (catálogo, ficha, carrito): `stock <= 0` se muestra y se trata como **sin
+       stock**; nunca se muestra un número negativo. Las reglas 81–92 ya comparan `cantidad ≤ stock`,
+       que un negativo satisface por sí solo, así que el producto queda no comprable sin cambios.
+     - **Panel**: se muestra el valor real, negativo incluido, porque es exactamente cuánto hay que
+       reponerle al fabricante antes de despachar.
+147. **Restitución de stock** al cancelar un pedido `paid` o `shipped`: se devuelve exactamente
      `order_lines.cantidad` a `product.stock`, en una transacción con `lockForUpdate`.
-147. Cancelar un pedido `pending_payment` **no toca stock**, porque nunca se descontó.
-148. La restitución usa las cantidades congeladas en `order_lines`, **nunca** recalcula desde el
+148. Cancelar un pedido `pending_payment` **no toca stock**, porque nunca se descontó.
+149. La restitución usa las cantidades congeladas en `order_lines`, **nunca** recalcula desde el
      producto: la conversión m²→cajas ya quedó fijada al crear el pedido. Un pedido cancelado dos
-     veces no restituye dos veces (regla 151).
+     veces no restituye dos veces (regla 152).
 
 ### Confirmación de pago
 
-149. **`ConfirmPaymentAction`** es el único camino a `paid`. Recibe el pedido y el origen de la
+150. **`ConfirmPaymentAction`** es el único camino a `paid`. Recibe el pedido y el origen de la
      confirmación (`mercadopago` o `manual`), valida la transición, **descuenta stock** (reglas
      143–145), cambia el estado y registra `order.paid` en `audit` con el actor. Estado y stock se
      mueven en la **misma transacción**: o pasan los dos, o no pasa ninguno.
-150. La acción valida que el pedido esté en `PendingPayment`. Un pedido `cancelled` que reciba una
+151. La acción valida que el pedido esté en `PendingPayment`. Un pedido `cancelled` que reciba una
      confirmación de pago **no pasa a `paid`**: se registra `order.paid_after_cancel` en `audit` y
      queda destacado en el panel, porque implica plata cobrada sobre un pedido dado de baja.
-151. **Idempotencia**: confirmar un pago ya confirmado es un no-op silencioso, sin descontar stock
+152. **Idempotencia**: confirmar un pago ya confirmado es un no-op silencioso, sin descontar stock
      de nuevo. MercadoPago reintenta las notificaciones, así que esto no es un caso raro sino el
      caso normal.
 
 ### Webhook de MercadoPago
 
-152. **`POST /webhook/mercadopago`** (`webhook.mercadopago`, sin `auth`, exento de CSRF, sin
+153. **`POST /webhook/mercadopago`** (`webhook.mercadopago`, sin `auth`, exento de CSRF, sin
      sesión). Responde **200 siempre que la notificación sea legítima**, incluso si no hay nada
      que hacer: un 4xx/5xx hace que MercadoPago reintente indefinidamente.
-153. **Validación de firma obligatoria**: se verifica el header `x-signature` (con `x-request-id`
+154. **Validación de firma obligatoria**: se verifica el header `x-signature` (con `x-request-id`
      y el `data.id`) contra `MERCADOPAGO_WEBHOOK_SECRET` usando comparación en tiempo constante.
      Firma ausente o inválida → **401**, sin procesar nada, con registro en `audit`.
-154. **El contenido de la notificación no se cree nunca**: del payload se toma únicamente el ID
+155. **El contenido de la notificación no se cree nunca**: del payload se toma únicamente el ID
      del pago, y el estado real se consulta contra la API de MercadoPago
      (`PaymentClient::get()`). La decisión de marcar `paid` se toma con esa respuesta, jamás con
      lo que llegó por HTTP.
-155. El pedido se localiza por `external_reference` (regla 123), que ya contiene el `order->id`.
+156. El pedido se localiza por `external_reference` (regla 123), que ya contiene el `order->id`.
      Referencia inexistente → 200 + `audit`, sin excepción: puede ser una notificación de otra
      aplicación o una prueba.
-156. **El monto se verifica**: si el pago aprobado no coincide con `order.total_cents`, el pedido
+157. **El monto se verifica**: si el pago aprobado no coincide con `order.total_cents`, el pedido
      **no** pasa a `paid`; se registra `order.payment_amount_mismatch` en `audit` y queda visible
      en el panel. Esta regla nace de un defecto real: hasta el 2026-09-10 la preferencia omitía el
      envío y MercadoPago cobraba el subtotal.
-157. Solo `status === 'approved'` confirma. `pending`/`in_process` → 200 sin cambios;
+158. Solo `status === 'approved'` confirma. `pending`/`in_process` → 200 sin cambios;
      `rejected`/`cancelled` → 200 sin cambios, el pedido sigue `PendingPayment` y el cliente puede
      reintentar con la regla 126.
 
 ### Confirmación manual de transferencia
 
-158. El admin marca un pedido `transferencia` como pagado desde el panel, lo que invoca el mismo
+159. El admin marca un pedido `transferencia` como pagado desde el panel, lo que invoca el mismo
      `ConfirmPaymentAction` con origen `manual`. Queda auditado con el usuario que lo hizo, y
      descuenta stock igual que la confirmación automática.
-159. La confirmación manual está restringida a **admin**. El vendedor ve los pedidos pero no
+160. La confirmación manual está restringida a **admin**. El vendedor ve los pedidos pero no
      confirma cobros.
 
 ### Panel y vista depósito
 
-160. **`GET /admin/pedidos`**: listado con filtros por estado y búsqueda por email o ID.
+161. **`GET /admin/pedidos`**: listado con filtros por estado y búsqueda por email o ID.
      Accesible a admin y vendedor. Muestra destacados los pedidos que requieren atención humana
-     (reglas 145, 150 y 156).
-161. **`GET /admin/pedidos/{pedido}`**: detalle con líneas, totales, datos de envío, medio de
+     (reglas 145, 151 y 157).
+162. **`GET /admin/pedidos/{pedido}`**: detalle con líneas, totales, datos de envío, medio de
      pago, estado y traza de auditoría del pedido.
-162. **Vista depósito** (`GET /admin/despacho`): solo pedidos `paid`, ordenados por antigüedad,
+163. **Vista depósito** (`GET /admin/despacho`): solo pedidos `paid`, ordenados por antigüedad,
      con lo que hace falta para preparar el envío (productos, cantidades, CP, dirección). No
      muestra importes: el depósito no necesita ver plata.
-163. **`paid → shipped`** lo puede hacer admin o depósito. **`shipped → delivered`**, también.
+164. **`paid → shipped`** lo puede hacer admin o depósito. **`shipped → delivered`**, también.
      Ambas transiciones quedan auditadas.
-164. **Cancelaciones, todas de admin**: `pending_payment → cancelled` no toca stock (regla 147);
-     `paid → cancelled` y `shipped → cancelled` **restituyen** (regla 146). La devolución del
+165. **Cancelaciones, todas de admin**: `pending_payment → cancelled` no toca stock (regla 148);
+     `paid → cancelled` y `shipped → cancelled` **restituyen** (regla 147). La devolución del
      dinero es un trámite **fuera del sistema** (panel de MercadoPago o transferencia bancaria):
      esta spec no automatiza reintegros, solo deja el pedido y el stock consistentes.
-165. Toda transición de estado pasa por una única `TransitionOrderStatusAction` que valida contra
+166. Toda transición de estado pasa por una única `TransitionOrderStatusAction` que valida contra
      la máquina de estados: ningún controlador escribe `order.status` directamente.
 
 ## Matriz de permisos
@@ -174,20 +195,19 @@ dinero, y eso es otra spec.
 
 ## Casos borde
 
-- Webhook duplicado o reintentado → no-op idempotente (regla 151), 200, sin descontar stock dos
+- Webhook duplicado o reintentado → no-op idempotente (regla 152), 200, sin descontar stock dos
   veces.
-- **Pago aprobado sin stock suficiente** (regla 145) → el pedido no pasa a `paid`, no se descuenta
-  nada y queda como incidente. Es el riesgo que ADR-005 aceptó de forma explícita y el caso borde
-  más importante de esta spec: hay dinero cobrado y mercadería que no existe.
-- Webhook con monto distinto al total → regla 156, no confirma.
-- Webhook de un pago aprobado sobre un pedido cancelado a mano → regla 150, incidente.
+- **Pago aprobado sin stock suficiente** (regla 145) → el pedido pasa a `paid`, el stock queda
+  negativo y el pedido se marca como reposición pendiente. Nunca se rechaza un pago ya cobrado.
+- Webhook con monto distinto al total → regla 157, no confirma.
+- Webhook de un pago aprobado sobre un pedido cancelado a mano → regla 151, incidente.
 - Pago aprobado en MercadoPago mientras el admin confirma la transferencia a mano → la segunda
-  confirmación es no-op (regla 151), el stock se descuenta una sola vez.
+  confirmación es no-op (regla 152), el stock se descuenta una sola vez.
 - Dos pagos casi simultáneos sobre el mismo producto con stock para uno solo → `lockForUpdate`
-  serializa; el segundo cae en la regla 145.
+  serializa; el segundo cae en la regla 145 y deja el stock en negativo, no falla.
 - Cancelación y confirmación de pago simultáneas sobre el mismo pedido → el lock sobre el pedido
   serializa; la segunda ve el estado ya cambiado y no actúa.
-- Cancelar dos veces un pedido pagado → la restitución no se aplica dos veces (regla 148).
+- Cancelar dos veces un pedido pagado → la restitución no se aplica dos veces (regla 149).
 - Producto borrado después de crear el pedido → el descuento y la restitución lo saltean sin
   fallar; `order_lines` conserva los datos congelados. La regla 67 ya impide borrar productos con
   pedidos, así que es defensa en profundidad.
@@ -200,8 +220,10 @@ dinero, y eso es otra spec.
       válida y por cada inválida.
 - [ ] `ConfirmPaymentAction` descuenta stock bajo `lockForUpdate` en la misma transacción que el
       cambio de estado; test de rollback que verifica que ni estado ni stock se movieron.
-- [ ] Regla 145: test de pago confirmado con stock insuficiente → pedido sigue `PendingPayment`,
-      stock intacto, `audit` con `order.payment_without_stock`.
+- [ ] Regla 145: test de pago confirmado con stock insuficiente → pedido **sí** pasa a `paid`,
+      stock queda negativo, `audit` con `order.stock_en_negativo`, pedido destacado en el panel.
+- [ ] Regla 146: test de que un producto con stock negativo se muestra como sin stock en el
+      catálogo y no se puede agregar al carrito, y que el panel expone el valor real.
 - [ ] `ConfirmPaymentAction` idempotente y auditada, con los dos orígenes; test de doble
       confirmación que verifica que el stock se descuenta una sola vez, y de confirmación sobre
       pedido cancelado.
@@ -215,17 +237,15 @@ dinero, y eso es otra spec.
 
 ## Riesgos y puntos abiertos
 
-1. **Qué hacer cuando se cobró y no hay stock (regla 145).** El sistema deja el incidente
-   registrado y visible, pero **la política de negocio no está definida**: ¿se reintegra el dinero,
-   se ofrece otro producto, se espera reposición? Es una decisión del dueño, no técnica.
-   **Requiere respuesta antes de implementar el panel**, porque define qué acciones ofrece la
-   pantalla de incidentes.
-2. **La devolución de dinero al cancelar un pedido pagado queda fuera del sistema** (regla 164).
+1. ~~Qué hacer cuando se cobró y no hay stock~~ — **resuelto (dueño, 2026-09-10)**: el pago se
+   confirma igual, el stock puede quedar negativo y el pedido se marca como reposición pendiente,
+   porque el comercio se abastece directo del fabricante. Reglas 145 y 146.
+2. **La devolución de dinero al cancelar un pedido pagado queda fuera del sistema** (regla 165).
    Hay que confirmar que eso es aceptable operativamente: el admin restituye stock desde el panel y
    devuelve la plata a mano por el canal que corresponda.
 3. **Los pedidos `pending_payment` se acumulan sin límite.** Sin reserva de stock esto no hace
    daño —no congela mercadería—, pero ensucia el panel con el tiempo. No hace falta resolverlo en
-   esta spec; alcanza con el filtro por estado de la regla 160.
+   esta spec; alcanza con el filtro por estado de la regla 161.
 4. **`MERCADOPAGO_WEBHOOK_SECRET` es una credencial nueva**, distinta del access token. Hay que
    generarla en el panel de MercadoPago y cargarla en Render. Se neutraliza en `phpunit.xml` como
    el resto (sincronía 2026-09-10).
