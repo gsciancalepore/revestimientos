@@ -45,7 +45,7 @@ Cada spec se implementa en orden; cada una depende de la anterior
 | 06 | Envío | Tarifa única por CP exacto 4 dígitos, `ShippingCalculator` + `ManualShippingCalculator` con `shipping_rates` (CHECK ≥0, único parcial activo), cotización `disponible`/no disponible sin excepción, CRUD admin y `total = subtotal + shipping` en carrito | Orders | ✅ cerrada (2026-09-03): 158 tests en verde, Pint/PHPStan alineados |
 | 06.2 | Envío — Importador de tarifas | Importación administrativa del CSV snapshot `codigo_postal,precio_envio`: validación total previa (422 sin persistir), temporal server-side + token con manifiesto en caché, preview con conteos, aplicación fila-por-fila en una única transacción, idempotente y sin borrados físicos | Orders | ✅ cerrada (2026-09-06): 253 tests en verde, Pint/PHPStan alineados |
 | 07 | Checkout | Compra anónima, MercadoPago, transferencia con confirmación manual, creación del pedido | Orders + Payments | ✅ cerrada (2026-09-03): 07.1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway`; 07.2 `PlaceOrderAction` (`Cart` + `lockForUpdate` + `bcmath` + `audit`); 07.3 HTTP `GET /checkout`, `POST /checkout`, `GET /checkout/exito` con `StoreCheckoutRequest` + `CheckoutController` delgado + `session order_id` (sin `{order}`), `shipping !disponible → 0` permitido, 12 tests Checkout, 14 migraciones, **196 tests**; ✅ 07.4 MercadoPago (2026-09-04; verificada contra la API real el 2026-09-10): `MercadoPagoGateway` (SDK `dx-php` pineado, `Preference` + `redirect away init_point`) + `mp_preference_id/mp_init_point` + `POST /checkout/mercadopago/reintentar` + `success` solo lectura (botón continuar/reintentar), 9 tests MP, **205 tests** |
-| 08 | Gestión de pedidos | Máquina de estados, `ConfirmPaymentAction` con descuento de stock (ADR-005), restitución al cancelar un pedido pagado, webhook de MercadoPago con validación de firma y verificación de monto, panel de pedidos y vista depósito | Orders | 📝 **borrador (2026-09-10)** — `docs/specs/08-gestion-pedidos.md`, reglas 143–166, pendiente de aprobación del dueño. Se entrega **en 3 fases** (08.1 dominio, 08.2 webhook, 08.3 panel y despacho). Ventas WhatsApp diferidas a una spec posterior |
+| 08 | Gestión de pedidos | Máquina de estados, `ConfirmPaymentAction` con descuento de stock (ADR-005), restitución al cancelar un pedido pagado, webhook de MercadoPago con validación de firma y verificación de monto, panel de pedidos y vista depósito | Orders | 📝 **borrador (2026-09-10)** — `docs/specs/08-gestion-pedidos.md`, reglas 143–166, pendiente de aprobación del dueño. Se entrega **en 3 fases** (08.a dominio, 08.b webhook, 08.c panel y despacho). Ventas WhatsApp diferidas a la Spec 08.2 |
 | 08.2 | Ventas manuales por WhatsApp | Alta de pedido desde el panel, opcionalmente con link de pago de MercadoPago | Orders | pendiente (diferida por decisión del dueño, 2026-09-10) |
 | 09 | Descuentos (opcional) | Por forma de pago y por monto de compra | Orders | pendiente |
 
@@ -69,7 +69,12 @@ Cada spec se implementa en orden; cada una depende de la anterior
 ## Cómo continuar
 
 - **Próximo paso**: aprobar el borrador de la **Spec 08** (`docs/specs/08-gestion-pedidos.md`,
-  reglas 143–166). Sus puntos abiertos de negocio quedaron resueltos por el dueño el 2026-09-10.
+  reglas 143–166), revisado por el agente `revisor-spec` y corregido el 2026-09-10. Sus puntos
+  abiertos de negocio quedaron resueltos por el dueño.
+- **Decisión de negocio (2026-09-10)**: **el pago debe ser completo**. Un pedido cuyo monto cobrado
+  no coincide con el total (regla 157), o que recibe un pago estando cancelado (regla 151), queda
+  **deliberadamente trabado**: no hay override para forzarlo a `paid`. Se resuelve fuera del sistema
+  caso por caso; recién cuando ocurra uno concreto se evaluará si hace falta un mecanismo.
 - **Decisión de negocio (2026-09-10)**: el comercio se abastece **directo del fabricante**, así que
   la mercadería siempre se consigue. Un pago cobrado con stock insuficiente **no** se rechaza: el
   pedido pasa a `paid`, el stock puede quedar negativo y se marca como reposición pendiente

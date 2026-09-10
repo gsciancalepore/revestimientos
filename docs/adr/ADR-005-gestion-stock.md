@@ -1,6 +1,7 @@
 # ADR-005 — Gestión del stock: cuándo baja el stock
 
-- **Estado**: aceptado (2026-08-05) — **ratificado el 2026-09-10**: se evaluó revertirlo para reservar stock al crear el pedido ([ADR-012](ADR-012-reserva-stock-al-crear-pedido.md)) y se descartó por el costo de la infraestructura que exigía. Esta sigue siendo la decisión vigente, y la **Spec 08 la implementa**.
+- **Estado**: aceptado (2026-08-05) — **ratificado con una enmienda el 2026-09-10**. Se evaluó revertirlo para reservar stock al crear el pedido ([ADR-012](ADR-012-reserva-stock-al-crear-pedido.md)) y se descartó por el costo de la infraestructura que exigía: el **cuándo** (el stock baja al confirmarse el pago) sigue plenamente vigente y la **Spec 08 lo implementa**.
+- **Enmienda 2026-09-10 — qué pasa cuando el stock no alcanza**: el bullet de *Justificación* que dice *"el segundo pago falla y se informa al cliente"* **ya no rige**. La Spec 08 regla 145 decide lo contrario: el pago se confirma igual, el pedido pasa a `paid` y el stock puede quedar en negativo, porque el comercio se abastece directo del fabricante y la mercadería siempre se consigue (decisión del dueño). Rechazar un pago ya cobrado dejaría un pedido pagado sin poder avanzar, que es peor que un stock negativo. La mitigación por `lockForUpdate` se mantiene: sirve para serializar, no para rechazar.
 - **Nota (2026-09-10)**: esta decisión **nunca llegó a implementarse**. `PlaceOrderAction` valida stock pero no lo descuenta, y `ConfirmPaymentAction` no existe: hoy el stock no baja en ningún momento del ciclo de vida del pedido.
 - **Contexto**: el stock es físico y único (compartido entre la web y las ventas de
   WhatsApp registradas manualmente). La unidad del stock la define el producto por
