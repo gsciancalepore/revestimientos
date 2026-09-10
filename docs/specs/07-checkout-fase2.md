@@ -82,3 +82,45 @@ Implementar la **lógica del checkout anónimo**: `PlaceOrderAction` convierte e
 
 Fase 2 es **solo lógica `PlaceOrderAction`**; no implementar controladores/rutas, pago ni stock. TDD: test red `PlaceOrder` → `lockForUpdate` → `M2Calculator` → `bcmath` → `audit` → `Cart::clear` post-commit. Rama `feat/checkout-07-fase2` desde `main` (post 07.1 merge). Seguir `AGENTS.md`, `.ai/rules`, `PROJECT_PRINCIPLES.md` TDD/ADR, bcmath centavos.
 
+
+## Sincronía 2026-09-10 — la cobertura de concurrencia que esta spec afirmaba no existía (HIG-07)
+
+Los casos borde de esta spec afirman que *"existe cobertura de concurrencia sobre PostgreSQL que
+verifica que dos operaciones concurrentes sobre el mismo stock no pueden confirmar ambas la
+compra"*. **Era falso.** El test que decía cubrirlo ejecutaba dos pedidos **secuenciales** y lo
+admitía en su propio comentario (*"por ahora solo verifica que no hay deadlock"*).
+
+Peor: la revalidación bajo `lockForUpdate` de la **regla 109** no tenía ninguna cobertura. El test
+titulado *"producto activo=false dentro de lock"* nunca llamaba a `execute()` —era una tira de
+comentarios donde el autor razonaba por qué no lograba armar el escenario— y el de stock
+insuficiente cortaba en la prevalidación `hasUnpurchasable()` sin llegar nunca al lock. Se podían
+borrar las dos validaciones de la transacción y los 261 tests seguían en verde.
+
+**Qué cambia** (Spec Higiene 02, regla HIG-07):
+
+- Existen dos tests que **sí** llegan al lock —stock agotado y producto desactivado después de la
+  prevalidación— y que fallan si se borra la revalidación. Simulan la carrera real con un doble de
+  `Cart` cuya prevalidación quedó vieja, que es exactamente la ventana que la regla 109 protege.
+- **La afirmación de concurrencia real queda retirada.** No es reproducible en esta suite: corre con
+  `RefreshDatabase`, que envuelve cada test en una transacción, así que una segunda conexión no vería
+  los datos del test y quedaría bloqueada en el lock con el proceso de tests esperándola. La
+  serialización la garantiza PostgreSQL, no un test; lo que el proyecto sí cubre es que la
+  revalidación bajo lock existe y rechaza.
+- El test que afirmaba concurrencia se renombró a lo que de verdad verifica: que dos pedidos sobre
+  el mismo producto no se traban entre sí.
+
+La **regla 109 no cambia**: su comportamiento es el que siempre describió. Lo que se corrige es la
+promesa de cobertura escrita en esta spec.
+
+## Sincronía 2026-09-10 — la regla 108 se cumplía por accidente (HIG-06)
+
+La regla 108 exige que `PlaceOrderAction` valide `customer_name`/`customer_phone` requeridos,
+`customer_email` con formato, `shipping_cp` contra `^[0-9]{4}$` y `payment_method` en el enum. La
+Action **solo validaba el carrito y el medio de pago**: el resto lo garantizaba `StoreCheckoutRequest`
+(regla 116), su único llamador. La regla se cumplía por la ruta HTTP, no por la Action.
+
+Las validaciones faltantes ahora viven en la Action y lanzan `DomainException`, sin quitar nada al
+Form Request, que sigue siendo quien produce el 422 con mensajes en español. Motivo: la Spec 08 suma
+llamadores que no pasan por HTTP, y un pedido con `shipping_cp` inválido no matchea ninguna tarifa
+—`ShippingCalculator` devuelve `disponible = false` y la regla 118 congela `shipping_cost_cents = 0`—,
+de modo que el pedido saldría con envío gratis y sin dirección utilizable, en silencio.

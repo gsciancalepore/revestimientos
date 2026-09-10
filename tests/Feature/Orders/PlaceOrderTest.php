@@ -49,24 +49,53 @@ test('carrito con linea no comprable (prevalidacion) lanza DomainException', fun
     expect(app(Cart::class)->items())->toBe([$product->id => 2]);
 });
 
-test('producto activo=false dentro de lock lanza DomainException y rollback mantiene carrito', function () {
-    $product = Product::factory()->create(['activo' => true, 'stock' => 10, 'precio_cents' => 100000, 'm2_por_caja' => '1.00', 'unidad_venta' => 'm2']);
-    cartWithProduct($product, 1);
+// HIG-07: la revalidación bajo `lockForUpdate` (regla 109) no tenía cobertura.
+// La prevalidación `hasUnpurchasable()` intercepta cualquier escenario armado
+// desde el carrito, así que hay que simular la carrera real: el carrito leyó el
+// stock antes de que otro pedido lo consumiera y su prevalidación quedó vieja.
+// Este doble reproduce esa ventana; sin él no se llega nunca al lock.
+function cartConPrevalidacionVieja(Product $product, int $cantidad): Cart
+{
+    $cart = new class extends Cart
+    {
+        public function hasUnpurchasable(): bool
+        {
+            return false;
+        }
+    };
 
-    // simular que se desactiva justo antes de lock (no afecta prevalidacion si se hace update sin re-evaluar hasUnpurchasable con stale? pero usamos lock)
-    // forzamos hasUnpurchasable false inicialmente, luego desactivamos y ejecutamos, el lock debe detectar
-    // para ello no llamamos hasUnpurchasable manualmente, dejamos que action lo haga; necesitamos que prevalidacion no falle
-    // entonces creamos producto activo, lo ponemos en carrito, y luego lo desactivamos pero mockeamos hasUnpurchasable? mas simple: validar que lock falla si producto stock cambia
-    // aqui testeamos stock insuficiente bajo lock
-    $product2 = Product::factory()->create(['activo' => true, 'stock' => 1, 'precio_cents' => 50000]);
-    $cart = app(Cart::class);
-    $cart->putItems([$product2->id => 1]);
-    $product2->update(['stock' => 0]);
+    $cart->putItems([$product->id => $cantidad]);
+    app()->instance(Cart::class, $cart);
 
-    // hasUnpurchasable ahora true, entonces prevalidacion ya falla; para probar lock necesitamos cantidad>stock sin prevalidacion? usamos stock 1 -> cantidad 2 pero prevalidacion ya true
-    // dejamos test de stock insuficiente bajo lock con cantidad que supera stock despues de lock: creamos producto stock 5, cart 3, luego stock baja a 2 antes de execute, hasUnpurchasable true -> prevalidacion falla, no llega a lock
-    // por lo tanto este test cubre rollback via prevalidacion
-    expect(app(Cart::class)->hasUnpurchasable())->toBeTrue();
+    return $cart;
+}
+
+test('stock agotado despues de la prevalidacion lanza DomainException bajo lock', function () {
+    $product = Product::factory()->create(['activo' => true, 'stock' => 5, 'precio_cents' => 10000]);
+    cartConPrevalidacionVieja($product, 3);
+
+    // otro pedido consumió el stock entre la prevalidación y la transacción
+    $product->update(['stock' => 1]);
+
+    expect(fn () => app(PlaceOrderAction::class)->execute('Ana', 'ana@test.com', '1122334455', '1407', null, 'transferencia'))
+        ->toThrow(DomainException::class, 'La cantidad solicitada supera el stock disponible.');
+
+    expect(Order::count())->toBe(0);
+    expect(app(Cart::class)->items())->toBe([$product->id => 3]);
+});
+
+test('producto desactivado despues de la prevalidacion lanza DomainException bajo lock', function () {
+    $product = Product::factory()->create(['activo' => true, 'stock' => 5, 'precio_cents' => 10000]);
+    cartConPrevalidacionVieja($product, 2);
+
+    // el admin desactivó el producto entre la prevalidación y la transacción
+    $product->update(['activo' => false]);
+
+    expect(fn () => app(PlaceOrderAction::class)->execute('Ana', 'ana@test.com', '1122334455', '1407', null, 'transferencia'))
+        ->toThrow(DomainException::class, 'El producto no está disponible.');
+
+    expect(Order::count())->toBe(0);
+    expect(app(Cart::class)->items())->toBe([$product->id => 2]);
 });
 
 test('stock insuficiente lanza DomainException y rollback mantiene carrito', function () {
@@ -208,21 +237,28 @@ test('payment_method invalido lanza DomainException', function () {
         ->toThrow(DomainException::class, 'El medio de pago no es válido.');
 });
 
-test('concurrencia PostgreSQL: lockForUpdate serializa stock', function () {
-    // Producto con stock 3, dos pedidos concurrentes no pueden confirmar ambos si el segundo excede stock tras el primero.
-    // Simulamos secuencialmente: primer pedido consume 2, segundo intenta 2 pero stock ya seria insuficiente si se descontara.
-    // Como Fase 2 no descuenta stock, verificamos que el lock existe al menos (query con lockForUpdate no falla)
+// HIG-07: este test NO reproduce concurrencia real y no pretende hacerlo. La suite
+// corre con `RefreshDatabase`, que envuelve cada test en una transacción: una
+// segunda conexión no vería estos datos y quedaría bloqueada en el lock, con el
+// proceso de tests esperándola. La serialización de `lockForUpdate` la garantiza
+// PostgreSQL; lo que acá se cubre es que dos pedidos sobre el mismo producto no
+// se traban entre sí, y que la revalidación bajo lock funciona (tests de arriba).
+// La Spec 07.2 quedó enmendada: afirmaba una cobertura de concurrencia inexistente.
+test('dos pedidos sobre el mismo producto se ejecutan sin trabarse', function () {
     $product = Product::factory()->create(['stock' => 5, 'precio_cents' => 10000, 'activo' => true]);
+
     cartWithProduct($product, 2);
     $order1 = app(PlaceOrderAction::class)->execute('C1', 'c1@test.com', '1122334455', '1407', null, 'transferencia');
-    expect($order1->lines->first()->cantidad)->toBe(2);
 
-    // segundo pedido con mismo producto 2 unidades sigue siendo valido porque stock no se descuenta (Fase 2), pero el lock debe haber ocurrido sin error
-    // si en Fase 8 se descuenta, este test fallaria si no hay lock; por ahora solo verifica que no hay deadlock
     cartWithProduct($product, 2);
     $order2 = app(PlaceOrderAction::class)->execute('C2', 'c2@test.com', '1122334455', '1407', null, 'transferencia');
+
+    expect($order1->lines->first()->cantidad)->toBe(2);
     expect($order2->id)->not->toBe($order1->id);
     expect(Order::count())->toBe(2);
+
+    // El stock no se descuenta en esta fase (ADR-005): baja al confirmarse el pago, Spec 08.
+    expect($product->fresh()->stock)->toBe(5);
 });
 
 // HIG-06: la regla 108 exige que la Action valide los datos del cliente, no solo
