@@ -45,6 +45,21 @@ Sin ventas manuales por WhatsApp (fase posterior, ver *Evolución documentada*).
 (Spec 09). Sin emails al cliente. Sin devoluciones ni notas de crédito. Sin movimientos de stock
 como entidad propia (ADR-005: eso es *Extract Stock*, Fase 3). Sin multi-gateway genérico.
 
+## Fases de entrega
+
+Decisión del dueño (2026-09-10): se entrega **por fases**, como la Spec 07, con un PR por fase.
+Cada fase deja la suite en verde y aporta algo verificable por sí sola.
+
+| Fase | Alcance | Reglas | Por qué en este orden |
+|---|---|---|---|
+| **08.1** | Dominio: `TransitionOrderStatusAction` con la máquina de estados, `ConfirmPaymentAction` con descuento de stock, restitución al cancelar | 143–152, 166 | Sin HTTP y sin pantallas. Cierra el agujero más grave que hay hoy —el stock no baja nunca, se puede vender la misma caja infinitas veces— y deja el dominio listo para que las dos fases siguientes solo lo orquesten |
+| **08.2** | `POST /webhook/mercadopago`: firma, consulta a la API, verificación de monto | 153–158 | Convierte en automático lo que 08.1 dejó disponible. Es lo que hace que un pago aprobado mueva el pedido solo, que es el motivo por el que existe esta spec |
+| **08.3** | Panel de pedidos, confirmación manual de transferencia, vista depósito, cancelaciones | 159–165 | Las pantallas van al final: para entonces el dominio ya está probado y la UI solo invoca acciones existentes |
+
+Las **ventas manuales por WhatsApp** quedan fuera de las tres fases, diferidas a una **Spec 08.2**
+posterior (no confundir con la fase 08.2 de este documento; al redactarla conviene renombrarla para
+evitar la colisión de numeración).
+
 ## Máquina de estados
 
 ```
