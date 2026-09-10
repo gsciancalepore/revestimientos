@@ -237,3 +237,44 @@ test('auto_return se omite cuando la back_url apunta a una IP privada', function
 
     expect($payload)->not->toHaveKey('auto_return');
 });
+
+test('el costo de envío viaja en shipments y el payload suma el total del pedido', function () {
+    $order = Order::factory()->create([
+        'payment_method' => 'mercadopago',
+        'subtotal_cents' => 11250000,
+        'shipping_cost_cents' => 800000,
+        'total_cents' => 12050000,
+    ]);
+    OrderLine::factory()->create([
+        'order_id' => $order->id,
+        'cantidad' => 6,
+        'precio_unitario_cents' => 1875000,
+        'subtotal_cents' => 11250000,
+    ]);
+    $order->load('lines');
+
+    $payload = (new PayloadInspectorGateway)->payloadFor($order);
+
+    expect($payload['shipments']['cost'])->toBe(8000.0);
+    expect($payload['shipments']['mode'])->toBe('not_specified');
+
+    $itemsTotal = array_sum(array_map(
+        fn (array $item): float => $item['unit_price'] * $item['quantity'],
+        $payload['items']
+    ));
+
+    expect($itemsTotal + $payload['shipments']['cost'])->toBe((float) bcdiv((string) $order->total_cents, '100', 2));
+});
+
+test('sin costo de envío el payload no declara shipments', function () {
+    $order = Order::factory()->create([
+        'payment_method' => 'mercadopago',
+        'shipping_cost_cents' => 0,
+    ]);
+    OrderLine::factory()->create(['order_id' => $order->id]);
+    $order->load('lines');
+
+    $payload = (new PayloadInspectorGateway)->payloadFor($order);
+
+    expect($payload)->not->toHaveKey('shipments');
+});

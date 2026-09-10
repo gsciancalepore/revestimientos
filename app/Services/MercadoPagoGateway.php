@@ -66,6 +66,16 @@ class MercadoPagoGateway implements PaymentGateway
             ],
         ];
 
+        // El envío no es un producto: viaja en `shipments` para que MercadoPago lo
+        // discrimine y lo sume al total. Sin esto el cliente pagaría solo el subtotal.
+        if ($order->shipping_cost_cents > 0) {
+            $payload['shipments'] = [
+                'mode' => 'not_specified',
+                // Borde SDK: cost exige float; el dominio sigue en centavos (ADR-003).
+                'cost' => (float) bcdiv((string) $order->shipping_cost_cents, '100', 2),
+            ];
+        }
+
         // MercadoPago rechaza `auto_return` (400 invalid_auto_return) si la back_url
         // no es alcanzable desde internet, como en desarrollo local sin túnel.
         if (self::backUrlEsPublica($successUrl)) {
