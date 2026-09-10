@@ -224,3 +224,63 @@ test('concurrencia PostgreSQL: lockForUpdate serializa stock', function () {
     expect($order2->id)->not->toBe($order1->id);
     expect(Order::count())->toBe(2);
 });
+
+// HIG-06: la regla 108 exige que la Action valide los datos del cliente, no solo
+// el carrito. Hoy se cumple por accidente, porque el único llamador entra por
+// `StoreCheckoutRequest`; la Spec 08 suma llamadores que no pasan por HTTP.
+
+test('email con formato invalido lanza DomainException y no crea pedido', function () {
+    $product = Product::factory()->create(['activo' => true, 'stock' => 5, 'precio_cents' => 10000]);
+    cartWithProduct($product, 1);
+
+    $action = app(PlaceOrderAction::class);
+
+    expect(fn () => $action->execute('Juan', 'no-es-un-email', '1122334455', '1407', null, 'transferencia'))
+        ->toThrow(DomainException::class, 'El email del cliente no es válido.');
+
+    expect(Order::count())->toBe(0);
+});
+
+test('codigo postal que no matchea el regex lanza DomainException', function (string $cp) {
+    $product = Product::factory()->create(['activo' => true, 'stock' => 5, 'precio_cents' => 10000]);
+    cartWithProduct($product, 1);
+
+    $action = app(PlaceOrderAction::class);
+
+    expect(fn () => $action->execute('Juan', 'juan@test.com', '1122334455', $cp, null, 'transferencia'))
+        ->toThrow(DomainException::class, 'El código postal no es válido.');
+
+    expect(Order::count())->toBe(0);
+})->with([
+    'letras' => 'abc',
+    'vacio' => '',
+    'tres digitos' => '140',
+    'cinco digitos' => '14077',
+    'espacio interno' => '14 07',
+]);
+
+test('codigo postal con espacios alrededor se acepta tras el trim', function () {
+    $product = Product::factory()->create(['activo' => true, 'stock' => 5, 'precio_cents' => 10000]);
+    cartWithProduct($product, 1);
+
+    $order = app(PlaceOrderAction::class)->execute('Juan', 'juan@test.com', '1122334455', '  1407  ', null, 'transferencia');
+
+    expect($order->shipping_cp)->toBe('1407');
+});
+
+test('nombre o telefono vacios lanzan DomainException', function (string $name, string $phone, string $mensaje) {
+    $product = Product::factory()->create(['activo' => true, 'stock' => 5, 'precio_cents' => 10000]);
+    cartWithProduct($product, 1);
+
+    $action = app(PlaceOrderAction::class);
+
+    expect(fn () => $action->execute($name, 'juan@test.com', $phone, '1407', null, 'transferencia'))
+        ->toThrow(DomainException::class, $mensaje);
+
+    expect(Order::count())->toBe(0);
+})->with([
+    'nombre vacio' => ['', '1122334455', 'El nombre del cliente es obligatorio.'],
+    'nombre solo espacios' => ['   ', '1122334455', 'El nombre del cliente es obligatorio.'],
+    'telefono vacio' => ['Juan', '', 'El teléfono del cliente es obligatorio.'],
+    'telefono solo espacios' => ['Juan', '   ', 'El teléfono del cliente es obligatorio.'],
+]);
