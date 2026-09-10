@@ -69,55 +69,64 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 ## Cómo continuar
 
-### Punto de retome — cierre del 2026-09-10
+### Punto de retome — 2026-09-10 (segunda jornada)
 
-Estado exacto al terminar la jornada, para que cualquiera (persona o agente) retome sin reconstruir
-contexto:
+Estado exacto, para que cualquiera (persona o agente) retome sin reconstruir contexto:
 
-**Trabajo en curso**: rama `docs/spec-08-borrador`, **9 commits sin pushear**, árbol limpio, 261
-tests en verde. El nombre le quedó chico: contiene la Spec 08, la auditoría documental, la Spec
-Higiene 02 y dos agentes nuevos. Nada de esto está en `main` todavía. `gh` está instalado y
-autenticado, así que el PR se puede abrir desde la CLI.
+**Ya está en `main`** (PRs #13, #14 y #15): el borrador de la Spec 08 con ADR-012, la auditoría
+documental, los agentes de revisión, y la **Spec Higiene 02 completa** (HIG-04–HIG-09) — auditoría de
+precio y stock con el valor anterior real, validaciones de dominio en `PlaceOrderAction`, cobertura
+real de la revalidación bajo lock, guard del reintento de MercadoPago. **274 tests**.
 
-**Dos specs esperando aprobación del dueño**, en este orden:
+**Trabajo en curso**: rama `feat/pedidos-08a`, **3 commits sin pushear**, árbol limpio, **327 tests**
+en verde. Implementa la fase 08.a completa: máquina de estados, `TransitionOrderStatusAction`,
+`ConfirmPaymentAction` con descuento de stock e idempotencia, `CancelOrderAction` con restitución.
+Falta pasarle `revisor-entrega` y abrir el PR.
 
-1. `docs/specs/higiene-02-auditoria-validacion-cobertura.md` (HIG-04–HIG-09) — **va primero**: dos
-   de sus reglas son precondiciones de la Spec 08.
-2. `docs/specs/08-gestion-pedidos.md` (reglas 143–166, fases 08.a/08.b/08.c) — ya revisada por el
-   agente `revisor-spec` y corregida.
+**`gh` NO está instalado** (la versión anterior de esta nota decía lo contrario y es falso): los PRs
+se abren desde la web, con
+`https://github.com/gsciancalepore/revestimientos/compare/main...<rama>?expand=1`.
 
-Ninguna se implementa hasta que el dueño las apruebe (`AGENTS.md`: nunca programar sin spec
-aprobada).
+**Spec 08 aprobada por el dueño (2026-09-10)**, se entrega en tres fases: 08.a dominio ✅, 08.b
+webhook, 08.c panel y despacho. Ventas por WhatsApp diferidas a la Spec 08.2.
 
-**Lo que se hizo hoy y ya está en `main`** (PRs #11 y #12): verificación de la Spec 07.4 contra la
-API real de MercadoPago, con dos enmiendas a la regla 123 (`auto_return` condicionado a back_url
-pública, envío en `shipments.cost`), credenciales externas neutralizadas en `phpunit.xml`, y el
-botón "Finalizar compra" que faltaba en el carrito.
+**Estado del entorno local**: `APP_URL=http://localhost:8080`, Vite con hot reload, sin túnel. Ese
+día WSL se reinició y **los puertos publicados de Docker quedaron rotos**; se arregla recreando los
+contenedores (`.ai/rules/general.md`). El procedimiento de DNS de `desarrollo-local.md` quedó
+corregido: se toca **solo Windows**, nunca `/etc/wsl.conf`.
 
-**Estado del entorno local**: restaurado a su configuración normal — `APP_URL=http://localhost:8080`,
-Vite con hot reload, túnel cerrado. Para volver a probar MercadoPago hay que rehacer el
-procedimiento de `docs/deployment/desarrollo-local.md`; la URL del túnel cambia en cada arranque.
+**Agentes disponibles** (`.claude/agents/`, versionados):
 
-**Agentes disponibles** (`.claude/agents/`, versionados): `revisor-spec` para borradores antes de
-aprobar, `verificador-spec-codigo` para comprobar que una spec cerrada esté realmente implementada.
-El segundo produjo la Spec Higiene 02 y conviene volver a correrlo sobre las specs 01, 02 y 04, que
-quedaron sin revisar.
+- `revisor-spec` — revisa un borrador antes de que el dueño lo apruebe.
+- `verificador-spec-codigo` — comprueba que una spec cerrada esté realmente implementada. Produjo la
+  Spec Higiene 02; **conviene volver a correrlo sobre las specs 01, 02 y 04**, que siguen sin revisar.
+- `revisor-entrega` — audita el diff de una rama contra su spec **antes del push**. Su chequeo
+  distintivo es mutar la implementación y verificar que algún test se ponga rojo. Encontró en su
+  primer uso que el commit de cierre de la Higiene 02 había borrado la evidencia de un desvío de
+  rama, y que la lección de HIG-07 no había llegado a `.ai/rules/`.
+
+**Candidato a agente, cuando llegue 08.b**: un QA de flujos que ejecute el procedimiento del túnel,
+dispare un pago real en el sandbox y verifique que el webhook movió el pedido a `paid` con el stock
+descontado. Es el único hueco que los tres agentes actuales no cubren: nadie usa la aplicación.
 
 **Pendiente sin fecha**: verificar si staging tiene aplicadas las migraciones de `orders` (ver más
 abajo); el dueño lo parkeó hasta el próximo deploy manual.
 
 
-- **Próximo paso**: aprobar el borrador de la **Spec Higiene 02**
-  (`docs/specs/higiene-02-auditoria-validacion-cobertura.md`), que **va antes que la Spec 08**: dos
-  de sus reglas son precondiciones de la 08. Surgió de verificar las specs cerradas contra el código
-  con el agente `verificador-spec-codigo` el 2026-09-10.
-- **Hallazgo que ya afecta datos (2026-09-10)**: la regla 68 (auditoría de precio y stock) guarda el
-  valor **nuevo** como "anterior", porque `UpdateProductAction` lee `getOriginal()` después del
-  `save()`. Los dos registros existentes en desarrollo están corruptos y no son reparables. El test
-  pasaba porque solo verificaba que la fila existiera, nunca su payload. Corrección en HIG-04/HIG-05.
-- **Siguiente**: aprobar el borrador de la **Spec 08** (`docs/specs/08-gestion-pedidos.md`,
-  reglas 143–166), revisado por el agente `revisor-spec` y corregido el 2026-09-10. Sus puntos
-  abiertos de negocio quedaron resueltos por el dueño.
+- **Próximo paso**: cerrar la fase **08.a** (rama `feat/pedidos-08a`) — pasarle `revisor-entrega` y
+  abrir el PR — y seguir con la **08.b** (webhook de MercadoPago, reglas 153–158), que necesita el
+  túnel de `docs/deployment/desarrollo-local.md` y una credencial nueva,
+  `MERCADOPAGO_WEBHOOK_SECRET`, a neutralizar en `phpunit.xml` como el resto.
+- **Cerrado (2026-09-10)**: la **Spec Higiene 02** quedó implementada y mergeada (PR #15). Incluía el
+  hallazgo que afectaba datos —la regla 68 guardaba el valor **nuevo** como "anterior" porque
+  `UpdateProductAction` leía `getOriginal()` después del `save()`—; los dos registros corruptos en
+  desarrollo **no son reparables** y se dejaron como estaban, porque `audit_logs` es inmutable por
+  ADR-004. Las Specs 07.2 y 07.3 quedaron enmendadas con su sincronía: la 07.2 afirmaba una cobertura
+  de concurrencia que no existía, y la regla 117 decía `findOrFail` + 404 donde el código hace `find`
+  + redirect.
+- **Aprobada (2026-09-10)**: la **Spec 08** (`docs/specs/08-gestion-pedidos.md`, reglas 143–166),
+  revisada por `revisor-spec` y corregida. Sus puntos abiertos de negocio quedaron resueltos por el
+  dueño. Se entrega en tres fases; la **08.a está implementada**.
 - **Decisión de negocio (2026-09-10)**: **el pago debe ser completo**. Un pedido cuyo monto cobrado
   no coincide con el total (regla 157), o que recibe un pago estando cancelado (regla 151), queda
   **deliberadamente trabado**: no hay override para forzarlo a `paid`. Se resuelve fuera del sistema

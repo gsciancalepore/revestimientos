@@ -25,7 +25,10 @@ sentido, es un bug de lenguaje.
 | **Línea / Colección** | Familia comercial a la que pertenece el producto. | Línea "Mármol", colección "Milan" |
 | **Desperdicio** | Porcentaje adicional opcional sobre los m² para cubrir cortes y roturas en la colocación (solo modo m²). | Opción del carrito: "Incluir 10 % adicional para cubrir desperdicios de la colocación" |
 | **Stock** | Cantidad disponible de un producto, en la unidad de su unidad de venta (cajas o unidades). | "Quedan 3 cajas" / "Quedan 5 bolsas" |
-| **Sin stock** | Producto con 0 unidades disponibles (cajas o bolsas/piezas). No se puede comprar. | Puede seguir visible en el catálogo |
+| **Sin stock** | Producto con **0 o menos** unidades disponibles (cajas o bolsas/piezas). No se puede comprar. La definición se extendió de `= 0` a `<= 0` con la Spec 08 fase 08.a, que hizo posible el stock negativo. | Puede seguir visible en el catálogo |
+| **Stock negativo** | Estado interno de excepción: un pago cobrado se confirmó sin stock suficiente y el descuento dejó el valor por debajo de cero (Spec 08, regla 145). **Nunca se le muestra al cliente**: en el catálogo, la ficha y el carrito el producto figura como *sin stock*. En el panel se muestra el valor real, porque es exactamente cuánto hay que reponer. | Stock −3: hay que reponer 3 cajas antes de despachar |
+| **Reposición pendiente** | Marca derivada de un pedido `pagado` que tiene alguna línea con stock negativo. Se apaga sola cuando el admin repone. No es una columna: se deriva del estado. | Se muestra destacado en el panel de pedidos |
+| **Restitución de stock** | Devolución al producto de la cantidad **congelada en la línea del pedido**, al cancelar un pedido pagado o despachado (Spec 08, regla 147). Nunca se recalcula desde el producto: la conversión m²→cajas quedó fijada al crear el pedido. | Cancelar un pedido de 3 cajas devuelve 3 cajas |
 | **Oferta** | Precio promocional temporal con % de descuento respecto del precio de lista. | "7 % OFF" con precio tachado |
 | **Descuento** | Reducción del total por condición de pago o monto de compra. | "10 % de descuento pagando en efectivo" |
 | **Pedido** | Compra registrada por un cliente con uno o más productos, su total y su estado. | Nace en el checkout web o en el registro manual de venta WhatsApp |
@@ -38,7 +41,9 @@ sentido, es un bug de lenguaje.
 | **Seña** | Anticipo de una venta WhatsApp. Se registra a mano, fuera del sistema. | Solo se deja constancia en el pedido |
 | **Cuotas** | Pago en cuotas con tarjeta. En la web lo gestiona MercadoPago; en ventas WhatsApp, por fuera del sistema. | — |
 | **Cliente anónimo** | Comprador de la web sin cuenta: solo se conocen email y código postal. | No hay historial ni cuenta en el MVP |
-| **Confirmación de pago** | Acción manual del admin que marca un pedido por transferencia como pagado. | La tarjeta se confirma automáticamente vía MercadoPago |
+| **Confirmación de pago** | Caso de uso que lleva un pedido a `pagado` y **descuenta el stock**, en una sola transacción. Tiene **dos orígenes**: automático (MercadoPago) y manual (el admin marca como pagado un pedido por transferencia). Es el único camino a `pagado`. Redefinido por la Spec 08 fase 08.a; antes era solo la acción manual del admin. | `ConfirmPaymentAction` |
+| **Origen de la confirmación** | De dónde viene la confirmación de un pago: `mercadopago` o `manual`. Viaja en el **payload de la auditoría**, no en el actor, porque la confirmación automática corre sin sesión y el actor queda en `null`. | Sin el origen no se distinguirían los dos caminos |
+| **Idempotencia** | Propiedad de una operación que, repetida, no vuelve a producir efectos. Confirmar un pago ya confirmado no descuenta stock de nuevo ni audita otra vez. No es un caso raro: MercadoPago **reintenta las notificaciones por diseño**. | Spec 08, regla 152 |
 | **Usuario interno** | Persona con acceso al panel admin: admin, vendedor o depósito. | No existen cuentas de clientes |
 | **Rol** | Función de un usuario interno que determina qué acciones puede realizar. | admin, vendedor, depósito (uno por usuario) |
 | **Admin** | Rol del dueño: acceso total; gestiona usuarios y roles. | El primer admin nace del seeder con credenciales de entorno |

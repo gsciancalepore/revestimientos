@@ -271,3 +271,18 @@ Una tarea solo termina cuando:
 - Usar MCP Boost: `search-docs` antes de cambiar código, `database-schema`,
   `database-query` (solo lectura), `get-absolute-url`, `browser-logs`.
 - Siguiente spec a implementar: consultar `docs/roadmap.md`.
+
+### Agentes de revisión (`.claude/agents/`, versionados)
+
+Se usan en tres momentos distintos del ciclo y **no son intercambiables**:
+
+| Agente | Cuándo | Qué hace |
+|---|---|---|
+| `revisor-spec` | Hay un borrador en `docs/specs/` sin aprobar | Numeración global de reglas, coherencia con ADRs y specs cerradas, matriz de permisos, casos borde, decisiones de negocio implícitas y anticipaciones |
+| `verificador-spec-codigo` | Antes de construir sobre una spec cerrada | Verifica regla por regla que el código la implemente y que haya test que la cubra |
+| `revisor-entrega` | Implementación terminada y en verde, **antes del push** | Audita el diff contra la spec que lo autorizó. Su chequeo distintivo: **mutar la implementación de una regla y comprobar que algún test se ponga rojo** |
+
+Motivo de que existan: los gates (Pint, PHPStan, Pest) validan que el código
+esté **sano**, no que **implemente la regla**. La regla 123 estuvo seis días
+cobrando el subtotal en vez del total con CI en verde, y la revalidación bajo
+lock de la regla 109 tenía tres tests que no la cubrían.
