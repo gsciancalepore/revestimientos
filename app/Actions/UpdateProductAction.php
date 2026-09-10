@@ -62,18 +62,23 @@ class UpdateProductAction
 
         $changes = $product->getDirty();
 
+        // HIG-04: `save()` sincroniza los originales, así que el valor anterior
+        // se captura antes; leerlo después devolvía el valor recién guardado.
+        $previousPrecioCents = (int) $product->getOriginal('precio_cents');
+        $previousStock = (int) $product->getOriginal('stock');
+
         $product->save();
 
         if (isset($changes['precio_cents'])) {
             $this->recorder->record('product.price_changed', $product, [
-                'previous' => $product->getOriginal('precio_cents'),
+                'previous' => $previousPrecioCents,
                 'new' => $product->precio_cents,
             ]);
         }
 
         if (isset($changes['stock'])) {
             $this->recorder->record('product.stock_changed', $product, [
-                'previous' => $product->getOriginal('stock'),
+                'previous' => $previousStock,
                 'new' => $product->stock,
             ]);
         }

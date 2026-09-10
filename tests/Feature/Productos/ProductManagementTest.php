@@ -2,6 +2,7 @@
 
 use App\Enums\ProductSaleUnit;
 use App\Enums\UserRole;
+use App\Models\AuditLog;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\User;
@@ -205,8 +206,16 @@ test('admins can update a product and price changes are audited', function () {
     $this->assertSame(150000, $product->precio_cents);
     $this->assertSame(3, $product->stock);
 
-    $this->assertDatabaseHas('audit_logs', ['action' => 'product.price_changed', 'subject_id' => $product->id]);
-    $this->assertDatabaseHas('audit_logs', ['action' => 'product.stock_changed', 'subject_id' => $product->id]);
+    // HIG-05: la regla 68 promete el contenido del payload, no que la fila exista.
+    $priceAudit = AuditLog::where('action', 'product.price_changed')->where('subject_id', $product->id)->firstOrFail();
+
+    $this->assertSame(100000, $priceAudit->payload['previous']);
+    $this->assertSame(150000, $priceAudit->payload['new']);
+
+    $stockAudit = AuditLog::where('action', 'product.stock_changed')->where('subject_id', $product->id)->firstOrFail();
+
+    $this->assertSame(5, $stockAudit->payload['previous']);
+    $this->assertSame(3, $stockAudit->payload['new']);
 });
 
 test('updating a product in unit mode clears m2 per box', function () {
