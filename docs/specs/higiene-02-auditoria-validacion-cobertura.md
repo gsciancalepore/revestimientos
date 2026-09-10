@@ -1,6 +1,6 @@
 # Spec Higiene 02 — Auditoría de precios, validación de PlaceOrderAction y cobertura del lock
 
-- **Estado**: **borrador (2026-09-10)** — pendiente de aprobación del dueño
+- **Estado**: **cerrada (2026-09-10)** — aprobada por el dueño e implementada en la rama `fix/higiene-02` (274 tests en verde, Pint y PHPStan nivel 8 limpios). Pendiente el merge a `main` vía Pull Request.
 - **Origen**: verificación automatizada de las specs cerradas contra el código (agente
   `verificador-spec-codigo`, 2026-09-10), confirmada a mano sobre el código y la base de desarrollo.
 - **Fuentes**: Spec 03 regla 68, Spec 07.2 reglas 108 y 109, Spec 07.3 regla 117, Spec 07.4 regla
@@ -173,28 +173,45 @@ Detectadas por la misma verificación y **deliberadamente no incluidas**, con su
 
 ## Criterios de aceptación
 
-- [ ] HIG-04: `product.price_changed` y `product.stock_changed` registran el valor anterior real.
-- [ ] HIG-05: los tests assertan el contenido del payload, y fallan si se revierte HIG-04.
-- [ ] HIG-06: `PlaceOrderAction` lanza `DomainException` ante email inválido, CP que no matchea el
+- [x] HIG-04: `product.price_changed` y `product.stock_changed` registran el valor anterior real.
+- [x] HIG-05: los tests assertan el contenido del payload, y fallan si se revierte HIG-04.
+- [x] HIG-06: `PlaceOrderAction` lanza `DomainException` ante email inválido, CP que no matchea el
       regex, y nombre o teléfono vacíos, invocada directamente sin pasar por HTTP. El checkout HTTP
       sigue devolviendo 422 con los mensajes en español (sin regresión en los tests de la 07.3).
-- [ ] HIG-07: existe un test que llama a `execute()`, llega a la revalidación bajo lock y **falla si
+- [x] HIG-07: existe un test que llama a `execute()`, llega a la revalidación bajo lock y **falla si
       se borran las líneas 67-73**. Si no resulta viable, la Spec 07.2 queda enmendada en su lugar.
-- [ ] HIG-08: test de reintento sobre un pedido `mercadopago` en estado `paid` → 403.
-- [ ] HIG-09: sincronía anotada en la Spec 07.3; sin cambios de código.
+- [x] HIG-08: test de reintento sobre un pedido `mercadopago` en estado `paid` → 403.
+- [x] HIG-09: sincronía anotada en la Spec 07.3; sin cambios de código.
 - [ ] Pint, PHPStan nivel 8, Pest verde, CI verde, PR a `main`.
 
 ## Tareas técnicas
 
-- [ ] Este documento → aprobación del dueño.
-- [ ] Rama `fix/higiene-02` desde `main`.
-- [ ] TDD en orden de gravedad: HIG-04 y HIG-05 primero (es lo único que corrompe datos hoy), luego
+- [x] Este documento → aprobación del dueño (2026-09-10).
+- [x] Rama `fix/higiene-02`.
+- [x] TDD en orden de gravedad: HIG-04 y HIG-05 primero (es lo único que corrompe datos hoy), luego
       HIG-06 y HIG-07 (bloquean la Spec 08), después HIG-08 y HIG-09.
-- [ ] Anotar en `.ai/rules/tests.md` que un test de auditoría debe verificar el payload.
-- [ ] Actualizar `docs/roadmap.md` al cerrar.
+- [x] Anotar en `.ai/rules/tests.md` que un test de auditoría debe verificar el payload.
+- [x] Actualizar `docs/roadmap.md` al cerrar.
 
 ## Nota de handoff
 
 **Esta spec va antes que la Spec 08**, no después. HIG-06 y HIG-07 son precondiciones: la 08 suma un
 segundo llamador a `PlaceOrderAction` y convierte el `lockForUpdate` en la única defensa contra la
 sobreventa. Implementar la 08 primero significa construir sobre las dos cosas que esta spec arregla.
+
+## Resultado (2026-09-10)
+
+- **HIG-04/HIG-05**: `UpdateProductAction` captura los originales antes del `save()`; el test
+  assertea `previous`/`new` de precio y stock y falla si se revierte la corrección. Los dos
+  registros corruptos en desarrollo se dejan como están (`audit_logs` es inmutable, ADR-004).
+- **HIG-06**: las validaciones de la regla 108 viven en `PlaceOrderAction` y lanzan
+  `DomainException`; `StoreCheckoutRequest` sigue produciendo el 422 en español, sin regresión en
+  los tests de la 07.3. Sincronía anotada en la Spec 07.2.
+- **HIG-07**: dos tests llegan efectivamente a la revalidación bajo lock y **fallan si se borra**
+  (verificado quitándola). El test de concurrencia real no resultó viable —`RefreshDatabase` envuelve
+  cada test en una transacción—, así que se enmendó la Spec 07.2 retirando esa promesa, tal como
+  esta regla preveía.
+- **HIG-08**: test de reintento sobre un pedido `mercadopago` en `paid` → 403, verificado que falla
+  si se quita la condición de estado del guard.
+- **HIG-09**: sincronía anotada en la Spec 07.3, sin cambios de código.
+- **Suite**: 261 → **274 tests** en verde; Pint limpio, PHPStan nivel 8 sin errores.
