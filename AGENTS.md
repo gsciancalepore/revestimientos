@@ -192,6 +192,16 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
   tarea lo solicite explícitamente. Única excepción a `docs/roadmap.md`:
   actualizar la columna "Estado" de la fila de la spec en curso y la fecha de
   "Última actualización". `docs/specs/` y `docs/adr/` jamás se editan.**
+- **Las decisiones no se borran, se marcan (vigente desde 2026-09-10)**: una ADR
+  descartada, revertida o reemplazada **se conserva** con su estado actualizado
+  (`descartada`, `reemplazada por ADR-XXX`) y el motivo, nunca se elimina del
+  repositorio ni se reescribe como si nunca hubiera existido. Lo mismo aplica a
+  reglas de negocio enmendadas: se anota la sincronía en la spec —como en
+  `07-checkout-fase4-mercadopago.md` §Sincronía 2026-09-10— en lugar de
+  reescribir el historial. El valor está en poder reconstruir *por qué* se
+  decidió algo y qué alternativas se evaluaron. Ejemplo vivo: `ADR-012`
+  (reserva de stock al crear el pedido), propuesta y descartada el mismo día,
+  se conserva porque el análisis sirve si la sobreventa vuelve a discutirse.
 - **Flujo de ramas y PRs (vigente desde 2026-09-03): `main` es staging y está protegida — apunta a `Render + Neon` (`docs/deployment/staging.md`). Todo desarrollo va en rama nueva (`feat/...`, `fix/...`) y se integra a `main` vía Pull Request con CI en verde. Push directo a `main` queda como excepción histórica (Spec 05, `a8bd92d`); a partir de ahora no se usa.**
 
 ## Orden de lectura antes de implementar
