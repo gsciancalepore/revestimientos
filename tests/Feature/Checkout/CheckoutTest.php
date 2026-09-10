@@ -4,6 +4,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\ShippingRate;
 use App\Services\Cart;
+use App\Services\MercadoPagoGateway;
 use Illuminate\Support\Facades\Session;
 
 beforeEach(function () {
@@ -73,6 +74,17 @@ test('POST /checkout crea pedido transferencia y limpia carrito y guarda session
 });
 
 test('POST /checkout mercadopago tambien crea pedido', function () {
+    // Gateway explícito: el test no debe depender de si hay token configurado ni tocar la API real.
+    $this->app->bind(MercadoPagoGateway::class, fn () => new class extends MercadoPagoGateway
+    {
+        public function __construct() {}
+
+        public function paymentUrl(Order $order): string
+        {
+            throw new RuntimeException('Error de MercadoPago');
+        }
+    });
+
     $product = Product::factory()->create(['activo' => true, 'stock' => 10, 'precio_cents' => 50000, 'unidad_venta' => 'unidad', 'm2_por_caja' => null]);
     putCart($product, 1);
 
