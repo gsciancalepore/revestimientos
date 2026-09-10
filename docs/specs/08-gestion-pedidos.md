@@ -1,6 +1,6 @@
 # Spec 08 — Gestión de pedidos
 
-- **Estado**: **borrador — pendiente de aprobación del dueño**
+- **Estado**: **aprobada por el dueño (2026-09-10)** — en implementación por fases. 08.a en curso (rama `feat/pedidos-08a`); 08.b y 08.c pendientes.
 - **Base**: Spec 07 cerrada (101–128: `orders`/`order_lines`, `OrderStatus`, `PaymentGateway`, `PlaceOrderAction` con `lockForUpdate`/`bcmath`/`audit`, `CheckoutController` + `MercadoPagoGateway`), Spec 06 (93–100 envío por CP), Spec 03 (55–68 productos; stock en 55, 59, 60 y 63), Spec 01 (roles admin/vendedor/depósito + `AuditRecorder`), ADR-003 (centavos + bcmath), ADR-004 (auditoría), ADR-005 (gestión de stock), ADR-006 (puertos).
 - **Decisiones del dueño incorporadas (2026-09-10)**: **stock descontado al confirmarse el pago** (ADR-005 ratificada, tras evaluar y descartar la reserva al crear el pedido); webhook con validación de firma **y** consulta a la API; ventas manuales por WhatsApp diferidas a una fase posterior.
 
