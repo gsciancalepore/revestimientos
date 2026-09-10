@@ -185,6 +185,12 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - Toda la documentación, los commits y las respuestas en español; commits con
   Conventional Commits: `tipo(ámbito): descripción` (`feat`, `fix`, `chore`,
   `docs`, `refactor`, `test`, `perf`).
+- **Autoría de los commits (vigente desde 2026-09-10)**: el **único** autor y
+  contribuidor del proyecto es el dueño. Los commits **no llevan** trailers de
+  atribución a herramientas de IA: nada de `Co-Authored-By: Claude ...`, nada de
+  `Claude-Session: ...`, ni equivalentes de otras herramientas. Tampoco van en
+  las descripciones de los Pull Requests. Si el harness sugiere agregarlos por
+  defecto, se omiten igual: esta regla del repositorio tiene prioridad.
 - Nunca programar sin spec aprobada (`docs/specs/`); nunca inventar reglas de
   negocio; TDD obligatorio (red → green → refactor); cambios importantes → ADR
   (`docs/adr/`).

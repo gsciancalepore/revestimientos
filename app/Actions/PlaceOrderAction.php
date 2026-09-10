@@ -32,19 +32,41 @@ class PlaceOrderAction
         ?string $shippingAddress,
         string $paymentMethod,
     ): Order {
+        $customerName = trim($customerName);
+        $customerEmail = trim($customerEmail);
+        $customerPhone = trim($customerPhone);
+        $shippingCp = trim($shippingCp);
+        $paymentMethod = trim($paymentMethod);
+
+        // Regla 108: la Action valida sus propias entradas. `StoreCheckoutRequest`
+        // sigue siendo quien produce el 422 con mensajes para el usuario; esta es
+        // la red de seguridad del dominio para los llamadores que no pasan por HTTP.
+        if ($customerName === '') {
+            throw new \DomainException('El nombre del cliente es obligatorio.');
+        }
+
+        if ($customerPhone === '') {
+            throw new \DomainException('El teléfono del cliente es obligatorio.');
+        }
+
+        if (filter_var($customerEmail, FILTER_VALIDATE_EMAIL) === false) {
+            throw new \DomainException('El email del cliente no es válido.');
+        }
+
+        if (preg_match('/^[0-9]{4}$/', $shippingCp) !== 1) {
+            throw new \DomainException('El código postal no es válido.');
+        }
+
+        if (! in_array($paymentMethod, ['transferencia', 'mercadopago'], true)) {
+            throw new \DomainException('El medio de pago no es válido.');
+        }
+
         if ($this->cart->isEmpty()) {
             throw new \DomainException('El carrito está vacío.');
         }
 
         if ($this->cart->hasUnpurchasable()) {
             throw new \DomainException('El carrito contiene productos no comprables.');
-        }
-
-        $shippingCp = trim($shippingCp);
-        $paymentMethod = trim($paymentMethod);
-
-        if (! in_array($paymentMethod, ['transferencia', 'mercadopago'], true)) {
-            throw new \DomainException('El medio de pago no es válido.');
         }
 
         $order = DB::transaction(function () use ($customerName, $customerEmail, $customerPhone, $shippingCp, $shippingAddress, $paymentMethod): Order {

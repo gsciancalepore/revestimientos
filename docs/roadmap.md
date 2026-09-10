@@ -1,6 +1,6 @@
 # Roadmap
 
-Última actualización: 2026-09-10 (Spec 07.4 **verificada de punta a punta contra la API real de MercadoPago** por primera vez: hasta ahora solo estaba probada con gateway fake, y la verificación destapó dos defectos que enmiendan la regla 123 —`auto_return` condicionado a back_url pública y costo de envío en `shipments.cost`—, más credenciales externas neutralizadas en `phpunit.xml` y el botón "Finalizar compra" que faltaba en el carrito; 261 tests. Spec 06 fase 2 cerrada: importador administrativo de tarifas por CP, 253 tests en verde, Pint/PHPStan alineados; Spec 07 cerrada: 07.1/07.2/07.3/07.4 implementadas y mergeadas a `main` — 07.4 `cb9fd2b`/PR #8 — 205 tests; Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte; Spec 06 Envío cerrada 158 tests).
+Última actualización: 2026-09-10 (**Spec Higiene 02 cerrada**: HIG-04 la auditoría de precio y stock guardaba el valor nuevo como anterior —`getOriginal()` leído después del `save()`—; HIG-06 `PlaceOrderAction` no validaba los datos del cliente que la regla 108 exige, se cumplía por accidente vía `StoreCheckoutRequest`; HIG-07 la revalidación bajo `lockForUpdate` no tenía cobertura y se podía borrar con la suite en verde; HIG-08 guard del reintento MP sobre pedido pagado; HIG-09 la regla 117 enmendada a `find` + redirect. Specs 07.2 y 07.3 enmendadas con su sincronía; 274 tests. Spec 07.4 **verificada de punta a punta contra la API real de MercadoPago** por primera vez: hasta ahora solo estaba probada con gateway fake, y la verificación destapó dos defectos que enmiendan la regla 123 —`auto_return` condicionado a back_url pública y costo de envío en `shipments.cost`—, más credenciales externas neutralizadas en `phpunit.xml` y el botón "Finalizar compra" que faltaba en el carrito; 261 tests. Spec 06 fase 2 cerrada: importador administrativo de tarifas por CP, 253 tests en verde, Pint/PHPStan alineados; Spec 07 cerrada: 07.1/07.2/07.3/07.4 implementadas y mergeadas a `main` — 07.4 `cb9fd2b`/PR #8 — 205 tests; Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte; Spec 06 Envío cerrada 158 tests).
 
 ## Definition of Done (aplica a TODAS las fases y specs)
 
@@ -45,7 +45,8 @@ Cada spec se implementa en orden; cada una depende de la anterior
 | 06 | Envío | Tarifa única por CP exacto 4 dígitos, `ShippingCalculator` + `ManualShippingCalculator` con `shipping_rates` (CHECK ≥0, único parcial activo), cotización `disponible`/no disponible sin excepción, CRUD admin y `total = subtotal + shipping` en carrito | Orders | ✅ cerrada (2026-09-03): 158 tests en verde, Pint/PHPStan alineados |
 | 06.2 | Envío — Importador de tarifas | Importación administrativa del CSV snapshot `codigo_postal,precio_envio`: validación total previa (422 sin persistir), temporal server-side + token con manifiesto en caché, preview con conteos, aplicación fila-por-fila en una única transacción, idempotente y sin borrados físicos | Orders | ✅ cerrada (2026-09-06): 253 tests en verde, Pint/PHPStan alineados |
 | 07 | Checkout | Compra anónima, MercadoPago, transferencia con confirmación manual, creación del pedido | Orders + Payments | ✅ cerrada (2026-09-03): 07.1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway`; 07.2 `PlaceOrderAction` (`Cart` + `lockForUpdate` + `bcmath` + `audit`); 07.3 HTTP `GET /checkout`, `POST /checkout`, `GET /checkout/exito` con `StoreCheckoutRequest` + `CheckoutController` delgado + `session order_id` (sin `{order}`), `shipping !disponible → 0` permitido, 12 tests Checkout, 14 migraciones, **196 tests**; ✅ 07.4 MercadoPago (2026-09-04; verificada contra la API real el 2026-09-10): `MercadoPagoGateway` (SDK `dx-php` pineado, `Preference` + `redirect away init_point`) + `mp_preference_id/mp_init_point` + `POST /checkout/mercadopago/reintentar` + `success` solo lectura (botón continuar/reintentar), 9 tests MP, **205 tests** |
-| 08 | Gestión de pedidos | Máquina de estados, `ConfirmPaymentAction` con descuento de stock (ADR-005), restitución al cancelar un pedido pagado, webhook de MercadoPago con validación de firma y verificación de monto, panel de pedidos y vista depósito | Orders | 📝 **borrador (2026-09-10)** — `docs/specs/08-gestion-pedidos.md`, reglas 143–166, pendiente de aprobación del dueño. Se entrega **en 3 fases** (08.1 dominio, 08.2 webhook, 08.3 panel y despacho). Ventas WhatsApp diferidas a una spec posterior |
+| H02 | Higiene 02 — auditoría, validación y cobertura | Valor anterior real en la auditoría de precio y stock, validaciones de `PlaceOrderAction` que la regla 108 exige, cobertura real de la revalidación bajo lock, guard del reintento MP | Products + Orders | ✅ cerrada (2026-09-10): reglas HIG-04–HIG-09 implementadas, **274 tests** en verde, Pint/PHPStan alineados. Specs 07.2 y 07.3 enmendadas con su sincronía. Pendiente merge a `main` vía PR |
+| 08 | Gestión de pedidos | Máquina de estados, `ConfirmPaymentAction` con descuento de stock (ADR-005), restitución al cancelar un pedido pagado, webhook de MercadoPago con validación de firma y verificación de monto, panel de pedidos y vista depósito | Orders | 📝 **borrador (2026-09-10)** — `docs/specs/08-gestion-pedidos.md`, reglas 143–166, pendiente de aprobación del dueño. Se entrega **en 3 fases** (08.a dominio, 08.b webhook, 08.c panel y despacho). Ventas WhatsApp diferidas a la Spec 08.2 |
 | 08.2 | Ventas manuales por WhatsApp | Alta de pedido desde el panel, opcionalmente con link de pago de MercadoPago | Orders | pendiente (diferida por decisión del dueño, 2026-09-10) |
 | 09 | Descuentos (opcional) | Por forma de pago y por monto de compra | Orders | pendiente |
 
@@ -68,8 +69,59 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 ## Cómo continuar
 
-- **Próximo paso**: aprobar el borrador de la **Spec 08** (`docs/specs/08-gestion-pedidos.md`,
-  reglas 143–166). Sus puntos abiertos de negocio quedaron resueltos por el dueño el 2026-09-10.
+### Punto de retome — cierre del 2026-09-10
+
+Estado exacto al terminar la jornada, para que cualquiera (persona o agente) retome sin reconstruir
+contexto:
+
+**Trabajo en curso**: rama `docs/spec-08-borrador`, **9 commits sin pushear**, árbol limpio, 261
+tests en verde. El nombre le quedó chico: contiene la Spec 08, la auditoría documental, la Spec
+Higiene 02 y dos agentes nuevos. Nada de esto está en `main` todavía. `gh` está instalado y
+autenticado, así que el PR se puede abrir desde la CLI.
+
+**Dos specs esperando aprobación del dueño**, en este orden:
+
+1. `docs/specs/higiene-02-auditoria-validacion-cobertura.md` (HIG-04–HIG-09) — **va primero**: dos
+   de sus reglas son precondiciones de la Spec 08.
+2. `docs/specs/08-gestion-pedidos.md` (reglas 143–166, fases 08.a/08.b/08.c) — ya revisada por el
+   agente `revisor-spec` y corregida.
+
+Ninguna se implementa hasta que el dueño las apruebe (`AGENTS.md`: nunca programar sin spec
+aprobada).
+
+**Lo que se hizo hoy y ya está en `main`** (PRs #11 y #12): verificación de la Spec 07.4 contra la
+API real de MercadoPago, con dos enmiendas a la regla 123 (`auto_return` condicionado a back_url
+pública, envío en `shipments.cost`), credenciales externas neutralizadas en `phpunit.xml`, y el
+botón "Finalizar compra" que faltaba en el carrito.
+
+**Estado del entorno local**: restaurado a su configuración normal — `APP_URL=http://localhost:8080`,
+Vite con hot reload, túnel cerrado. Para volver a probar MercadoPago hay que rehacer el
+procedimiento de `docs/deployment/desarrollo-local.md`; la URL del túnel cambia en cada arranque.
+
+**Agentes disponibles** (`.claude/agents/`, versionados): `revisor-spec` para borradores antes de
+aprobar, `verificador-spec-codigo` para comprobar que una spec cerrada esté realmente implementada.
+El segundo produjo la Spec Higiene 02 y conviene volver a correrlo sobre las specs 01, 02 y 04, que
+quedaron sin revisar.
+
+**Pendiente sin fecha**: verificar si staging tiene aplicadas las migraciones de `orders` (ver más
+abajo); el dueño lo parkeó hasta el próximo deploy manual.
+
+
+- **Próximo paso**: aprobar el borrador de la **Spec Higiene 02**
+  (`docs/specs/higiene-02-auditoria-validacion-cobertura.md`), que **va antes que la Spec 08**: dos
+  de sus reglas son precondiciones de la 08. Surgió de verificar las specs cerradas contra el código
+  con el agente `verificador-spec-codigo` el 2026-09-10.
+- **Hallazgo que ya afecta datos (2026-09-10)**: la regla 68 (auditoría de precio y stock) guarda el
+  valor **nuevo** como "anterior", porque `UpdateProductAction` lee `getOriginal()` después del
+  `save()`. Los dos registros existentes en desarrollo están corruptos y no son reparables. El test
+  pasaba porque solo verificaba que la fila existiera, nunca su payload. Corrección en HIG-04/HIG-05.
+- **Siguiente**: aprobar el borrador de la **Spec 08** (`docs/specs/08-gestion-pedidos.md`,
+  reglas 143–166), revisado por el agente `revisor-spec` y corregido el 2026-09-10. Sus puntos
+  abiertos de negocio quedaron resueltos por el dueño.
+- **Decisión de negocio (2026-09-10)**: **el pago debe ser completo**. Un pedido cuyo monto cobrado
+  no coincide con el total (regla 157), o que recibe un pago estando cancelado (regla 151), queda
+  **deliberadamente trabado**: no hay override para forzarlo a `paid`. Se resuelve fuera del sistema
+  caso por caso; recién cuando ocurra uno concreto se evaluará si hace falta un mecanismo.
 - **Decisión de negocio (2026-09-10)**: el comercio se abastece **directo del fabricante**, así que
   la mercadería siempre se consigue. Un pago cobrado con stock insuficiente **no** se rechaza: el
   pedido pasa a `paid`, el stock puede quedar negativo y se marca como reposición pendiente

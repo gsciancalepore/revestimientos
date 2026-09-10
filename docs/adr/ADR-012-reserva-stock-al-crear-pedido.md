@@ -13,6 +13,10 @@
   completo y lo que costaría adoptarla.
 - **Origen**: decisión del dueño del 2026-09-10 al definir el alcance de la Spec 08, revertida por
   el mismo dueño ese día.
+- **Aviso de lectura**: las referencias de este documento a reglas de la Spec 08 (147, 151, 110) y a
+  su sección *Alcance real de la reversión* corresponden a la **numeración del borrador descartado**
+  y no coinciden con la spec vigente. Se dejan como estaban: el documento es el registro de una
+  propuesta que no prosperó, no una guía de implementación.
 
 ## Contexto
 
