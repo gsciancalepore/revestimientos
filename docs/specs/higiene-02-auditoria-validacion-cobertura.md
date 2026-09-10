@@ -187,7 +187,12 @@ Detectadas por la misma verificación y **deliberadamente no incluidas**, con su
 ## Tareas técnicas
 
 - [x] Este documento → aprobación del dueño (2026-09-10).
-- [x] Rama `fix/higiene-02`.
+- [~] Rama `fix/higiene-02` — **no se cumplió como estaba escrito**: la tarea decía *"desde `main`"* y
+      la rama se cortó de `docs/spec-08-borrador`, así que arrastra 10 commits de documentación
+      previos (borrador de la Spec 08, ADR-012, auditoría documental, agentes). Queda como decisión
+      del dueño si el PR los lleva declarándolo, o si la rama se reordena sobre `origin/main`.
+      Se anota en vez de tacharlo: el desvío es el motivo por el que el PR no es lo que su título
+      sugiere.
 - [x] TDD en orden de gravedad: HIG-04 y HIG-05 primero (es lo único que corrompe datos hoy), luego
       HIG-06 y HIG-07 (bloquean la Spec 08), después HIG-08 y HIG-09.
 - [x] Anotar en `.ai/rules/tests.md` que un test de auditoría debe verificar el payload.

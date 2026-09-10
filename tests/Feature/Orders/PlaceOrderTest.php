@@ -81,6 +81,8 @@ test('stock agotado despues de la prevalidacion lanza DomainException bajo lock'
         ->toThrow(DomainException::class, 'La cantidad solicitada supera el stock disponible.');
 
     expect(Order::count())->toBe(0);
+    // El carrito vive en sesión, no en la transacción: lo que esto garantiza es que
+    // `Cart::clear()` no corrió, porque solo debe correr después del COMMIT (regla 112).
     expect(app(Cart::class)->items())->toBe([$product->id => 3]);
 });
 
@@ -95,6 +97,7 @@ test('producto desactivado despues de la prevalidacion lanza DomainException baj
         ->toThrow(DomainException::class, 'El producto no está disponible.');
 
     expect(Order::count())->toBe(0);
+    // Ídem: prueba que el carrito no se vació, no el rollback (que cubre `Order::count()`).
     expect(app(Cart::class)->items())->toBe([$product->id => 2]);
 });
 
