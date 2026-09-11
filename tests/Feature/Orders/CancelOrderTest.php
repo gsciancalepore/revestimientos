@@ -193,7 +193,7 @@ test('la restitucion pide las filas de productos ordenadas por id', function () 
 
 // Ídem para la cancelación: el lock del pedido es lo que la serializa contra una
 // confirmación de pago concurrente (regla 147).
-test('el pedido se relee bloqueado dentro de la transaccion al cancelar', function () {
+test('la query del pedido pide for update al cancelar', function () {
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 1);
 
@@ -207,4 +207,21 @@ test('el pedido se relee bloqueado dentro de la transaccion al cancelar', functi
     $lock = collect($queries)->first(fn (string $sql): bool => str_contains($sql, 'from "orders"') && str_contains($sql, 'for update'));
 
     expect($lock)->not->toBeNull();
+});
+
+// Regla 166 en su consumidor, igual que en la confirmación.
+test('la cancelacion deja la transicion auditada', function () {
+    $product = Product::factory()->create(['stock' => 10]);
+    $order = pedidoConLinea($product, 2);
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+
+    app(CancelOrderAction::class)->execute($order->fresh());
+
+    $audit = AuditLog::where('action', 'order.status_changed')
+        ->where('subject_id', $order->id)
+        ->get()
+        ->firstWhere(fn (AuditLog $log): bool => $log->payload['new'] === 'cancelled');
+
+    expect($audit)->not->toBeNull();
+    expect($audit->payload['previous'])->toBe('paid');
 });

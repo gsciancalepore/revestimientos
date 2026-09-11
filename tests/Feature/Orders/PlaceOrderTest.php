@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\ShippingRate;
 use App\Services\Cart;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 
 beforeEach(function () {
@@ -323,3 +324,27 @@ test('nombre o telefono vacios lanzan DomainException', function (string $name, 
     'telefono vacio' => ['Juan', '', 'El teléfono del cliente es obligatorio.'],
     'telefono solo espacios' => ['Juan', '   ', 'El teléfono del cliente es obligatorio.'],
 ]);
+
+// Regla 143: `PlaceOrderAction` bloquea los productos ordenados por id, igual que
+// `ConfirmPaymentAction` y `CancelOrderAction`. El orden determinístico es lo que
+// evita el deadlock entre un checkout y una confirmación de pago concurrentes que
+// tocan los mismos productos en secuencia distinta.
+test('el bloqueo de productos al crear el pedido pide las filas ordenadas por id', function () {
+    $a = Product::factory()->create(['activo' => true, 'stock' => 10, 'precio_cents' => 10000]);
+    $b = Product::factory()->create(['activo' => true, 'stock' => 10, 'precio_cents' => 10000]);
+
+    $cart = app(Cart::class);
+    $cart->putItems([$b->id => 1, $a->id => 1]);
+
+    $queries = [];
+    DB::listen(function ($query) use (&$queries) {
+        $queries[] = $query->sql;
+    });
+
+    app(PlaceOrderAction::class)->execute('Juan', 'juan@test.com', '1122334455', '1407', null, 'transferencia');
+
+    $lock = collect($queries)->first(fn (string $sql): bool => str_contains($sql, 'from "products"') && str_contains($sql, 'for update'));
+
+    expect($lock)->not->toBeNull();
+    expect($lock)->toContain('order by "id" asc');
+});

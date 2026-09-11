@@ -10,25 +10,6 @@ use App\Services\AuditRecorder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
-function pedidoConLinea(Product $product, int $cantidad, OrderStatus $status = OrderStatus::PendingPayment): Order
-{
-    $order = Order::factory()->create(['status' => $status, 'payment_method' => 'mercadopago']);
-
-    $order->lines()->create([
-        'product_id' => $product->id,
-        'product_name' => $product->name,
-        'product_codigo' => $product->codigo,
-        'marca' => $product->marca,
-        'unidad_venta' => $product->unidad_venta->value,
-        'm2_por_caja' => $product->m2_por_caja,
-        'cantidad' => $cantidad,
-        'precio_unitario_cents' => 10000,
-        'subtotal_cents' => 10000 * $cantidad,
-    ]);
-
-    return $order->fresh();
-}
-
 // Reglas 143 y 150: el stock desciende al confirmarse el pago (ADR-005), en la
 // misma transacción que el cambio de estado. O pasan los dos, o no pasa ninguno.
 
@@ -286,7 +267,7 @@ test('dos lineas del mismo producto descuentan la suma de las cantidades', funct
 // suite no puede reproducir (`RefreshDatabase` envuelve cada test en una). Lo que
 // sí se puede afirmar es que la query lo pide, que es lo que serializa una
 // confirmación contra una cancelación simultánea (reglas 147 y 150).
-test('el pedido se relee bloqueado dentro de la transaccion', function () {
+test('la query del pedido pide for update al confirmar', function () {
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 1);
 
@@ -300,4 +281,33 @@ test('el pedido se relee bloqueado dentro de la transaccion', function () {
     $lock = collect($queries)->first(fn (string $sql): bool => str_contains($sql, 'from "orders"') && str_contains($sql, 'for update'));
 
     expect($lock)->not->toBeNull();
+});
+
+// Regla 166 en su consumidor: sin esto se puede reemplazar la llamada a
+// `TransitionOrderStatusAction` por un `update(['status' => ...])` directo y la
+// suite no dice nada — el pedido pasaría a `paid` sin dejar rastro del cambio de
+// estado, y la regla 161 de 08.c deriva los destacados del panel de `audit_logs`.
+test('la confirmacion deja la transicion auditada', function () {
+    $product = Product::factory()->create(['stock' => 10]);
+    $order = pedidoConLinea($product, 1);
+
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+
+    $audit = AuditLog::where('action', 'order.status_changed')->where('subject_id', $order->id)->firstOrFail();
+
+    expect($audit->payload['previous'])->toBe('pending_payment');
+    expect($audit->payload['new'])->toBe('paid');
+});
+
+// El borde exacto de la regla 145: agotar el stock (llegar a 0) es normal y NO es
+// reposición pendiente. Sin este test, cambiar `< 0` por `<= 0` pasa inadvertido y
+// toda venta que agota una línea aparece en el panel como faltante inexistente.
+test('agotar el stock exacto no se registra como reposicion pendiente', function () {
+    $product = Product::factory()->create(['stock' => 4]);
+    $order = pedidoConLinea($product, 4);
+
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+
+    expect($product->fresh()->stock)->toBe(0);
+    expect(AuditLog::where('action', 'order.stock_negative')->count())->toBe(0);
 });
