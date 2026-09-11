@@ -73,7 +73,7 @@ class PlaceOrderAction
             $items = $this->cart->items();
 
             /** @var Collection<int, Product> $products */
-            $products = Product::query()->whereIn('id', array_keys($items))->lockForUpdate()->get()->keyBy('id');
+            $products = Product::query()->whereIn('id', array_keys($items))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
 
             $subtotalCents = '0';
             $linesData = [];

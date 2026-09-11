@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Services\AuditRecorder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 function pedidoConLinea(Product $product, int $cantidad, OrderStatus $status = OrderStatus::PendingPayment): Order
 {
@@ -192,4 +193,90 @@ test('si algo falla despues del descuento, ni el estado ni el stock se mueven', 
     expect($order->fresh()->status)->toBe(OrderStatus::PendingPayment);
     expect($product->fresh()->stock)->toBe(10);
     expect(AuditLog::where('subject_id', $order->id)->count())->toBe(0);
+});
+
+// B1 (revisor-entrega, 2026-09-11): los tests de idempotencia de arriba pasan un
+// pedido ya releído con `fresh()`, así que el guard corta por el objeto del test y
+// no por la relectura de la Action. Este reproduce el escenario real del webhook:
+// dos notificaciones que localizaron el pedido por `external_reference` ANTES de
+// entrar, cada una con su instancia leída en `pending_payment`. Falla si la Action
+// decide sobre el parámetro en vez de sobre la fila releída bajo lock.
+test('dos notificaciones con el pedido leido de antemano descuentan stock una sola vez', function () {
+    $product = Product::factory()->create(['stock' => 10]);
+    $order = pedidoConLinea($product, 3);
+
+    $notificacionA = Order::findOrFail($order->id);
+    $notificacionB = Order::findOrFail($order->id);
+
+    $action = app(ConfirmPaymentAction::class);
+    $action->execute($notificacionA, 'mercadopago');
+    $action->execute($notificacionB, 'mercadopago');
+
+    expect($product->fresh()->stock)->toBe(7);
+    expect(AuditLog::where('action', 'order.paid')->where('subject_id', $order->id)->count())->toBe(1);
+});
+
+test('una notificacion con el pedido leido antes de cancelarlo no lo pasa a pagado', function () {
+    $product = Product::factory()->create(['stock' => 10]);
+    $order = pedidoConLinea($product, 3);
+
+    // el webhook leyó el pedido y recién después el admin lo canceló
+    $notificacion = Order::findOrFail($order->id);
+    $order->update(['status' => OrderStatus::Cancelled]);
+
+    app(ConfirmPaymentAction::class)->execute($notificacion, 'mercadopago');
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Cancelled);
+    expect($product->fresh()->stock)->toBe(10);
+    expect(AuditLog::where('action', 'order.paid_after_cancel')->where('subject_id', $order->id)->count())->toBe(1);
+});
+
+// I2: el orden determinístico del lock (regla 143) es lo que evita el deadlock
+// contra una cancelación concurrente. No se puede probar con concurrencia real en
+// esta suite, pero sí que la query lo pide.
+test('el bloqueo de productos pide las filas ordenadas por id', function () {
+    $a = Product::factory()->create(['stock' => 10]);
+    $b = Product::factory()->create(['stock' => 10]);
+    $order = pedidoConLinea($b, 1);
+    $order->lines()->create([
+        'product_id' => $a->id,
+        'product_name' => $a->name,
+        'product_codigo' => $a->codigo,
+        'unidad_venta' => $a->unidad_venta->value,
+        'cantidad' => 1,
+        'precio_unitario_cents' => 5000,
+        'subtotal_cents' => 5000,
+    ]);
+
+    $queries = [];
+    DB::listen(function ($query) use (&$queries) {
+        $queries[] = $query->sql;
+    });
+
+    app(ConfirmPaymentAction::class)->execute($order->fresh(), 'mercadopago');
+
+    $lock = collect($queries)->first(fn (string $sql): bool => str_contains($sql, 'from "products"') && str_contains($sql, 'for update'));
+
+    expect($lock)->not->toBeNull();
+    expect($lock)->toContain('order by "id" asc');
+});
+
+// Menor (revisor-entrega): dos líneas del mismo producto se agregan antes de
+// descontar. Hoy el carrito no las produce; la Spec 08.2 (alta manual) sí.
+test('dos lineas del mismo producto descuentan la suma de las cantidades', function () {
+    $product = Product::factory()->create(['stock' => 10]);
+    $order = pedidoConLinea($product, 3);
+    $order->lines()->create([
+        'product_id' => $product->id,
+        'product_name' => $product->name,
+        'product_codigo' => $product->codigo,
+        'unidad_venta' => $product->unidad_venta->value,
+        'cantidad' => 2,
+        'precio_unitario_cents' => 10000,
+        'subtotal_cents' => 20000,
+    ]);
+
+    app(ConfirmPaymentAction::class)->execute($order->fresh(), 'mercadopago');
+
+    expect($product->fresh()->stock)->toBe(5);
 });
