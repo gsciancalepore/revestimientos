@@ -69,58 +69,96 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 ## Cómo continuar
 
-### Punto de retome — cierre del 2026-09-11
+### Punto de retome — cierre del 2026-09-11 (segunda jornada)
 
-Estado exacto al terminar la jornada, para que cualquiera (persona o agente) retome sin reconstruir
-contexto. **Leer esto primero.**
+Estado exacto al terminar, para que cualquiera (persona o agente) retome sin reconstruir contexto.
+**Leer esto primero.**
 
 #### Qué hay en `main`
 
-La **Spec Higiene 02 completa** (PR #15): auditoría de precio y stock con el valor anterior real,
-validaciones de dominio en `PlaceOrderAction`, cobertura real de la revalidación bajo lock y guard
-del reintento de MercadoPago. Después entraron las dos ramas que quedaban abiertas: la documental
-(PR #16, glosario y trampas del entorno) y la **fase 08.a** (PR #17, `0ca8943`). `main` quedó en
-**340 tests**, con Pint y PHPStan nivel 8 limpios — reverificado el 2026-09-11 al retomar.
+`main` está en **`0584dae`**, con **378 tests**, PHPStan nivel 8 sin errores y Pint limpio
+(reverificado al cerrar). Contiene la Spec 08 **hasta la fase 08.b inclusive**:
 
-#### Cómo se abren los PRs
+- **08.a — dominio** (PR #17): reglas 143-145, 147-152 y 166. Máquina de estados en `OrderStatus`,
+  `TransitionOrderStatusAction` como único camino a `order.status`, `ConfirmPaymentAction` con
+  descuento de stock bajo lock e idempotencia, `CancelOrderAction` con restitución.
+- **08.b — webhook** (PR #19): reglas 153-158. `POST /webhook/mercadopago` sin auth ni sesión y
+  excluida de CSRF, autenticada por firma HMAC con `hash_equals`; filtro por tipo antes de
+  consultar; el estado real se consulta contra la API por el puerto `PaymentStatusQuery`;
+  verificación de monto contra `total_cents`; 503 deliberado ante fallo transitorio.
+- **Enmienda de proceso** (PR #18): qué se puede tocar de `docs/specs/`, `docs/adr/` y
+  `docs/roadmap.md`, y qué no. Ver `AGENTS.md` §Idioma y proceso.
 
-**`gh` está instalado y autenticado** como `gsciancalepore` (v2.100.0), pero vive en
-`~/.local/bin/gh` y **no está en el `PATH`** de una shell no interactiva: por eso `gh pr list`
-falla con *command not found* y una nota anterior de este roadmap concluyó que no estaba
-instalado. Invocarlo con la ruta completa, o con `PATH="$HOME/.local/bin:$PATH" gh ...`. La vía web
-sigue sirviendo:
-`https://github.com/gsciancalepore/revestimientos/compare/main...<rama>?expand=1`.
+**Nota de historia (2026-09-11)**: los PR #18 y #19 se mergearon a mano en orden inverso al
+previsto (#19 antes que #18). No se perdió contenido —ambos tocaban hunks distintos— y el único
+efecto fue que este punto de retome quedó un rato diciendo "340 tests" mientras el encabezado ya
+decía 378. Se anota en vez de borrarse, porque explica esa incoherencia si alguien mira el
+historial.
 
-#### Qué implementa la 08.a y qué NO
+#### Lo próximo: fase 08.c
 
-Implementa las reglas **143-145, 147-152 y 166**: máquina de estados en `OrderStatus`,
-`TransitionOrderStatusAction` como único camino a `order.status`, `ConfirmPaymentAction` con
-descuento de stock bajo lock e idempotencia, `CancelOrderAction` con restitución. Dominio puro: sin
-rutas, sin controladores, sin pantallas.
+**No hace falta escribir spec**: la Spec 08 ya está aprobada y la 08.c son las reglas **146 y
+159-165**, con criterios de aceptación y matriz de permisos ya redactados. Alcance: panel de
+pedidos con filtros y destacados, detalle, confirmación manual de transferencia, vista depósito con
+sus dos solapas, cancelaciones y visibilidad del stock negativo.
 
-**No implementa** —y que falte es correcto— el webhook (08.b, reglas 153-158) ni el panel, la vista
-depósito y la visibilidad del stock negativo (08.c, reglas 146 y 159-165).
+**Tres cosas que 08.a y 08.b dejaron anotadas para esta fase, y que conviene leer antes de
+empezar**:
 
-**Lo que hay que mirar sí o sí antes de tocar esas Actions**: `.ai/rules/pedidos.md`. Ahí está lo
-que no se deduce leyendo el código, incluido que **el stock negativo y el pedido trabado tras un
-pago cancelado son decisiones del dueño, no defectos a corregir**.
+1. **La restricción de la regla 159 no está en `ConfirmPaymentAction`.** La confirmación manual vale
+   solo para pedidos de `transferencia`, pero la spec ubica ese control en el panel. Hoy
+   `execute($orderDeMercadoPago, 'manual')` marca pagado y descuenta stock sin que nadie haya
+   cobrado. Si el control queda solo en el controlador o en la Policy, se repite exactamente el
+   patrón que HIG-06 tuvo que corregir en `PlaceOrderAction`.
+2. **Qué auditorías destacan un pedido y cuáles no.** La regla 161 deriva los destacados de
+   `audit_logs`. Los incidentes de pago son `order.payment_amount_mismatch` y
+   `order.paid_after_cancel`. **No** lo son `order.stock_restored` (08.a) ni las cuatro del webhook
+   —`webhook.signature_invalid`, `webhook.ignored`, `webhook.order_not_found`,
+   `webhook.payment_not_found`—, tres de las cuales ni siquiera tienen pedido asociado.
+3. **La enmienda de la regla 146**: los Form Requests de la Spec 03 validan `min:0` en stock, así
+   que con stock negativo el admin no puede guardar **ningún** cambio del producto. Hay que
+   enmendarlo y anotarlo como sincronía.
+
+#### Pendiente que ningún test puede cubrir: verificar el webhook de verdad
+
+El webhook **está probado con dobles, no contra MercadoPago**. Los tests no alcanzan la red por
+diseño y ahora hay un cerrojo que lo impide, así que —como enseñó la 07.4, donde seis días de CI
+verde convivieron con MercadoPago cobrando el subtotal— eso **no** es lo mismo que estar verificado.
+
+Para hacerlo hace falta, en este orden: levantar el túnel, generar la credencial nueva
+`MERCADOPAGO_WEBHOOK_SECRET` en el panel de MercadoPago (es distinta del access token) y configurar
+ahí la URL `https://<subdominio>.trycloudflare.com/webhook/mercadopago`. El procedimiento completo
+está en `docs/deployment/desarrollo-local.md` §Webhook.
 
 #### Cómo se auditó, y por qué importa para la próxima fase
 
-La 08.a pasó **dos veces** por el agente `revisor-entrega`. La primera la **bloqueó**: dos reglas del
-corazón de la fase estaban bien implementadas pero **sin un solo test que las protegiera** —se podían
-borrar enteras con los 327 tests en verde—, y en la cancelación ese agujero **perdía stock**. La
-segunda pasada verificó los arreglos rompiendo el código ella misma y encontró cuatro huecos más,
-todos cerrados. El veredicto final fue *apto con correcciones menores*.
+Las dos fases pasaron por `revisor-entrega`, y **las dos fueron bloqueadas en la primera pasada**:
 
-La lección, que ya es la tercera vez que aparece en este repo (regla 123, regla 109, y ahora la 150):
-**los gates en verde no dicen nada sobre si el test cubre la regla**. Correr `revisor-entrega` antes
-de cada push no es opcional.
+- **08.a**: dos reglas del corazón de la fase estaban bien implementadas pero **sin un solo test que
+  las protegiera** —se podían borrar enteras con los 327 tests en verde—, y en la cancelación ese
+  agujero perdía stock.
+- **08.b**: `MercadoPagoGateway::findPayment()` —el único adaptador del puerto, donde vive la
+  conversión pesos→centavos contra la que compara la regla 157— se podía **vaciar entero** con los
+  357 tests en verde. Si esa conversión se rompe, **ningún pago se confirma nunca**: todos caen en
+  `order.payment_amount_mismatch` y los pedidos quedan con la plata cobrada en `PendingPayment`.
+  La lección nueva: **probar el puerto no prueba el adaptador**.
+
+La lección de fondo, que ya es la cuarta vez que aparece (regla 123, regla 109, regla 150 y ahora
+155): **los gates en verde no dicen nada sobre si el test cubre la regla**. Correr `revisor-entrega`
+antes de cada push no es opcional, y la forma de usarlo es pedirle que **mute la implementación**.
+
+**Hallazgo colateral de 08.b, que vale para todo el repo**: la suite **salía a la red de verdad**.
+Neutralizar credenciales en `phpunit.xml` nunca lo impidió —con cualquier token el SDK sale igual a
+internet y falla recién del otro lado—. Ahora `Tests\RedProhibida`, instalado desde `tests/Pest.php`
+sobre `Feature` y `Unit`, corta cualquier salida con un mensaje que dice qué doble falta. Hay un
+test en cada suite que lo protege. **No lo quites para "probar de verdad"**: la verificación contra
+MercadoPago es manual y con túnel.
 
 #### Punto abierto resuelto (2026-09-11): las specs editadas desde la 08.a
 
 Quedaba por decidir si se ratificaban o se revertían los dos commits de `feat/pedidos-08a` que
-editan `docs/specs/08-gestion-pedidos.md`. **Resuelto: se ratifican, y se enmienda `AGENTS.md`.**
+editan `docs/specs/08-gestion-pedidos.md`. **Resuelto: se ratifican, y se enmienda `AGENTS.md`**
+(PR #18).
 
 La revisión mostró que el problema no era la 08.a sino la regla: `AGENTS.md` decía que
 `docs/specs/` *jamás* se edita, mientras el bullet inmediatamente siguiente manda anotar la
@@ -128,25 +166,47 @@ sincronía **en la spec**. Cumplir uno obligaba a violar el otro. Y la práctica
 la escrita: `ADR-005` lleva su enmienda anotada en el propio documento, y ocho commits de ramas de
 implementación editaron specs, todos mergeados vía PR.
 
-Verificado commit por commit, la 08.a **no tocó ninguna regla de negocio** (143–166): cambió la
-línea de Estado, tildó dos checkboxes de *Tareas técnicas* y agregó una sección de sincronía al
-final. Revertirlo habría borrado el aviso sobre la regla 159 —el que evita que 08.c repita el
-defecto de HIG-06— y contradicho la regla de que las decisiones se marcan y no se borran.
-
 La enmienda separa lo que la regla protege (el contrato: reglas, criterios de aceptación, matriz de
 permisos, alcance) de lo que es registro de avance (Estado, checkboxes, sincronía append-only), y
-fija la forma: van en un commit `docs:` propio, **nunca dentro de uno `feat:`**. Ese —y no el
-contenido— fue el defecto real de `498e1c9`.
+fija la forma: van en un commit `docs:` propio, **nunca dentro de uno `feat:`**.
+
+#### Decisión de alcance pendiente: WhatsApp está dentro del MVP según la visión
+
+`docs/vision.md` §MVP, punto 6, incluye *"registro manual de ventas de WhatsApp para control de
+stock"*. El dueño **difirió** esa funcionalidad a una **Spec 08.2** el 2026-09-10, así que hoy la
+visión y el roadmap dicen cosas distintas sobre qué entra en el MVP. Sin esa pieza, el stock de las
+ventas por WhatsApp nunca baja y el número del catálogo miente.
+
+No bloquea nada hasta cerrar 08.c, pero **es la única pieza del MVP sin spec escrita** y hay que
+zanjarla: o se escribe la Spec 08.2 después de la 08.c, o se enmienda la visión dejando WhatsApp
+fuera del MVP con su motivo. La Spec 09 (descuentos) queda fuera: el roadmap la marca opcional y la
+visión no la incluye.
+
+#### Cómo se abren los PRs
+
+**`gh` está instalado y autenticado** como `gsciancalepore` (v2.100.0), pero vive en
+`~/.local/bin/gh` y **no está en el `PATH`** de una shell no interactiva: por eso `gh pr list`
+falla con *command not found*. Invocarlo con la ruta completa, o con
+`PATH="$HOME/.local/bin:$PATH" gh ...`. La vía web sigue sirviendo:
+`https://github.com/gsciancalepore/revestimientos/compare/main...<rama>?expand=1`.
 
 #### Estado del entorno local
 
-`APP_URL=http://localhost:8080`, Vite con hot reload, sin túnel. Dos cosas que costaron una tarde y
-ahora están documentadas en `.ai/rules/general.md` y en el README:
+`APP_URL=http://localhost:8080`, Vite con hot reload, **sin túnel** (hay que rearmarlo para probar
+el webhook). Dos trampas que costaron una tarde y están documentadas en `.ai/rules/general.md` y en
+el README:
 
 - Tras un `wsl --shutdown`, los contenedores levantan sanos pero **los puertos publicados quedan
   muertos**. Se arregla con `docker compose up -d --force-recreate web assets mailpit`.
 - El sitio es `http://localhost:8080`. Con `https://` o sin el puerto, el navegador da errores que
   parecen del servidor y no lo son.
+
+#### Trampa de proceso, aprendida a la mala el 2026-09-11
+
+**No usar `git checkout -- <archivo>` para revertir una mutación si el archivo tiene cambios sin
+commitear**: restaura la versión commiteada y **borra el trabajo en curso**. Pasó dos veces durante
+la 08.b, y la segunda dejó la suite corriendo contra código viejo, dando un "control en rojo" que
+parecía un bug real. Commitear antes de mutar, o respaldar los archivos fuera del repo.
 
 #### Pendientes sin fecha
 
@@ -155,11 +215,11 @@ ahora están documentadas en `.ai/rules/general.md` y en el README:
   entonces el foco es enteramente local.** Nada de la Spec 08 lo necesita: el túnel de la
   verificación con MercadoPago también corre en la máquina local.
 - Correr `verificador-spec-codigo` sobre las specs **01, 02 y 04**, que nunca se revisaron.
-- **Candidato a agente para 08.b**: un QA de flujos que ejecute el procedimiento del túnel, dispare
-  un pago real en el sandbox y verifique que el webhook movió el pedido a `paid` con el stock
-  descontado. Es el único hueco que los tres agentes actuales no cubren: **nadie usa la aplicación**.
-  Los dos defectos más caros del proyecto —el botón que faltaba en el carrito y MercadoPago cobrando
-  el subtotal— los encontró una persona haciendo el flujo a mano, no un test.
+- **Candidato a agente**: un QA de flujos que ejecute el procedimiento del túnel, dispare un pago
+  real en el sandbox y verifique que el webhook movió el pedido a `paid` con el stock descontado. Es
+  el único hueco que los tres agentes actuales no cubren: **nadie usa la aplicación**. Los dos
+  defectos más caros del proyecto —el botón que faltaba en el carrito y MercadoPago cobrando el
+  subtotal— los encontró una persona haciendo el flujo a mano, no un test.
 
 #### Agentes disponibles (`.claude/agents/`, versionados)
 
@@ -169,12 +229,10 @@ ahora están documentadas en `.ai/rules/general.md` y en el README:
 | `verificador-spec-codigo` | Antes de construir sobre una spec cerrada | Verifica regla por regla que el código la implemente y que haya test que la cubra |
 | `revisor-entrega` | Implementación terminada y en verde, **antes del push** | Audita el diff contra su spec; muta la implementación y comprueba que algún test se ponga rojo |
 
-- **Próximo paso**: la fase **08.b** (webhook de MercadoPago, reglas 153–158). Hoy no existe nada
-  de eso: no hay ruta `POST /webhook/mercadopago`, `bootstrap/app.php` no tiene ninguna excepción
-  de CSRF, `config/services.php` no declara `webhook_secret` y `MercadoPagoGateway` solo inyecta
-  `PreferenceClient`. Necesita la credencial nueva `MERCADOPAGO_WEBHOOK_SECRET` —a generar en el
-  panel de MercadoPago y a neutralizar en `phpunit.xml` como el resto— y, para la verificación
-  final, el túnel de `docs/deployment/desarrollo-local.md`. Los tests no tocan la red.
+- **Próximo paso**: la fase **08.c** (panel de pedidos, confirmación manual de transferencia, vista
+  depósito, cancelaciones y visibilidad del stock negativo; reglas 146 y 159-165). La spec ya está
+  aprobada, así que no hace falta escribir nada nuevo. Antes de empezar, leer los tres avisos que
+  08.a y 08.b dejaron para esta fase en el punto de retome.
 - **Cerrado (2026-09-10)**: la **Spec Higiene 02** quedó implementada y mergeada (PR #15). Incluía el
   hallazgo que afectaba datos —la regla 68 guardaba el valor **nuevo** como "anterior" porque
   `UpdateProductAction` leía `getOriginal()` después del `save()`—; los dos registros corruptos en
