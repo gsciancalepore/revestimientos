@@ -76,22 +76,19 @@ contexto. **Leer esto primero.**
 
 #### Qué hay en `main`
 
-Todo lo de la jornada anterior más la **Spec Higiene 02 completa** (PR #15): auditoría de precio y
-stock con el valor anterior real, validaciones de dominio en `PlaceOrderAction`, cobertura real de
-la revalidación bajo lock y guard del reintento de MercadoPago. `main` quedó en **274 tests**.
+La **Spec Higiene 02 completa** (PR #15): auditoría de precio y stock con el valor anterior real,
+validaciones de dominio en `PlaceOrderAction`, cobertura real de la revalidación bajo lock y guard
+del reintento de MercadoPago. Después entraron las dos ramas que quedaban abiertas: la documental
+(PR #16, glosario y trampas del entorno) y la **fase 08.a** (PR #17, `0ca8943`). `main` quedó en
+**340 tests**, con Pint y PHPStan nivel 8 limpios — reverificado el 2026-09-11 al retomar.
 
-#### Dos ramas sin mergear, en este orden
+#### Cómo se abren los PRs
 
-1. **`docs/entorno-local-y-lenguaje`** (solo documentación). Corrige el procedimiento de DNS de
-   `desarrollo-local.md`, documenta dos trampas nuevas del entorno, incorpora al glosario los
-   términos que 08.a volvió reales, y agrega los agentes al README y a `AGENTS.md`.
-   **Va primero**: si entra después de la 08.a, `main` queda un rato con el glosario diciendo que
-   "sin stock" es exactamente 0 mientras el código ya permite negativos.
-2. **`feat/pedidos-08a`** (fase 08.a de la Spec 08). **340 tests**, Pint y PHPStan nivel 8 limpios,
-   árbol limpio.
-
-Ninguna está pusheada al momento de escribir esto. Los PRs se abren desde la web —**`gh` no está
-instalado**, la nota anterior de este roadmap decía lo contrario y era falso— con
+**`gh` está instalado y autenticado** como `gsciancalepore` (v2.100.0), pero vive en
+`~/.local/bin/gh` y **no está en el `PATH`** de una shell no interactiva: por eso `gh pr list`
+falla con *command not found* y una nota anterior de este roadmap concluyó que no estaba
+instalado. Invocarlo con la ruta completa, o con `PATH="$HOME/.local/bin:$PATH" gh ...`. La vía web
+sigue sirviendo:
 `https://github.com/gsciancalepore/revestimientos/compare/main...<rama>?expand=1`.
 
 #### Qué implementa la 08.a y qué NO
@@ -120,13 +117,26 @@ La lección, que ya es la tercera vez que aparece en este repo (regla 123, regla
 **los gates en verde no dicen nada sobre si el test cubre la regla**. Correr `revisor-entrega` antes
 de cada push no es opcional.
 
-#### Punto abierto que el dueño tiene que resolver
+#### Punto abierto resuelto (2026-09-11): las specs editadas desde la 08.a
 
-`AGENTS.md` dice que `docs/specs/` **jamás** se edita salvo que la tarea lo pida explícitamente. Dos
-commits de `feat/pedidos-08a` editan `docs/specs/08-gestion-pedidos.md`: la línea de Estado al
-aprobarse la spec, y después los checkboxes más una sección de sincronía. El contenido es valioso
-—la advertencia sobre la regla 159 es justo lo que salva a 08.c— pero **la autorización no está
-escrita en ningún lado**. Hay que decidir si se ratifica o si se revierte esa parte.
+Quedaba por decidir si se ratificaban o se revertían los dos commits de `feat/pedidos-08a` que
+editan `docs/specs/08-gestion-pedidos.md`. **Resuelto: se ratifican, y se enmienda `AGENTS.md`.**
+
+La revisión mostró que el problema no era la 08.a sino la regla: `AGENTS.md` decía que
+`docs/specs/` *jamás* se edita, mientras el bullet inmediatamente siguiente manda anotar la
+sincronía **en la spec**. Cumplir uno obligaba a violar el otro. Y la práctica del repo nunca fue
+la escrita: `ADR-005` lleva su enmienda anotada en el propio documento, y ocho commits de ramas de
+implementación editaron specs, todos mergeados vía PR.
+
+Verificado commit por commit, la 08.a **no tocó ninguna regla de negocio** (143–166): cambió la
+línea de Estado, tildó dos checkboxes de *Tareas técnicas* y agregó una sección de sincronía al
+final. Revertirlo habría borrado el aviso sobre la regla 159 —el que evita que 08.c repita el
+defecto de HIG-06— y contradicho la regla de que las decisiones se marcan y no se borran.
+
+La enmienda separa lo que la regla protege (el contrato: reglas, criterios de aceptación, matriz de
+permisos, alcance) de lo que es registro de avance (Estado, checkboxes, sincronía append-only), y
+fija la forma: van en un commit `docs:` propio, **nunca dentro de uno `feat:`**. Ese —y no el
+contenido— fue el defecto real de `498e1c9`.
 
 #### Estado del entorno local
 
@@ -140,8 +150,10 @@ ahora están documentadas en `.ai/rules/general.md` y en el README:
 
 #### Pendientes sin fecha
 
-- Verificar si staging tiene aplicadas las migraciones de `orders` (ver la discrepancia más abajo);
-  el dueño lo parkeó hasta el próximo deploy manual.
+- Verificar si staging tiene aplicadas las migraciones de `orders` (ver la discrepancia más abajo).
+  **Decisión del dueño (2026-09-11): staging queda parkeado hasta alcanzar el MVP funcional; hasta
+  entonces el foco es enteramente local.** Nada de la Spec 08 lo necesita: el túnel de la
+  verificación con MercadoPago también corre en la máquina local.
 - Correr `verificador-spec-codigo` sobre las specs **01, 02 y 04**, que nunca se revisaron.
 - **Candidato a agente para 08.b**: un QA de flujos que ejecute el procedimiento del túnel, dispare
   un pago real en el sandbox y verifique que el webhook movió el pedido a `paid` con el stock
@@ -157,9 +169,12 @@ ahora están documentadas en `.ai/rules/general.md` y en el README:
 | `verificador-spec-codigo` | Antes de construir sobre una spec cerrada | Verifica regla por regla que el código la implemente y que haya test que la cubra |
 | `revisor-entrega` | Implementación terminada y en verde, **antes del push** | Audita el diff contra su spec; muta la implementación y comprueba que algún test se ponga rojo |
 
-- **Próximo paso**: mergear las dos ramas en el orden de arriba y seguir con la **08.b** (webhook de MercadoPago, reglas 153–158), que necesita el
-  túnel de `docs/deployment/desarrollo-local.md` y una credencial nueva,
-  `MERCADOPAGO_WEBHOOK_SECRET`, a neutralizar en `phpunit.xml` como el resto.
+- **Próximo paso**: la fase **08.b** (webhook de MercadoPago, reglas 153–158). Hoy no existe nada
+  de eso: no hay ruta `POST /webhook/mercadopago`, `bootstrap/app.php` no tiene ninguna excepción
+  de CSRF, `config/services.php` no declara `webhook_secret` y `MercadoPagoGateway` solo inyecta
+  `PreferenceClient`. Necesita la credencial nueva `MERCADOPAGO_WEBHOOK_SECRET` —a generar en el
+  panel de MercadoPago y a neutralizar en `phpunit.xml` como el resto— y, para la verificación
+  final, el túnel de `docs/deployment/desarrollo-local.md`. Los tests no tocan la red.
 - **Cerrado (2026-09-10)**: la **Spec Higiene 02** quedó implementada y mergeada (PR #15). Incluía el
   hallazgo que afectaba datos —la regla 68 guardaba el valor **nuevo** como "anterior" porque
   `UpdateProductAction` leía `getOriginal()` después del `save()`—; los dos registros corruptos en
