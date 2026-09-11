@@ -4,8 +4,8 @@ Documenta cómo dejar el entorno local en condiciones de probar el checkout real
 y cómo devolverlo a su estado normal después. Escrito el 2026-09-10, la primera vez que la Spec 07.4
 se verificó contra la API real.
 
-**No hace falta para el desarrollo diario.** Solo para probar MercadoPago o, cuando exista, el
-webhook de la Spec 08 fase 08.b.
+**No hace falta para el desarrollo diario.** Solo para probar MercadoPago o el webhook de la Spec
+08 fase 08.b (§Webhook, al final).
 
 ## Por qué hace falta un túnel
 
@@ -18,8 +18,8 @@ El gateway envía `auto_return` solo cuando la back_url es pública (Spec 07.4, 
 así que sin túnel la preferencia **se crea igual** — pero el cliente nunca vuelve al sitio. Para
 probar el flujo completo hace falta la URL pública.
 
-El webhook de la Spec 08 va a necesitar lo mismo, y con más razón: MercadoPago tiene que poder
-alcanzar el endpoint.
+El webhook de la Spec 08 necesita lo mismo, y con más razón: MercadoPago tiene que poder alcanzar
+el endpoint.
 
 ## Requisito previo: DNS (solo del lado de Windows)
 
