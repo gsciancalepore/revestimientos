@@ -1,8 +1,38 @@
 <?php
 
+use App\Enums\OrderStatus;
+use App\Models\Order;
+use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
+
+/**
+ * Pedido con una línea sobre el producto dado, para las pruebas de la Spec 08.
+ *
+ * Vive acá y no en un archivo de tests porque la usan `ConfirmPaymentTest` y
+ * `CancelOrderTest`: con el helper declarado en el primero, el segundo no se podía
+ * correr solo, y eso rompe el procedimiento con el que este repo se defiende
+ * (mutar la implementación y correr la suite filtrada por archivo).
+ */
+function pedidoConLinea(Product $product, int $cantidad, OrderStatus $status = OrderStatus::PendingPayment): Order
+{
+    $order = Order::factory()->create(['status' => $status, 'payment_method' => 'mercadopago']);
+
+    $order->lines()->create([
+        'product_id' => $product->id,
+        'product_name' => $product->name,
+        'product_codigo' => $product->codigo,
+        'marca' => $product->marca,
+        'unidad_venta' => $product->unidad_venta->value,
+        'm2_por_caja' => $product->m2_por_caja,
+        'cantidad' => $cantidad,
+        'precio_unitario_cents' => 10000,
+        'subtotal_cents' => 10000 * $cantidad,
+    ]);
+
+    return $order->fresh();
+}

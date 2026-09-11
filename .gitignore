@@ -32,3 +32,6 @@ frankenphp
 frankenphp-worker.php
 rr
 .rr.yaml
+
+# Configuración local de Claude Code (permisos personales, no del proyecto)
+.claude/settings.local.json
