@@ -429,3 +429,39 @@ puede alcanzar la API de MercadoPago: las credenciales están neutralizadas en `
   'manual')` marcaría pagado y descontaría stock. Si al implementar 08.c el control queda solo en
   el controlador o la Policy, se repite el patrón que HIG-06 tuvo que corregir en
   `PlaceOrderAction`.
+
+## Sincronía 2026-09-11 — fase 08.b (webhook)
+
+- **08.b implementada**: `POST /webhook/mercadopago` con validación de firma, filtro por tipo,
+  consulta a la API, localización por `external_reference` y verificación de monto. Reglas 153-158.
+  357 tests.
+- **La costura de la regla 155 no pudo ser la que la regla describía**. La regla pide exponer la
+  consulta "con una costura inyectable, como ya se hizo con `PreferenceClient`". Ese patrón sirve
+  para *inyectar* el cliente, pero no para *testear*: `PaymentClient` es `final`, igual que
+  `PreferenceClient`, así que ningún test puede darle una respuesta. En la 07.4 eso se resolvió
+  verificando el **payload** con `preferencePayload()` protected; acá el test necesita una
+  **respuesta**, no un payload. La costura quedó un nivel más arriba: el puerto
+  `App\Contracts\PaymentStatusQuery`, implementado por `MercadoPagoGateway` y bindeado en el
+  contenedor. La consulta sigue viviendo dentro del gateway, como manda la regla.
+- **Por qué un puerto nuevo y no un método en `PaymentGateway`**: la transferencia bancaria no
+  tiene pago remoto que consultar. Agregarlo al contrato existente obligaría a
+  `ManualTransferGateway` a implementar algo que no significa nada para él.
+- **Acciones de auditoría no listadas en la spec**: `webhook.signature_invalid`, `webhook.ignored`
+  (tipo distinto de `payment`), `webhook.order_not_found` y `webhook.payment_not_found`. Las reglas
+  154-156 piden "registro en `audit`" sin nombrarlas. Se anotan acá para que la **regla 161**, que
+  deriva los destacados del panel de `audit_logs`, sepa qué existe: ninguna de las cuatro es un
+  incidente de pago y **no deben destacar el pedido** —de hecho tres de ellas no tienen pedido
+  asociado (`subject` nulo)—. El incidente sigue siendo `order.payment_amount_mismatch` y
+  `order.paid_after_cancel`, como fija la regla.
+- **Trampa de test que costó un falso verde**: el primer test de la excepción de CSRF no cubría
+  nada. Laravel saltea `ValidateCsrfToken` mientras corre la suite (`runningUnitTests()` corta
+  antes que `inExceptArray()`), así que el POST pasaba igual **sin** la excepción registrada. Se
+  reemplazó por una afirmación sobre `getExcludedPaths()`, que sí se pone roja si se borra la
+  configuración. Detectado con el procedimiento de mutar la implementación, no por revisión.
+- **De dónde sale el ID del pago**: del **cuerpo** (`data.id`). La query string queda como
+  fallback y se lee como `data_id`, porque PHP convierte el punto en guion bajo al parsear
+  `?data.id=...`. Un implementador que lea solo `$request->query('data.id')` obtiene siempre vacío.
+- **Pendiente de verificación real**: el webhook todavía **no se probó contra MercadoPago**. Hace
+  falta el túnel de `docs/deployment/desarrollo-local.md` y generar `MERCADOPAGO_WEBHOOK_SECRET`
+  en el panel de MercadoPago. Los tests no alcanzan la red por diseño, así que —como enseñó la
+  07.4— eso no es lo mismo que estar verificado.
