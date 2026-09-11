@@ -194,10 +194,44 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - Nunca programar sin spec aprobada (`docs/specs/`); nunca inventar reglas de
   negocio; TDD obligatorio (red → green → refactor); cambios importantes → ADR
   (`docs/adr/`).
-- **NUNCA editar `docs/specs/`, `docs/adr/` ni `docs/roadmap.md` salvo que la
-  tarea lo solicite explícitamente. Única excepción a `docs/roadmap.md`:
-  actualizar la columna "Estado" de la fila de la spec en curso y la fecha de
-  "Última actualización". `docs/specs/` y `docs/adr/` jamás se editan.**
+- **Documentos de decisión — qué se puede tocar y qué no (enmendado el
+  2026-09-11)**. Lo que esta regla protege es el **contrato aprobado por el
+  dueño**, no el archivo que lo contiene:
+
+  - **Prohibido sin pedido explícito del dueño**, en `docs/specs/` y
+    `docs/adr/`: crear o borrar documentos; agregar, eliminar, renumerar o
+    **reescribir el texto de una regla de negocio**; cambiar criterios de
+    aceptación, matriz de permisos o alcance. Una regla enmendada **nunca se
+    corrige sobre su propio texto**: la enmienda se anota como sincronía
+    fechada, según el bullet siguiente.
+  - **Permitido desde la rama que implementa una spec**, y solo sobre la spec
+    que autorizó ese trabajo: la línea de **Estado**, los checkboxes de
+    **Tareas técnicas**, y una sección `## Sincronía AAAA-MM-DD` al final,
+    **append-only** — se agrega al pie, no se edita lo que ya está escrito
+    arriba.
+  - **`docs/roadmap.md`**: la columna "Estado" de la fila de la spec en curso,
+    la fecha de "Última actualización", el punto de retome y las notas
+    fechadas. El Definition of Done exige `roadmap.md` actualizado al cerrar
+    una fase, así que mantenerlo al día es parte del trabajo, no una excepción.
+  - **Forma**: estos cambios van en un commit `docs:` propio, **nunca dentro de
+    un commit `feat:`/`fix:`/`test:`**. Mezclarlos esconde una edición del
+    contrato dentro de un diff de código, que es exactamente el riesgo que la
+    regla quiere evitar.
+
+  **Versión anterior (vigente hasta el 2026-09-11), y por qué se enmendó**: la
+  regla decía *"NUNCA editar `docs/specs/`, `docs/adr/` ni `docs/roadmap.md`
+  salvo que la tarea lo solicite explícitamente … `docs/specs/` y `docs/adr/`
+  jamás se editan"*. Se enmienda por dos motivos. Primero, **contradecía al
+  bullet siguiente**, que manda anotar la sincronía *en la spec* y cita
+  `07-checkout-fase4-mercadopago.md` §Sincronía 2026-09-10 como modelo: cumplir
+  uno obligaba a violar el otro. Segundo, **nunca fue la práctica del repo**:
+  `ADR-005` lleva su enmienda anotada en el propio documento, y ocho commits de
+  ramas de implementación editaron specs, todos mergeados vía Pull Request
+  (`78b8a58`, `4cb4a01`, `b7a7848`, `2a5e420`, `9a2e5c9`, `6660d2e`, entre
+  otros). Caso que motivó la enmienda: la fase 08.a cambió la línea de Estado de
+  la Spec 08 dentro de `498e1c9`, un commit `feat:`, y agregó su sincronía en
+  `bb50e35`. El contenido queda **ratificado**; el defecto real era el de forma,
+  que ahora está escrito.
 - **Las decisiones no se borran, se marcan (vigente desde 2026-09-10)**: una ADR
   descartada, revertida o reemplazada **se conserva** con su estado actualizado
   (`descartada`, `reemplazada por ADR-XXX`) y el motivo, nunca se elimina del
