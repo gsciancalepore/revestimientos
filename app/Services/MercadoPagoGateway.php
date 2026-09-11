@@ -7,7 +7,9 @@ use App\Contracts\PaymentStatusQuery;
 use App\Models\Order;
 use MercadoPago\Client\Payment\PaymentClient;
 use MercadoPago\Client\Preference\PreferenceClient;
+use MercadoPago\Exceptions\MPApiException;
 use MercadoPago\MercadoPagoConfig;
+use MercadoPago\Resources\Payment;
 use RuntimeException;
 
 class MercadoPagoGateway implements PaymentGateway, PaymentStatusQuery
@@ -36,8 +38,43 @@ class MercadoPagoGateway implements PaymentGateway, PaymentStatusQuery
     {
         $this->configurarSdk();
 
-        $payment = ($this->payments ?? new PaymentClient)->get((int) $paymentId);
+        try {
+            $payment = $this->consultarPago((int) $paymentId);
+        } catch (MPApiException $e) {
+            // Un pago que MercadoPago no conoce es "no hay nada que hacer" (regla
+            // 156). Cualquier otro código es un fallo del que no se puede concluir
+            // nada: se propaga para que el webhook responda no-200 y MP reintente.
+            if ($e->getStatusCode() === 404) {
+                return null;
+            }
 
+            throw $e;
+        }
+
+        return $this->mapearPago($payment);
+    }
+
+    /**
+     * Costura sin red para los tests: `PaymentClient` es `final` y no se puede
+     * mockear, así que lo que se sobrescribe es esta llamada.
+     */
+    protected function consultarPago(int $paymentId): Payment
+    {
+        return ($this->payments ?? new PaymentClient)->get($paymentId);
+    }
+
+    /**
+     * Traduce el recurso del SDK a la forma que consume el webhook.
+     *
+     * Acá vive la conversión pesos→centavos contra la que la regla 157 compara el
+     * monto: si se rompe, ningún pago se confirma nunca y todos caen en
+     * `order.payment_amount_mismatch`. `number_format` antes de `bcmul` evita que
+     * la representación binaria del float se arrastre a los centavos.
+     *
+     * @return array{status: string, external_reference: ?string, amount_cents: int}|null
+     */
+    protected function mapearPago(Payment $payment): ?array
+    {
         if (! is_string($payment->status)) {
             return null;
         }

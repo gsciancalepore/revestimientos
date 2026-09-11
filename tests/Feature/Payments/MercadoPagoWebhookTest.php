@@ -176,6 +176,14 @@ it('responde 200 sin excepción cuando el external_reference no existe', functio
     $this->assertDatabaseHas('audit_logs', ['action' => 'webhook.order_not_found']);
 });
 
+it('responde 200 cuando MercadoPago no conoce el pago', function () {
+    bindearConsulta(null);
+
+    notificar('pago-fantasma', firmaValida('pago-fantasma', 'req-1'))->assertOk();
+
+    $this->assertDatabaseHas('audit_logs', ['action' => 'webhook.payment_not_found']);
+});
+
 it('no confirma cuando el monto cobrado no coincide con el total del pedido', function () {
     $order = pedidoPagable(stock: 10, cantidad: 3, totalCents: 30000);
 
@@ -186,10 +194,14 @@ it('no confirma cuando el monto cobrado no coincide con el total del pedido', fu
     expect($order->fresh()->status)->toBe(OrderStatus::PendingPayment)
         ->and($order->lines()->first()->product->fresh()->stock)->toBe(10);
 
-    $this->assertDatabaseHas('audit_logs', [
-        'action' => 'order.payment_amount_mismatch',
-        'subject_id' => $order->id,
-    ]);
+    $incidente = DB::table('audit_logs')->where('action', 'order.payment_amount_mismatch')->first();
+    $payload = json_decode((string) $incidente->payload, true);
+
+    // El panel de 08.c concilia con estos dos números: invertidos, el admin leería
+    // que se cobró el total y se esperaba otra cosa.
+    expect($incidente->subject_id)->toBe($order->id)
+        ->and($payload['cobrado_cents'])->toBe(22000)
+        ->and($payload['total_cents'])->toBe(30000);
 });
 
 it('no mueve el pedido con un pago que todavía no está acreditado', function (string $status) {
@@ -216,6 +228,36 @@ it('descuenta el stock una sola vez ante notificaciones repetidas', function () 
         ->and(DB::table('audit_logs')->where('action', 'order.paid')->count())->toBe(1);
 });
 
+it('procesa el IPN viejo, que manda topic e id por la query string', function () {
+    $order = pedidoPagable(stock: 10, cantidad: 3, totalCents: 30000);
+
+    bindearConsulta(['status' => 'approved', 'external_reference' => (string) $order->id, 'amount_cents' => 30000]);
+
+    // Sin `type` ni `data` en el cuerpo: el canal viejo manda todo por la query.
+    $this->postJson(
+        route('webhook.mercadopago').'?topic=payment&id=pago-1',
+        [],
+        ['x-request-id' => 'req-1', 'x-signature' => firmaValida('pago-1', 'req-1')]
+    )->assertOk();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Paid);
+});
+
+it('lee el id de la query cuando el cuerpo no lo trae', function () {
+    $order = pedidoPagable(stock: 10, cantidad: 3, totalCents: 30000);
+
+    bindearConsulta(['status' => 'approved', 'external_reference' => (string) $order->id, 'amount_cents' => 30000]);
+
+    // PHP convierte el punto de `data.id` en guion bajo al parsear la query string.
+    $this->postJson(
+        route('webhook.mercadopago').'?type=payment&data_id=pago-1',
+        [],
+        ['x-request-id' => 'req-1', 'x-signature' => firmaValida('pago-1', 'req-1')]
+    )->assertOk();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Paid);
+});
+
 // --- Regla 153: qué código HTTP se devuelve ----------------------------------
 
 it('responde no-200 cuando la consulta a la API falla, para que MercadoPago reintente', function () {
@@ -223,10 +265,11 @@ it('responde no-200 cuando la consulta a la API falla, para que MercadoPago rein
 
     bindearConsulta(null, falla: true);
 
-    $response = notificar('pago-1', firmaValida('pago-1', 'req-1'));
+    // 503 y no un 5xx cualquiera: la regla, `arquitectura.md` y `.ai/rules` se
+    // comprometen con ese código.
+    notificar('pago-1', firmaValida('pago-1', 'req-1'))->assertStatus(503);
 
-    expect($response->getStatusCode())->toBeGreaterThanOrEqual(500)
-        ->and($order->fresh()->status)->toBe(OrderStatus::PendingPayment);
+    expect($order->fresh()->status)->toBe(OrderStatus::PendingPayment);
 });
 
 it('está excluido de la verificación de CSRF', function () {
