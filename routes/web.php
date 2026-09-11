@@ -4,6 +4,7 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\MercadoPagoWebhookController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShippingRateController;
@@ -27,6 +28,9 @@ Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.sho
 Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 Route::post('/checkout/mercadopago/reintentar', [CheckoutController::class, 'retryMercadoPago'])->name('checkout.mercadopago.retry');
 Route::get('/checkout/exito', [CheckoutController::class, 'success'])->name('checkout.success');
+
+// Sin auth y sin sesión: lo autentica la firma de MercadoPago (Spec 08, reglas 153 y 154).
+Route::post('/webhook/mercadopago', MercadoPagoWebhookController::class)->name('webhook.mercadopago');
 
 Route::middleware('auth')->prefix('admin')->group(function () {
     Route::get('/', function () {
