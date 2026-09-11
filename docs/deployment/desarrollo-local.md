@@ -21,7 +21,7 @@ probar el flujo completo hace falta la URL pública.
 El webhook de la Spec 08 va a necesitar lo mismo, y con más razón: MercadoPago tiene que poder
 alcanzar el endpoint.
 
-## Requisito previo: DNS (WSL2 + Windows)
+## Requisito previo: DNS (solo del lado de Windows)
 
 En esta máquina, el DNS del ISP devolvía **NXDOMAIN para `trycloudflare.com`** — es un bloqueo común
 por abuso de phishing. Verificar antes de pelear con el túnel:
@@ -30,26 +30,8 @@ por abuso de phishing. Verificar antes de pelear con el túnel:
 getent hosts api.trycloudflare.com   # si falla, es esto
 ```
 
-Hay que arreglarlo **en los dos lados**, porque WSL y Windows resuelven por separado. Windows es el
-que necesita el browser.
-
-**WSL** (una vez; `wsl.conf` evita que se regenere, `resolv.conf` toma efecto al instante, sin
-reiniciar):
-
-```bash
-sudo tee -a /etc/wsl.conf > /dev/null <<'EOF'
-
-[network]
-generateResolvConf = false
-EOF
-
-sudo rm -f /etc/resolv.conf && sudo tee /etc/resolv.conf > /dev/null <<'EOF'
-nameserver 1.1.1.1
-nameserver 8.8.8.8
-EOF
-```
-
-**Windows**, en PowerShell **como Administrador** (el adaptador en esta máquina es `Wi-Fi`):
+**Se arregla únicamente en Windows.** En PowerShell **como Administrador** (el adaptador en esta
+máquina es `Wi-Fi`):
 
 ```powershell
 Set-DnsClientServerAddress -InterfaceAlias "Wi-Fi" -ServerAddresses 1.1.1.1,8.8.8.8
@@ -57,6 +39,28 @@ Clear-DnsClientCache
 ```
 
 Para revertirlo: `Set-DnsClientServerAddress -InterfaceAlias "Wi-Fi" -ResetServerAddresses`.
+
+WSL no necesita nada: su `/etc/resolv.conf` generado apunta a `10.255.255.254`, que es el gateway de
+la VM, y **ese gateway reenvía las consultas al resolver de Windows**. Arreglando Windows queda
+arreglado WSL. Verificado el 2026-09-10: con el `resolv.conf` automático,
+`getent hosts api.trycloudflare.com` resuelve sin problemas.
+
+### ⚠️ No tocar `/etc/wsl.conf` — la versión anterior de este documento pedía hacerlo
+
+Hasta el 2026-09-10 esta sección indicaba además agregar `[network] generateResolvConf = false` a
+`/etc/wsl.conf` y escribir un `/etc/resolv.conf` a mano con `1.1.1.1` y `8.8.8.8`. **Era redundante
+—el arreglo de Windows ya alcanzaba— y provocó dos problemas encadenados:**
+
+1. **Dejó a WSL sin resolución para todo lo demás.** Con el `resolv.conf` fijo, el login de Claude
+   Code falló por error de DNS. Cualquier servicio que dependa de la red desde WSL puede caer igual.
+2. **Revertirlo obliga a un `wsl --shutdown`**, y ese reinicio deja los **puertos publicados de
+   Docker rotos**: los contenedores levantan sanos y se hablan entre ellos, pero
+   `http://localhost:8080` responde `ERR_EMPTY_RESPONSE` desde el navegador y *connection reset*
+   incluso con `curl` desde adentro de WSL. Se arregla recreando los contenedores que publican
+   puertos (ver `.ai/rules/general.md`).
+
+Si el bloque llegó a agregarse, quitarlo, correr `wsl --shutdown`, y **contar con tener que recrear
+los contenedores después**.
 
 ## Procedimiento
 

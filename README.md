@@ -17,8 +17,8 @@ calculadora de m² → cajas y panel para operar productos, pedidos y stock.
 - **Spec 05 — Carrito**: [`docs/specs/05-carrito.md`](docs/specs/05-carrito.md)
 - **Spec 06 — Envío por CP**: [`docs/specs/06-envio.md`](docs/specs/06-envio.md) (Fase 1 tarifa por CP), [`docs/specs/06-envio-fase2-importador.md`](docs/specs/06-envio-fase2-importador.md) (Fase 2 importador CSV de tarifas)
 - **Spec 07 — Checkout** (compra anónima y creación del pedido): [`docs/specs/07-checkout.md`](docs/specs/07-checkout.md) (Fase 1 estructura), [`docs/specs/07-checkout-fase2.md`](docs/specs/07-checkout-fase2.md) (`PlaceOrderAction`), [`docs/specs/07-checkout-fase3-http.md`](docs/specs/07-checkout-fase3-http.md) (HTTP + formulario), [`docs/specs/07-checkout-fase4-mercadopago.md`](docs/specs/07-checkout-fase4-mercadopago.md) (MercadoPago)
-- **Spec 08 — Gestión de pedidos** (borrador, pendiente de aprobación): [`docs/specs/08-gestion-pedidos.md`](docs/specs/08-gestion-pedidos.md)
-- **Spec Higiene 02 — auditoría, validación y cobertura** (borrador, precede a la Spec 08): [`docs/specs/higiene-02-auditoria-validacion-cobertura.md`](docs/specs/higiene-02-auditoria-validacion-cobertura.md)
+- **Spec 08 — Gestión de pedidos** (aprobada; se entrega en 3 fases: 08.a dominio ✅, 08.b webhook, 08.c panel y despacho): [`docs/specs/08-gestion-pedidos.md`](docs/specs/08-gestion-pedidos.md)
+- **Spec Higiene 02 — auditoría, validación y cobertura** (cerrada, precondición de la Spec 08): [`docs/specs/higiene-02-auditoria-validacion-cobertura.md`](docs/specs/higiene-02-auditoria-validacion-cobertura.md)
 - **Higiene ShippingRate/AllowedSpecs/UserRole**: [`docs/specs/higiene-01-shippingrate-allowedspecs-userrole.md`](docs/specs/higiene-01-shippingrate-allowedspecs-userrole.md)
 - **Spec — Calidad de análisis estático** (PHPStan↔Pest, gates): [`docs/specs/calidad-analisis-estatico.md`](docs/specs/calidad-analisis-estatico.md)
 - **Spec — Calidad de onboarding** (runbook y docs para agentes): [`docs/specs/calidad-onboarding.md`](docs/specs/calidad-onboarding.md)
@@ -26,6 +26,7 @@ calculadora de m² → cajas y panel para operar productos, pedidos y stock.
 - **Roadmap** (fases + Definition of Done): [`docs/roadmap.md`](docs/roadmap.md)
 - **Desarrollo local — probar MercadoPago de punta a punta** (túnel, DNS en WSL2, cuentas de prueba): [`docs/deployment/desarrollo-local.md`](docs/deployment/desarrollo-local.md)
 - **Decisiones (ADRs)**: [`docs/adr/`](docs/adr/)
+- **Agentes de revisión** (borrador de spec, spec cerrada contra código, y entrega antes del push): [`.claude/agents/`](.claude/agents/) — cuándo usar cada uno, en [`AGENTS.md`](AGENTS.md)
 
 ## Acceso al panel
 
@@ -93,6 +94,8 @@ no necesita PHP ni Node. El Makefile lo resume:
 | La web carga **sin estilos** ("se ve muy mal") | `public/hot` apunta a `0.0.0.0:5173` | Ver regla "Vite en Docker: hot file..." en `.ai/rules/general.md` |
 | Tests que renderizan vistas fallan con `ViteManifestNotFoundException` | No hay `public/hot` ni `public/build` | `make npm-dev` (dev) o `make npm-build` antes de testear; en CI se construyen solos |
 | El panel no ve roles/permisos nuevos tras un seeder | Cache de permisos de Spatie | `make artisan cmd="permission:cache-reset"` (regla en `.ai/rules/seeders.md`) |
+| `ERR_EMPTY_RESPONSE` o *connection reset* en `localhost:8080`, con los contenedores `healthy` | Se reinició WSL (`wsl --shutdown`) y los puertos publicados quedaron rotos | `docker compose up -d --force-recreate web assets mailpit` (regla en `.ai/rules/general.md`) |
+| `ERR_CONNECTION_CLOSED` al abrir el sitio | Se entró por `https://` o por `localhost` sin puerto | Usar **`http://localhost:8080`**; si el navegador fuerza HTTPS, desactivar "Usar siempre conexiones seguras" |
 
 ## Calidad
 
