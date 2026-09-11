@@ -126,9 +126,52 @@ make npm-dev          # vuelve el hot reload
 
 Y cerrar el túnel (Ctrl+C en su terminal).
 
+## Webhook (Spec 08 fase 08.b)
+
+El webhook es lo que hace que un pago aprobado mueva el pedido **solo**, sin que nadie mire el panel
+de MercadoPago. Necesita el mismo túnel que el resto de esta guía, por la misma razón: MercadoPago
+tiene que poder alcanzar la URL desde internet.
+
+**La URL que va configurada en el panel** es la pública más la ruta del webhook:
+
+```
+https://<subdominio>.trycloudflare.com/webhook/mercadopago
+```
+
+El subdominio lo imprime `cloudflared` y **cambia en cada arranque**, así que hay que reconfigurarlo
+en el panel cada vez que se levanta el túnel.
+
+### Procedimiento
+
+1. Levantar el túnel y apuntar `APP_URL`, igual que arriba (§Procedimiento, pasos 1 y 2).
+2. En el panel de MercadoPago: **Tus integraciones → tu aplicación → Webhooks**. Pegar la URL,
+   marcar el evento **Pagos** (`payment`) y guardar. Exige HTTPS: `localhost` no se acepta.
+3. El panel genera ahí mismo una **clave secreta**. Va a `.env` como
+   `MERCADOPAGO_WEBHOOK_SECRET` —es una credencial **distinta del access token**— y después
+   `docker compose exec app php artisan config:clear`.
+4. Configurar el webhook del **modo de prueba**, que es donde están las credenciales `TEST-`. El
+   secreto de producción es otro.
+
+Sin secreto configurado el endpoint responde **401 a todo**, a propósito (regla 154): preferible a
+aceptar notificaciones sin verificar.
+
+### Qué esperar al probar
+
+- El botón **"Simular notificación"** del panel sirve para verificar firma y ruta, pero manda un
+  `data.id` que la cuenta no conoce. La respuesta correcta ahí es **200** con
+  `webhook.payment_not_found` en `audit_logs`, **no** un error: "no había nada que hacer" es un
+  caso legítimo (reglas 153 y 156).
+- Un **503** significa que la consulta a la API de MercadoPago falló, y es deliberado: hace que
+  MercadoPago reintente en vez de perder el pago (regla 153).
+- La prueba que vale es la real: pagar en el sandbox y ver el pedido pasar a `paid` con el stock
+  descontado. Los tests cubren el webhook con dobles y **nunca** alcanzan la red, así que verde en
+  la suite no es lo mismo que verificado — es exactamente lo que enseñó la 07.4, donde seis días de
+  CI verde convivieron con MercadoPago cobrando el subtotal.
+
 ## Limitación conocida
 
-Sin webhook (hasta la Spec 08 fase 08.b), **un pago aprobado no mueve el pedido**: queda en
-`PendingPayment` y el stock no se descuenta. Es el comportamiento correcto hoy, según la regla 128.
+La firma del webhook **no valida frescura del `ts`**, así que una notificación capturada es
+reproducible. El impacto práctico es nulo por la idempotencia de la regla 152 —reproducirla no
+descuenta stock dos veces— y la spec no lo exige; queda anotado por si alguna vez importa.
 Lo que esta prueba valida es el tramo de ida: preferencia creada con el monto correcto, redirección,
 y retorno a `/checkout/exito`.
