@@ -11,7 +11,9 @@ Los tests que hacen GET a vistas con @vite() (login, profile, reset, confirm-pas
 ## Nunca correr dos suites Pest en paralelo; saneo con migrate:fresh dedicado
 La base de test es PostgreSQL dedicada ceramica_test (phpunit.xml). Dos php artisan test concurrentes sobreponen migrate:fresh y corrompen la base (relation "migrations" does not exist / "users" already exists). Correr una sola suite a la vez. Para sanear: docker compose exec -e DB_DATABASE=ceramica_test app php artisan migrate:fresh --force (al 2026-09-10: 15 migraciones, 23 tablas; verificar el número real en lugar de confiar en este dato si pasó tiempo).
 
-## Ningún test alcanza servicios externos
+## Ningún test alcanza servicios externos (y ahora hay un cerrojo que lo impide)
+`Tests\TestCase::setUp()` instala `MercadoPagoConfig::setHttpClient(new RedProhibida)`: cualquier salida real a la API del SDK muere ahí con un mensaje que dice qué doble falta. Se agregó el 2026-09-11, cuando un doble mal puesto en un test del gateway produjo llamadas verdaderas que solo fallaron del otro lado, con un `MPAuthenticationException` 401. **Neutralizar las credenciales en `phpunit.xml` no alcanza**: con cualquier token el SDK igual sale a internet. No quites el cerrojo para "probar de verdad"; la verificación contra MercadoPago es manual y con túnel, nunca desde la suite.
+
 Las credenciales de servicios externos se neutralizan en phpunit.xml (MERCADOPAGO_ACCESS_TOKEN/MERCADOPAGO_PUBLIC_KEY vacías): sin eso la suite hereda el .env del desarrollador y, con un token real configurado, los tests crean recursos verdaderos contra la API (ocurrió con MercadoPago el 2026-09-10). Un test nunca debe depender de que el ambiente esté sin configurar para tomar el camino de error: bindear el gateway explícitamente en el contenedor. PreferenceClient del SDK de MercadoPago es final y no se puede mockear — por eso MercadoPagoGateway expone preferencePayload() protected y el test verifica el payload en vez del cliente.
 
 ## Un test de auditoría verifica el payload, no que la fila exista

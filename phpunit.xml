@@ -39,5 +39,6 @@
         <!-- Ningún test debe alcanzar la API de MercadoPago: el token real de .env no se hereda. -->
         <env name="MERCADOPAGO_ACCESS_TOKEN" value=""/>
         <env name="MERCADOPAGO_PUBLIC_KEY" value=""/>
+        <env name="MERCADOPAGO_WEBHOOK_SECRET" value=""/>
     </php>
 </phpunit>

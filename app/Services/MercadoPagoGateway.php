@@ -3,29 +3,94 @@
 namespace App\Services;
 
 use App\Contracts\PaymentGateway;
+use App\Contracts\PaymentStatusQuery;
 use App\Models\Order;
+use MercadoPago\Client\Payment\PaymentClient;
 use MercadoPago\Client\Preference\PreferenceClient;
+use MercadoPago\Exceptions\MPApiException;
 use MercadoPago\MercadoPagoConfig;
+use MercadoPago\Resources\Payment;
 use RuntimeException;
 
-class MercadoPagoGateway implements PaymentGateway
+class MercadoPagoGateway implements PaymentGateway, PaymentStatusQuery
 {
-    public function __construct(private ?PreferenceClient $preferences = null) {}
+    public function __construct(
+        private ?PreferenceClient $preferences = null,
+        private ?PaymentClient $payments = null,
+    ) {}
 
     public function name(): string
     {
         return 'mercadopago';
     }
 
-    public function paymentUrl(Order $order): string
+    /**
+     * Estado real del pago contra la API (Spec 08, regla 155).
+     *
+     * La consulta vive acá y no en el controlador porque el gateway encapsula el
+     * SDK por completo (regla 122 y ADR-006). `PaymentClient` es `final` y no se
+     * puede mockear, así que la costura para los tests es el puerto
+     * `PaymentStatusQuery`, que se bindea en el contenedor.
+     *
+     * @return array{status: string, external_reference: ?string, amount_cents: int}|null
+     */
+    public function findPayment(string $paymentId): ?array
     {
-        $accessToken = (string) config('services.mercadopago.access_token');
+        $this->configurarSdk();
 
-        if ($accessToken === '') {
-            throw new RuntimeException('Falta configurar MERCADOPAGO_ACCESS_TOKEN.');
+        try {
+            $payment = $this->consultarPago((int) $paymentId);
+        } catch (MPApiException $e) {
+            // Un pago que MercadoPago no conoce es "no hay nada que hacer" (regla
+            // 156). Cualquier otro código es un fallo del que no se puede concluir
+            // nada: se propaga para que el webhook responda no-200 y MP reintente.
+            if ($e->getStatusCode() === 404) {
+                return null;
+            }
+
+            throw $e;
         }
 
-        MercadoPagoConfig::setAccessToken($accessToken);
+        return $this->mapearPago($payment);
+    }
+
+    /**
+     * Costura sin red para los tests: `PaymentClient` es `final` y no se puede
+     * mockear, así que lo que se sobrescribe es esta llamada.
+     */
+    protected function consultarPago(int $paymentId): Payment
+    {
+        return ($this->payments ?? new PaymentClient)->get($paymentId);
+    }
+
+    /**
+     * Traduce el recurso del SDK a la forma que consume el webhook.
+     *
+     * Acá vive la conversión pesos→centavos contra la que la regla 157 compara el
+     * monto: si se rompe, ningún pago se confirma nunca y todos caen en
+     * `order.payment_amount_mismatch`. `number_format` antes de `bcmul` **redondea**
+     * a dos decimales en lugar de truncar: sin él, `300.555` daría 30055 centavos
+     * y no 30056.
+     *
+     * @return array{status: string, external_reference: ?string, amount_cents: int}|null
+     */
+    protected function mapearPago(Payment $payment): ?array
+    {
+        if (! is_string($payment->status)) {
+            return null;
+        }
+
+        return [
+            'status' => $payment->status,
+            'external_reference' => $payment->external_reference,
+            // El dominio está en centavos (ADR-003); el SDK devuelve un float en pesos.
+            'amount_cents' => (int) bcmul(number_format((float) $payment->transaction_amount, 2, '.', ''), '100'),
+        ];
+    }
+
+    public function paymentUrl(Order $order): string
+    {
+        $this->configurarSdk();
 
         $preference = ($this->preferences ?? new PreferenceClient)->create($this->preferencePayload($order));
 
@@ -39,6 +104,17 @@ class MercadoPagoGateway implements PaymentGateway
         ]);
 
         return $preference->init_point;
+    }
+
+    private function configurarSdk(): void
+    {
+        $accessToken = (string) config('services.mercadopago.access_token');
+
+        if ($accessToken === '') {
+            throw new RuntimeException('Falta configurar MERCADOPAGO_ACCESS_TOKEN.');
+        }
+
+        MercadoPagoConfig::setAccessToken($accessToken);
     }
 
     /**

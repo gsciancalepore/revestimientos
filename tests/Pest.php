@@ -4,11 +4,23 @@ use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use MercadoPago\MercadoPagoConfig;
+use Tests\RedProhibida;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
+
+/*
+ * Ningún test alcanza servicios externos (`.ai/rules/tests.md`). Va acá y no en
+ * `TestCase` porque `TestCase` solo se extiende en `Feature`: un test unitario
+ * del gateway —justo donde uno pondría un test de mapeo— quedaba con el cliente
+ * cURL real activo, con la rule file prometiendo lo contrario.
+ */
+pest()->beforeEach(function () {
+    MercadoPagoConfig::setHttpClient(new RedProhibida);
+})->in('Feature', 'Unit');
 
 /**
  * Pedido con una línea sobre el producto dado, para las pruebas de la Spec 08.

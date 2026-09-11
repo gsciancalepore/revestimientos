@@ -16,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
 
+        // El webhook de MercadoPago no tiene sesión de donde sacar un token:
+        // lo autentica la firma `x-signature` (Spec 08, reglas 153 y 154).
+        $middleware->validateCsrfTokens(except: ['webhook/mercadopago']);
+
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
