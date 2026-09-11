@@ -465,3 +465,38 @@ puede alcanzar la API de MercadoPago: las credenciales están neutralizadas en `
   falta el túnel de `docs/deployment/desarrollo-local.md` y generar `MERCADOPAGO_WEBHOOK_SECRET`
   en el panel de MercadoPago. Los tests no alcanzan la red por diseño, así que —como enseñó la
   07.4— eso no es lo mismo que estar verificado.
+
+### Hallazgos de la auditoría de entrega (2026-09-11)
+
+El agente `revisor-entrega` **bloqueó** la primera versión de esta fase. Lo que encontró, porque
+vale para quien implemente 08.c:
+
+- **El adaptador real no lo ejercitaba nadie.** Los tests del webhook prueban el puerto
+  `PaymentStatusQuery` con un doble, así que `MercadoPagoGateway::findPayment()` —el único
+  adaptador, y donde vive la conversión pesos→centavos contra la que compara la regla 157— se podía
+  vaciar entero con la suite en verde. Si esa conversión se rompe, **ningún pago se confirma nunca**
+  y todos caen en `order.payment_amount_mismatch`. Cubierto extrayendo el mapeo a un método propio:
+  `Payment` **no** es `final`, a diferencia de `PaymentClient`, así que se puede construir en un test.
+  Lección repetida: probar el puerto no prueba el adaptador.
+- **La regla 156 tenía una rama inalcanzable.** El contrato prometía `null` para un pago que
+  MercadoPago no conoce, pero el SDK lanza `MPApiException` también en el 404. El webhook respondía
+  503 a una notificación que solo había que ignorar, dejando a MercadoPago reintentando para
+  siempre. El 404 ahora se traduce a `null`; el resto se propaga.
+- **Los dos canales que nombra la regla 155 no tenían test**: el IPN viejo (`topic`/`id`) y el id
+  por query string. Quedaron cubiertos en lugar de borrados, porque la regla los nombra
+  explícitamente.
+- **El test del incidente de monto miraba solo que la fila existiera**, la misma forma que la regla
+  68 tuvo durante meses. Ahora afirma los dos montos: invertidos, el panel de 08.c conciliaría al
+  revés un cobro incorrecto.
+- **Faltaba un cerrojo contra la red.** Neutralizar credenciales en `phpunit.xml` no impide que el
+  SDK salga a internet: mientras se arreglaba lo anterior, un doble mal puesto produjo llamadas
+  reales que fallaron recién del otro lado. `Tests\TestCase` instala ahora un cliente HTTP que
+  lanza. Quedó en `.ai/rules/tests.md`.
+
+**Sobre los checkboxes de *Criterios de aceptación***: se dejan sin marcar hasta cerrar la spec
+completa. El avance por fase vive en estas secciones de sincronía fechadas, que es lo que no se
+pisa ni se reescribe.
+
+**Limitación conocida, no exigida por la spec**: la firma no valida frescura del `ts`, así que una
+notificación capturada es reproducible. El impacto práctico es nulo por la idempotencia de la 08.a
+—reproducirla no descuenta stock dos veces—, pero queda anotado por si alguna vez importa.
