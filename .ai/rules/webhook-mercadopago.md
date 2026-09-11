@@ -17,6 +17,9 @@ PHP convierte el punto en guion bajo al parsear la query string, así que `?data
 ## `PaymentClient` es `final`: la costura es el puerto, no el cliente
 Misma trampa que `PreferenceClient` (07.4). Inyectar el cliente permite construirlo, no mockearlo: ningún test puede darle una respuesta. Por eso la consulta se expone como `App\Contracts\PaymentStatusQuery`, que `MercadoPagoGateway` implementa y los tests bindean en el contenedor con un doble. La regla 155 describía la otra costura; por qué no alcanzó está anotado en la §Sincronía 2026-09-11 de la spec. **No agregues `findPayment()` a `PaymentGateway`**: la transferencia bancaria no tiene pago remoto que consultar.
 
+## El SDK tira excepción también cuando el pago no existe
+`PaymentClient::get()` lanza `MPApiException` ante **cualquier** respuesta no-2xx, 404 incluido, así que "pago desconocido" no llega solo como `null`: hay que traducir el 404 a `null` dentro del gateway y propagar el resto. Sin esa traducción, una notificación de un pago que la cuenta no conoce —mezcla de sandbox y producción, o una prueba desde el panel— se responde 503 y MercadoPago la reintenta para siempre, cuando en realidad no había nada que hacer.
+
 ## 200 y 503 significan cosas distintas, y el 503 es deliberado
 200 cuando se procesó **o cuando no había nada que hacer** (firma ok pero otro tipo, pedido inexistente, pago no aprobado): un 4xx/5xx ahí hace que MercadoPago reintente para siempre al pedo. **503 cuando la consulta a la API falla** por causa transitoria, a propósito, para que MercadoPago **sí** reintente: responder 200 ahí perdería el pago para siempre con el pedido en `PendingPayment`, que es justo el agujero que la Spec 08 vino a cerrar. "No hay nada que hacer" y "no pude averiguar si había algo que hacer" no son el mismo caso.
 
