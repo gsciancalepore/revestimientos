@@ -77,6 +77,8 @@ it('convierte el monto a centavos sin perder plata por el float', function (floa
     [0.01, 1],
     [120500.90, 12050090],
     [1234.56, 123456],
+    // Sin `number_format` esto truncaría a 30055: el redondeo es load-bearing.
+    [300.555, 30056],
 ]);
 
 it('devuelve null cuando MercadoPago no conoce el pago', function () {

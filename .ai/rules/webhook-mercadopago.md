@@ -31,3 +31,6 @@ Laravel saltea `ValidateCsrfToken` mientras corre la suite: `runningUnitTests()`
 
 ## Las auditorías del webhook no son incidentes de pago
 `webhook.signature_invalid`, `webhook.ignored`, `webhook.order_not_found` y `webhook.payment_not_found` registran qué pasó, pero **no destacan ningún pedido** y tres de ellas ni siquiera tienen pedido asociado. Los incidentes que la regla 161 destaca en el panel siguen siendo `order.payment_amount_mismatch` y `order.paid_after_cancel`.
+
+## Un 503 en un test del webhook puede ser un doble que falta
+Si un test no bindea `PaymentStatusQuery`, el gateway real llega al cerrojo de red (`Tests\RedProhibida`), que lanza; el `catch (Throwable)` del controlador lo convierte en **503**, indistinguible del 503 deliberado de la regla 153. El mensaje que dice qué doble falta queda en el log, no en el assert. Ante un 503 inesperado, revisá primero si falta `bindearConsulta(...)`.

@@ -68,8 +68,9 @@ class MercadoPagoGateway implements PaymentGateway, PaymentStatusQuery
      *
      * Acá vive la conversión pesos→centavos contra la que la regla 157 compara el
      * monto: si se rompe, ningún pago se confirma nunca y todos caen en
-     * `order.payment_amount_mismatch`. `number_format` antes de `bcmul` evita que
-     * la representación binaria del float se arrastre a los centavos.
+     * `order.payment_amount_mismatch`. `number_format` antes de `bcmul` **redondea**
+     * a dos decimales en lugar de truncar: sin él, `300.555` daría 30055 centavos
+     * y no 30056.
      *
      * @return array{status: string, external_reference: ?string, amount_cents: int}|null
      */
