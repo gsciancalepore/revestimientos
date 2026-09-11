@@ -500,3 +500,12 @@ pisa ni se reescribe.
 **Limitación conocida, no exigida por la spec**: la firma no valida frescura del `ts`, así que una
 notificación capturada es reproducible. El impacto práctico es nulo por la idempotencia de la 08.a
 —reproducirla no descuenta stock dos veces—, pero queda anotado por si alguna vez importa.
+
+**Segunda pasada (apto)**: el cerrojo de red que se agregó para cerrar lo anterior tenía el mismo
+defecto que venía a arreglar. Vivía en `Tests\TestCase::setUp()`, y `TestCase` solo se extiende en
+`Feature`: la suite `Unit` —justo donde uno pondría un test de mapeo del gateway— seguía con el
+cliente cURL real activo, mientras la rule file prometía lo contrario. Pasó a `tests/Pest.php` sobre
+las dos suites, y ahora hay un test en cada una que afirma que está instalado y que corta. El
+comentario de la conversión a centavos también afirmaba de más: `number_format` es load-bearing por
+**redondeo** —sin él `300.555` da 30055 y no 30056—, no por la representación binaria del float; el
+dataset lo pincha con ese monto.
