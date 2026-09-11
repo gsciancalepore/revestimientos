@@ -384,8 +384,10 @@ el roadmap.
 
 ## Tareas técnicas
 
-- [ ] Este documento → aprobación del dueño, con las decisiones de los puntos abiertos 1 y 2.
-- [ ] Rama `feat/pedidos-08` desde `main` (post merge del PR de sincronía).
+- [x] Este documento → **aprobado por el dueño el 2026-09-10**, con las decisiones de los puntos
+      abiertos 1 y 2 ya incorporadas al texto.
+- [x] Rama `feat/pedidos-08a` desde `main` (fase 08.a). El nombre lleva la fase, porque la spec se
+      entrega en tres y cada una va en su propio PR.
 - [ ] TDD en este orden: máquina de estados → `ConfirmPaymentAction` con descuento de stock →
       restitución al cancelar → webhook → panel y despacho.
 - [ ] Ninguna spec cerrada necesita enmienda: ADR-005 sigue vigente y `00-dominio.md` regla 21,
@@ -408,3 +410,22 @@ La Spec 07.4 quedó verificada contra la API real el 2026-09-10; leer su secció
 por qué el envío viaja en `shipments.cost`. La regla 157 (verificación de monto) existe
 justamente porque ese segundo defecto llegó a producir un cobro incorrecto en sandbox. Ningún test
 puede alcanzar la API de MercadoPago: las credenciales están neutralizadas en `phpunit.xml`.
+
+## Sincronía 2026-09-11 — estado de la entrega por fases
+
+- **08.a implementada**: máquina de estados en `OrderStatus` + `TransitionOrderStatusAction`,
+  `ConfirmPaymentAction` con descuento bajo lock e idempotencia, `CancelOrderAction` con
+  restitución. Reglas 143-145, 147-152 y 166.
+- **Regla 143, parte que estaba pendiente**: la regla pedía alinear `PlaceOrderAction`, que
+  bloqueaba sin `orderBy`. Quedó alineado en esta fase.
+- **Acción de auditoría no listada en la spec**: la restitución registra `order.stock_restored`.
+  No figura en las reglas 143-152, que solo nombran `order.paid`, `order.stock_negative` y
+  `order.paid_after_cancel`. Se agregó por ADR-004, que reserva `audit_logs` para los ajustes de
+  stock; sin ella la devolución no dejaría rastro. Se anota acá para que la regla 161, que deriva
+  los destacados del panel de `audit_logs`, la tenga en cuenta al implementar 08.c.
+- **Pendiente para 08.c, anotado para que no se pierda**: la restricción de la regla 159 —la
+  confirmación manual vale solo para pedidos de `transferencia`— **no está en
+  `ConfirmPaymentAction`**, porque la spec la ubica en el panel. Hoy `execute($orderDeMercadoPago,
+  'manual')` marcaría pagado y descontaría stock. Si al implementar 08.c el control queda solo en
+  el controlador o la Policy, se repite el patrón que HIG-06 tuvo que corregir en
+  `PlaceOrderAction`.

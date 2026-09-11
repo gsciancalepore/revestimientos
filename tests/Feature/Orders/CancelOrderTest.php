@@ -190,3 +190,21 @@ test('la restitucion pide las filas de productos ordenadas por id', function () 
     expect($lock)->not->toBeNull();
     expect($lock)->toContain('order by "id" asc');
 });
+
+// Ídem para la cancelación: el lock del pedido es lo que la serializa contra una
+// confirmación de pago concurrente (regla 147).
+test('el pedido se relee bloqueado dentro de la transaccion al cancelar', function () {
+    $product = Product::factory()->create(['stock' => 10]);
+    $order = pedidoConLinea($product, 1);
+
+    $queries = [];
+    DB::listen(function ($query) use (&$queries) {
+        $queries[] = $query->sql;
+    });
+
+    app(CancelOrderAction::class)->execute(Order::findOrFail($order->id));
+
+    $lock = collect($queries)->first(fn (string $sql): bool => str_contains($sql, 'from "orders"') && str_contains($sql, 'for update'));
+
+    expect($lock)->not->toBeNull();
+});

@@ -280,3 +280,24 @@ test('dos lineas del mismo producto descuentan la suma de las cantidades', funct
 
     expect($product->fresh()->stock)->toBe(5);
 });
+
+// La relectura queda cubierta por los tests de arriba, pero el `lockForUpdate` del
+// pedido no: su efecto solo se observa con transacciones concurrentes, que esta
+// suite no puede reproducir (`RefreshDatabase` envuelve cada test en una). Lo que
+// sí se puede afirmar es que la query lo pide, que es lo que serializa una
+// confirmación contra una cancelación simultánea (reglas 147 y 150).
+test('el pedido se relee bloqueado dentro de la transaccion', function () {
+    $product = Product::factory()->create(['stock' => 10]);
+    $order = pedidoConLinea($product, 1);
+
+    $queries = [];
+    DB::listen(function ($query) use (&$queries) {
+        $queries[] = $query->sql;
+    });
+
+    app(ConfirmPaymentAction::class)->execute(Order::findOrFail($order->id), 'mercadopago');
+
+    $lock = collect($queries)->first(fn (string $sql): bool => str_contains($sql, 'from "orders"') && str_contains($sql, 'for update'));
+
+    expect($lock)->not->toBeNull();
+});

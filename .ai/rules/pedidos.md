@@ -28,3 +28,9 @@ Regla 151: no pasa a `paid`, se audita `order.paid_after_cancel` y ahí queda. *
 
 ## Acciones de auditoría de esta spec
 `order.status_changed` (toda transición), `order.paid` (con el **origen** en el payload: el webhook corre sin sesión, así que el actor es `null`), `order.stock_negative`, `order.paid_after_cancel`, `order.stock_restored`. Esta última no está nombrada en la spec: se agregó por ADR-004, que manda auditar los cambios de stock, para que la devolución deje rastro.
+
+## Lo que NO está en la Action y hay que mirar al implementar 08.c
+La restricción de la regla 159 —**la confirmación manual vale solo para pedidos de `transferencia`**— no vive en `ConfirmPaymentAction`: la spec la ubica en el panel, que es 08.c. Hoy `execute($orderDeMercadoPago, 'manual')` marca el pedido pagado y descuenta stock sin que nadie haya cobrado. Si el control queda solo en el controlador o en la Policy, se repite exactamente el patrón que HIG-06 tuvo que corregir en `PlaceOrderAction`, donde la validación la hacía el Form Request y la Action confiaba.
+
+## Precisión sobre "nadie escribe `status`"
+`PlaceOrderAction` sí escribe `status` al **crear** el pedido (`Order::create([...'status' => OrderStatus::PendingPayment...])`). No es una transición —es el estado inicial— y por eso no pasa por `TransitionOrderStatusAction`. La regla es sobre **cambiar** de estado, no sobre nacer en uno.
