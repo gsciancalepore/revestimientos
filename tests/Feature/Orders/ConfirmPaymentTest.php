@@ -45,16 +45,46 @@ test('el descuento respeta la cantidad congelada de cada linea', function () {
     expect($pastina->fresh()->stock)->toBe(3);
 });
 
-test('la confirmacion queda auditada con el origen', function (string $origen) {
+test('la confirmacion queda auditada con el origen', function (string $origen, string $medioDePago) {
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 1);
+    $order->update(['payment_method' => $medioDePago]);
 
-    app(ConfirmPaymentAction::class)->execute($order, $origen);
+    app(ConfirmPaymentAction::class)->execute($order->fresh(), $origen);
 
     $audit = AuditLog::where('action', 'order.paid')->where('subject_id', $order->id)->firstOrFail();
 
     expect($audit->payload['origen'])->toBe($origen);
-})->with(['mercadopago', 'manual']);
+})->with([
+    'automatica' => ['mercadopago', 'mercadopago'],
+    // La manual solo vale sobre una transferencia (regla 159).
+    'manual' => ['manual', 'transferencia'],
+]);
+
+test('la confirmacion manual solo vale para pedidos de transferencia', function () {
+    $product = Product::factory()->create(['stock' => 10]);
+    $order = pedidoConLinea($product, 3); // nace con payment_method mercadopago
+
+    // Regla 159: el admin confirma a mano lo que cobró por transferencia. Sobre un
+    // pedido de MercadoPago sería marcar pagado algo que nadie cobró.
+    expect(fn () => app(ConfirmPaymentAction::class)->execute($order, 'manual'))
+        ->toThrow(DomainException::class);
+
+    expect($order->fresh()->status)->toBe(OrderStatus::PendingPayment)
+        ->and($product->fresh()->stock)->toBe(10)
+        ->and(AuditLog::where('action', 'order.paid')->where('subject_id', $order->id)->count())->toBe(0);
+});
+
+test('la confirmacion manual de una transferencia descuenta stock', function () {
+    $product = Product::factory()->create(['stock' => 10]);
+    $order = pedidoConLinea($product, 3);
+    $order->update(['payment_method' => 'transferencia']);
+
+    app(ConfirmPaymentAction::class)->execute($order->fresh(), 'manual');
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Paid)
+        ->and($product->fresh()->stock)->toBe(7);
+});
 
 test('un origen desconocido lanza DomainException sin tocar nada', function () {
     $product = Product::factory()->create(['stock' => 10]);

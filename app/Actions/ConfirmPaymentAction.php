@@ -20,7 +20,7 @@ class ConfirmPaymentAction
     ) {}
 
     /**
-     * Único camino a `paid` (Spec 08, regla 150).
+     * Único camino a `paid` (Spec 08, reglas 150 y 159).
      *
      * Estado y stock se mueven en la misma transacción: o pasan los dos, o no
      * pasa ninguno. La transacción abre bloqueando el pedido y relee su estado
@@ -35,6 +35,15 @@ class ConfirmPaymentAction
 
         if (! in_array($origen, self::ORIGENES, true)) {
             throw new DomainException('El origen de la confirmación no es válido.');
+        }
+
+        // Regla 159: el admin confirma a mano lo que cobró por transferencia.
+        // Sobre un pedido de MercadoPago, marcarlo pagado a mano sería dar por
+        // cobrado algo que nadie cobró. El control vive acá y no solo en el panel:
+        // la Spec Higiene 02 (HIG-06) ya corrigió una vez el patrón de dejar la
+        // validación en el Form Request y que la Action confiara.
+        if ($origen === 'manual' && $order->payment_method !== 'transferencia') {
+            throw new DomainException('La confirmación manual solo vale para pedidos de transferencia.');
         }
 
         return DB::transaction(function () use ($order, $origen): Order {
