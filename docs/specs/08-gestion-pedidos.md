@@ -517,7 +517,7 @@ dataset lo pincha con ese monto.
 
 - **08.c implementada**: panel de pedidos con filtros y destacados, detalle con traza de auditoría
   solo para admin, confirmación manual de transferencia, vista depósito con sus dos solapas,
-  cancelaciones y stock negativo visible donde corresponde. Reglas 146 y 159-165. **430 tests.**
+  cancelaciones y stock negativo visible donde corresponde. Reglas 146 y 159-165. **436 tests.**
 - **La regla 159 terminó viviendo en la Action, no solo en el panel.** La spec la ubicaba en la
   pantalla; 08.a dejó anotado que eso repetía el patrón de HIG-06 —validación en el Form Request,
   Action que confía—. El guard está ahora en `ConfirmPaymentAction`: confirmar a mano un pedido de
@@ -545,3 +545,12 @@ dataset lo pincha con ese monto.
   `docs/deployment/desarrollo-local.md` §Webhook y la credencial `MERCADOPAGO_WEBHOOK_SECRET`. Por
   decisión del dueño (2026-09-12) se hace ahora, con la spec completa, para verificar el circuito de
   punta a punta desde el panel en vez de mirar la base a mano.
+- **Tres falsos verdes, dos de ellos bloqueantes** (auditoría de entrega, 2026-09-12): `assertSee('-3')`
+  sobre la página entera del panel **no podía fallar nunca** —`-3` aparece en `gap-3`, `px-3` y en un
+  `tabindex="-1"`—, así que esconder el stock negativo dejaba la suite en verde; la grilla del
+  catálogo, que es lo que más ve el cliente, no tenía cobertura aunque el criterio de aceptación
+  dijera "en el catálogo"; y al corregir el orden por antigüedad apareció el tercero: **`paginate()`
+  devuelve las filas ordenadas por id aunque se borre el `ORDER BY`**, de modo que ninguna aserción
+  sobre el orden renderizado puede detectar su ausencia. Ese último se cubre afirmando el SQL, con el
+  mismo criterio que la excepción de CSRF en 08.b: cuando el framework vuelve inobservable la
+  diferencia desde afuera, se afirma la costura en vez de fingir cobertura.
