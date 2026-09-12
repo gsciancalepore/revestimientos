@@ -116,6 +116,29 @@ Para pagar en el sandbox, dos formas coherentes — **no se pueden mezclar**, Me
 Dato útil para diagnosticar: el prefijo del `preference_id` es el ID de la cuenta vendedora, y
 coincide con el último segmento del access token.
 
+## En qué estado está el entorno ahora mismo
+
+**No confíes en lo que diga ningún documento sobre esto**: el entorno se deja con túnel o sin túnel
+según lo último que se hizo, y si una sesión se corta a mitad de una prueba nadie actualiza la nota.
+Se averigua en tres comandos:
+
+```bash
+grep '^APP_URL' .env                 # localhost:8080 = normal | *.trycloudflare.com = con túnel
+ls public/hot 2>/dev/null            # existe = Vite en hot reload (modo normal)
+pgrep -af cloudflared                # si imprime algo, el túnel está corriendo
+```
+
+Las tres combinaciones que importan:
+
+| APP_URL | `public/hot` | `cloudflared` | Qué significa y qué hacer |
+|---|---|---|---|
+| `localhost:8080` | existe | no corre | **Estado normal.** Nada que hacer |
+| URL pública | no existe | corre | **Modo túnel completo.** Se está probando MercadoPago; para volver, §Volver al estado normal |
+| URL pública | cualquiera | **no** corre | **Estado roto**: quedó el `APP_URL` de un túnel que ya murió. Las back_urls apuntan a una URL muerta y el checkout falla sin explicación. Volver al estado normal, o levantar un túnel nuevo (la URL cambia en cada arranque) |
+
+La tercera fila es la que deja a alguien perdido media hora: el sitio carga, pero MercadoPago rebota
+o el cliente nunca vuelve. Ante cualquier síntoma raro con pagos, empezar por acá.
+
 ## Volver al estado normal
 
 ```bash
