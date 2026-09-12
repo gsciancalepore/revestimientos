@@ -130,6 +130,11 @@ Para hacerlo hace falta, en este orden: levantar el túnel, generar la credencia
 ahí la URL `https://<subdominio>.trycloudflare.com/webhook/mercadopago`. El procedimiento completo
 está en `docs/deployment/desarrollo-local.md` §Webhook.
 
+**Cuándo (decisión del dueño, 2026-09-12): al terminar la Spec 08 completa, no ahora.** El túnel se
+levanta una sola vez y se verifica toda la spec junta, con el panel de 08.c ya disponible para ver
+el resultado —pedido en `paid`, stock descontado, destacado de reposición pendiente— en lugar de
+mirar la base a mano.
+
 #### Cómo se auditó, y por qué importa para la próxima fase
 
 Las dos fases pasaron por `revisor-entrega`, y **las dos fueron bloqueadas en la primera pasada**:
