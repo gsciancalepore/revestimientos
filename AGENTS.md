@@ -185,6 +185,16 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - Toda la documentación, los commits y las respuestas en español; commits con
   Conventional Commits: `tipo(ámbito): descripción` (`feat`, `fix`, `chore`,
   `docs`, `refactor`, `test`, `perf`).
+  - **El ámbito es obligatorio cuando el cambio se circunscribe a un área**
+    (`feat(pedidos)`, `fix(tests)`, `docs(rules)`, `docs(roadmap)`). Es la
+    mayoría de los casos.
+  - **Se omite solo cuando el cambio es transversal** y ningún ámbito lo
+    describiría sin mentir: una sincronía documental que toca a la vez
+    `arquitectura.md`, el roadmap y una spec, por ejemplo. Precisado el
+    2026-09-11: la regla escribía `tipo(ámbito)` como si el ámbito fuera
+    siempre obligatorio, pero la práctica del repo nunca fue esa —15 commits
+    sin ámbito, todos `docs:`/`chore:` transversales, contra 47 con ámbito— y
+    la ambigüedad ya generó una observación del dueño.
 - **Autoría de los commits (vigente desde 2026-09-10)**: el **único** autor y
   contribuidor del proyecto es el dueño. Los commits **no llevan** trailers de
   atribución a herramientas de IA: nada de `Co-Authored-By: Claude ...`, nada de
