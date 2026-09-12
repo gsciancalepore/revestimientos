@@ -69,6 +69,31 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 ## Cómo continuar
 
+### Punto de retome — cierre del 2026-09-12 (tercera jornada)
+
+**Leer esto primero.** Estado al cortar la sesión:
+
+- **`main` = `f529a4c`**, con la **Spec 08 completa** (08.a dominio, 08.b webhook, 08.c panel y
+  despacho). **436 tests**, PHPStan nivel 8 sin errores, Pint limpio.
+- **PR #24 abierto y sin mergear**: auditoría documental completa del repositorio, más los
+  hallazgos de la verificación de la familia Spec 07. Es lo único pendiente de merge.
+- **El alcance del MVP quedó cerrado**: WhatsApp fuera (decisión del 2026-09-12), Spec 09 opcional.
+
+**Lo próximo, en orden**:
+
+1. **Mergear el PR #24.**
+2. **Verificar el webhook contra MercadoPago real** — es lo único que le falta al MVP. Túnel +
+   `MERCADOPAGO_WEBHOOK_SECRET`, procedimiento completo en `docs/deployment/desarrollo-local.md`
+   §Webhook. Decisión del dueño: se hace ahora que la Spec 08 está completa, para ver el circuito
+   desde el panel en vez de mirar la base a mano.
+3. **Rehacer la verificación de las specs 01, 02, 04 y calidad-onboarding** (el agente se cortó por
+   accidente; ver más abajo).
+4. **Escribir el borrador de Spec Higiene 03** con los cuatro hallazgos de la familia 07 que están
+   documentados más abajo, y con lo que aporte el punto 3. **No se implementa nada hasta que el
+   dueño lo apruebe.**
+
+Lo anterior a esta jornada queda como referencia histórica:
+
 ### Punto de retome — cierre del 2026-09-11 (segunda jornada)
 
 Estado exacto al terminar, para que cualquiera (persona o agente) retome sin reconstruir contexto.
