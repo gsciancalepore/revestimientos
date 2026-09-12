@@ -45,17 +45,30 @@ test('la vista deposito no muestra importes', function () {
         ->get('/admin/despacho')
         ->assertOk()
         ->assertSee("#{$pedido->id}")
+        // Formateados y crudos: si alguien imprime `total_cents` sin formato, la
+        // plata igual quedó a la vista y la regla 163 igual está rota.
         ->assertDontSee('12.345,67')
-        ->assertDontSee('345,67');
+        ->assertDontSee('345,67')
+        ->assertDontSee('1234567')
+        ->assertDontSee('1200000')
+        ->assertDontSee('34567');
 });
 
 test('la vista deposito ordena por antiguedad', function () {
-    $viejo = pedidoDePanel(OrderStatus::Paid);
-    $nuevo = pedidoDePanel(OrderStatus::Paid);
+    $primero = pedidoDePanel(OrderStatus::Paid);
+    $segundo = pedidoDePanel(OrderStatus::Paid);
+    $tercero = pedidoDePanel(OrderStatus::Paid);
 
-    $html = $this->actingAs($this->deposito)->get('/admin/despacho')->assertOk()->getContent();
+    // Reescribir la fila más vieja la manda al final del orden físico de Postgres.
+    // Sin esto, con dos filas recién insertadas el orden natural coincide con la
+    // antigüedad y el test daría verde aunque no hubiera `ORDER BY` (así pasa en
+    // producción, donde cada `paid → shipped` reescribe la fila).
+    $primero->update(['shipping_address' => 'Reescrita para mover la fila']);
 
-    expect(strpos($html, "#{$viejo->id}"))->toBeLessThan(strpos($html, "#{$nuevo->id}"));
+    $this->actingAs($this->deposito)
+        ->get('/admin/despacho')
+        ->assertOk()
+        ->assertSeeInOrder(["#{$primero->id}", "#{$segundo->id}", "#{$tercero->id}"]);
 });
 
 test('la vista deposito muestra lo necesario para armar el envio', function () {
@@ -69,7 +82,9 @@ test('la vista deposito muestra lo necesario para armar el envio', function () {
         ->assertSee('Av. Siempreviva 742')
         ->assertSee('1425')
         ->assertSee($linea->product_name)
-        ->assertSee($linea->product_codigo);
+        ->assertSee($linea->product_codigo)
+        // La regla 163 nombra las cantidades: sin ellas no se puede armar el envío.
+        ->assertSee("{$linea->cantidad} ×", escape: false);
 });
 
 test('despachar y entregar quedan auditados', function () {
@@ -104,4 +119,15 @@ test('el deposito no descuenta ni restituye stock al despachar', function () {
 
     // El stock ya bajó al confirmarse el pago (08.a): despachar no lo vuelve a tocar.
     expect($product->fresh()->stock)->toBe(5);
+});
+
+test('una solapa inventada cae en por preparar', function () {
+    $pagado = pedidoDePanel(OrderStatus::Paid);
+    $despachado = pedidoDePanel(OrderStatus::Shipped);
+
+    $this->actingAs($this->deposito)
+        ->get('/admin/despacho?solapa=inventada')
+        ->assertOk()
+        ->assertSee("#{$pagado->id}")
+        ->assertDontSee("#{$despachado->id}");
 });

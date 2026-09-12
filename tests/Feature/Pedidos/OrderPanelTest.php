@@ -72,6 +72,22 @@ test('un pedido pagado con stock negativo aparece como reposicion pendiente, y d
     $this->actingAs($this->admin)->get('/admin/pedidos')->assertOk()->assertDontSee('Reposición pendiente');
 });
 
+test('un pedido que no esta pagado no se destaca como reposicion pendiente', function (OrderStatus $status) {
+    $product = Product::factory()->create(['stock' => -5]);
+    $order = pedidoConLinea($product, 3, $status);
+
+    // El negativo lo dejó OTRO pedido: este nunca descontó stock. Sin el guard de
+    // estado, el panel mostraría reposiciones fantasma y el destacado dejaría de
+    // ser señal, que es justo la propiedad que la regla 161 cuida.
+    $this->actingAs($this->admin)
+        ->get("/admin/pedidos/{$order->id}")
+        ->assertOk()
+        ->assertDontSee('Reposición pendiente');
+})->with([
+    'impago' => OrderStatus::PendingPayment,
+    'cancelado' => OrderStatus::Cancelled,
+]);
+
 test('un incidente de pago se destaca a partir de la auditoria', function (string $accion) {
     $order = pedidoDePanel();
 
@@ -179,4 +195,15 @@ test('cancelar un pedido ya entregado no se puede', function () {
         ->assertSessionHasErrors('pedido');
 
     expect($order->fresh()->status)->toBe(OrderStatus::Delivered);
+});
+
+test('un estado inexistente en la query no filtra nada en vez de romper', function () {
+    $pagado = pedidoDePanel(OrderStatus::Paid);
+    $impago = pedidoDePanel(OrderStatus::PendingPayment);
+
+    $this->actingAs($this->admin)
+        ->get('/admin/pedidos?estado=inventado')
+        ->assertOk()
+        ->assertSee("#{$pagado->id}")
+        ->assertSee("#{$impago->id}");
 });
