@@ -39,7 +39,9 @@ test('la solapa despachados muestra los despachados y no los pagados', function 
 
 test('la vista deposito no muestra importes', function () {
     $pedido = pedidoDePanel(OrderStatus::Paid);
-    $pedido->update(['total_cents' => 1234567, 'subtotal_cents' => 1200000, 'shipping_cost_cents' => 34567]);
+    // Importes que no son substring unos de otros: con 34567 dentro de 1234567, el
+    // `assertDontSee` se volvía rojo espurio ante cualquier coincidencia de azar.
+    $pedido->update(['total_cents' => 1234567, 'subtotal_cents' => 1200000, 'shipping_cost_cents' => 98765]);
 
     // El depósito arma envíos: no necesita ver plata (regla 163).
     $this->actingAs($this->deposito)
@@ -49,10 +51,11 @@ test('la vista deposito no muestra importes', function () {
         // Formateados y crudos: si alguien imprime `total_cents` sin formato, la
         // plata igual quedó a la vista y la regla 163 igual está rota.
         ->assertDontSee('12.345,67')
-        ->assertDontSee('345,67')
+        ->assertDontSee('12.000,00')
+        ->assertDontSee('987,65')
         ->assertDontSee('1234567')
         ->assertDontSee('1200000')
-        ->assertDontSee('34567');
+        ->assertDontSee('98765');
 });
 
 test('la vista deposito ordena por antiguedad', function () {
@@ -82,8 +85,11 @@ test('la vista deposito ordena por antiguedad', function () {
         fn (string $sql): bool => str_contains($sql, 'from "orders"') && str_contains($sql, 'limit')
     ));
 
+    // Se afirma que hay orden ascendente por antigüedad, sin atar la columna: un
+    // `orderBy('created_at')` es conducta idéntica y discutiblemente más fiel a
+    // "antigüedad", y castigarlo sería un falso rojo.
     expect($seleccionDePedidos)->not->toBeEmpty()
-        ->and($seleccionDePedidos[0])->toContain('order by "id" asc');
+        ->and($seleccionDePedidos[0])->toMatch('/order by "(id|created_at)" asc/');
 });
 
 test('la vista deposito muestra lo necesario para armar el envio', function () {
