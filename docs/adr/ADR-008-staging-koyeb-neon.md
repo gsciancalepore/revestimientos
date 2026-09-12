@@ -1,6 +1,7 @@
 # ADR-008 — Staging remoto con Koyeb + Neon
 
-* **Estado:** aceptado para Staging
+* **Estado:** **reemplazada por [ADR-009](ADR-009-staging-render-roadrunner.md) (2026-08-31)** — Koyeb pasó a exigir plan pago para cuentas nuevas tras su incorporación a Mistral AI, incompatible con el requisito de staging `$0`. El runtime migró a Render Free + RoadRunner; Neon se mantuvo. El documento se conserva entero porque el análisis de la plataforma sigue sirviendo si hay que volver a elegir.
+* **Estado original:** aceptado para Staging
 * **Fecha:** 2026-08-31
 * **Decide:** reemplazar temporalmente el enfoque de VPS definido en ADR-002 para el entorno de Staging.
 * **Alcance:** exclusivamente entorno Staging.

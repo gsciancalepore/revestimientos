@@ -182,7 +182,7 @@ Detectadas por la misma verificación y **deliberadamente no incluidas**, con su
       se borran las líneas 67-73**. Si no resulta viable, la Spec 07.2 queda enmendada en su lugar.
 - [x] HIG-08: test de reintento sobre un pedido `mercadopago` en estado `paid` → 403.
 - [x] HIG-09: sincronía anotada en la Spec 07.3; sin cambios de código.
-- [ ] Pint, PHPStan nivel 8, Pest verde, CI verde, PR a `main`.
+- [x] Pint, PHPStan nivel 8, Pest verde, CI verde, PR a `main` (PR #15, mergeado el 2026-09-10).
 
 ## Tareas técnicas
 

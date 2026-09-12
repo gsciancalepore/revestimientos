@@ -28,7 +28,7 @@ Una fase/spec se considera terminada **solo** cuando cumple todo:
 | 1 | Fundación técnica: Docker, Laravel 12, calidad, CI | ✅ |
 | 1b | Calidad de onboarding: spec `calidad-onboarding` (runbook, Makefile, README) | ✅ (2026-08-05) |
 | 1c | Calidad de análisis estático: spec `calidad-analisis-estatico` (PHPStan↔Pest 3.8, gates) | ✅ (2026-08-05): PHPStan app-only, stubs eliminados, 52 tests en verde |
-| 2 | Specs 01..09 (funcionales, TDD) | ⏳ siguiente |
+| 2 | Specs 01..09 (funcionales, TDD) | ✅ **specs 01–08 cerradas** (2026-09-12). La 09 (descuentos) es opcional y quedó **fuera del MVP**; las ventas por WhatsApp (08.2) también, por decisión del dueño |
 
 ## Fase 2 — Entregables funcionales
 
