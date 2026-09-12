@@ -7,7 +7,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Actions/*Category*.php, app/Actions/*Product*.php | .ai/rules/actions.md |
 | app/Actions/PlaceOrderAction.php, app/Models/Order*.php | .ai/rules/models.md |
 | app/Actions/ConfirmPaymentAction.php, app/Actions/CancelOrderAction.php, app/Actions/TransitionOrderStatusAction.php, app/Enums/OrderStatus.php | .ai/rules/pedidos.md |
-| app/Http/Controllers/MercadoPagoWebhookController.php, app/Actions/ProcessMercadoPagoNotificationAction.php, app/Services/MercadoPagoSignatureVerifier.php, app/Contracts/PaymentStatusQuery.php | .ai/rules/webhook-mercadopago.md |
+| app/Http/Controllers/MercadoPagoWebhookController.php, app/Actions/ProcessMercadoPagoNotificationAction.php, app/Services/MercadoPagoSignatureVerifier.php, app/Contracts/PaymentStatusQuery.php, app/Services/MercadoPagoGateway.php | .ai/rules/webhook-mercadopago.md |
 | app/Services/*Gateway*.php, app/Contracts/PaymentGateway.php | .ai/rules/contracts.md |
 | app/Http/Controllers/CheckoutController.php, app/Http/Controllers/CartController.php, app/Http/Requests/Checkout/**, app/Http/Requests/Cart/** | .ai/rules/cart.md |
 | app/Http/Controllers/ShippingRateImportController.php, app/Http/Requests/ShippingRates/**, app/Services/ShippingRatesCsvParser.php, app/Actions/ImportShippingRatesAction.php | .ai/rules/importador-tarifas.md |

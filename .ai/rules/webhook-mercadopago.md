@@ -4,6 +4,7 @@ paths:
   - 'app/Actions/ProcessMercadoPagoNotificationAction.php'
   - 'app/Services/MercadoPagoSignatureVerifier.php'
   - 'app/Contracts/PaymentStatusQuery.php'
+  - 'app/Services/MercadoPagoGateway.php'
 ---
 
 # Webhook de MercadoPago (Spec 08 fase 08.b, reglas 153-158)
