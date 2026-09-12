@@ -214,3 +214,18 @@ Reglas para esta tarea:
   `make npm-build`); correr una sola suite de Pest a la vez.
 - Registrar con `record-rule` cualquier regla durable nueva descubierta durante
   la implementación (p. ej. filtros JSONB, backfill de slugs).
+
+## Sincronía 2026-09-12 — "sin stock" pasa de `= 0` a `<= 0` (Spec 08, regla 146)
+
+La definición de **sin stock** escrita acá dice *0 cajas o 0 unidades*. Desde la Spec 08 fase 08.a
+el stock **puede quedar negativo**: un pago ya cobrado nunca se rechaza por falta de mercadería, el
+pedido pasa a `paid` y el faltante queda como *reposición pendiente* (regla 145, fundada en que el
+comercio se abastece directo del fabricante).
+
+La definición se extiende a **`stock <= 0`**. No cambia ninguna conducta ya escrita: el código
+comparaba `> 0` desde el principio, así que un producto en negativo ya se comportaba como sin stock
+—no comprable, badge "Sin stock"—. Lo que faltaba era que el texto lo dijera.
+
+**El cliente nunca ve un número negativo**: en catálogo, ficha y carrito el producto figura como sin
+stock, sin cantidad. El valor real, con signo, se muestra **solo en el panel**, porque es exactamente
+cuánto hay que reponerle al fabricante antes de despachar.
