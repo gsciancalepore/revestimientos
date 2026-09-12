@@ -1,6 +1,6 @@
 # Roadmap
 
-Última actualización: 2026-09-11 (**Spec 08 fase 08.b implementada**: webhook de MercadoPago autenticado por firma HMAC con comparación en tiempo constante, filtro por tipo antes de consultar, estado real consultado contra la API por el puerto `PaymentStatusQuery` —`PaymentClient` es `final` y no se puede mockear, así que la costura no pudo ser la que la regla 155 describía—, verificación de monto contra `total_cents` y 503 deliberado ante fallo transitorio para que MercadoPago reintente; 378 tests, cada regla verificada mutando la implementación. `revisor-entrega` bloqueó la primera versión: el adaptador real del puerto no lo ejercitaba ningún test y se podía vaciar entero con la suite en verde, y la rama de "pago desconocido" era inalcanzable porque el SDK lanza excepción también en el 404. Se agregó además un cerrojo que impide que cualquier test salga a la red. **Spec 08 fase 08.a implementada**: máquina de estados, descuento de stock al confirmarse el pago con relectura del pedido bajo lock, restitución al cancelar, stock negativo auditado como reposición pendiente; `PlaceOrderAction` alineado con el bloqueo ordenado que pedía la regla 143; 340 tests. **Spec Higiene 02 cerrada**: HIG-04 la auditoría de precio y stock guardaba el valor nuevo como anterior —`getOriginal()` leído después del `save()`—; HIG-06 `PlaceOrderAction` no validaba los datos del cliente que la regla 108 exige, se cumplía por accidente vía `StoreCheckoutRequest`; HIG-07 la revalidación bajo `lockForUpdate` no tenía cobertura y se podía borrar con la suite en verde; HIG-08 guard del reintento MP sobre pedido pagado; HIG-09 la regla 117 enmendada a `find` + redirect. Specs 07.2 y 07.3 enmendadas con su sincronía; 274 tests. Spec 07.4 **verificada de punta a punta contra la API real de MercadoPago** por primera vez: hasta ahora solo estaba probada con gateway fake, y la verificación destapó dos defectos que enmiendan la regla 123 —`auto_return` condicionado a back_url pública y costo de envío en `shipments.cost`—, más credenciales externas neutralizadas en `phpunit.xml` y el botón "Finalizar compra" que faltaba en el carrito; 261 tests. Spec 06 fase 2 cerrada: importador administrativo de tarifas por CP, 253 tests en verde, Pint/PHPStan alineados; Spec 07 cerrada: 07.1/07.2/07.3/07.4 implementadas y mergeadas a `main` — 07.4 `cb9fd2b`/PR #8 — 205 tests; Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte; Spec 06 Envío cerrada 158 tests).
+Última actualización: 2026-09-12 (**alcance del MVP cerrado**: las ventas manuales por WhatsApp quedan **fuera del MVP** por decisión del dueño, con la visión enmendada y el texto original conservado; lo único que falta para el MVP completo es la fase 08.c. **Spec 08 fase 08.b implementada**: webhook de MercadoPago autenticado por firma HMAC con comparación en tiempo constante, filtro por tipo antes de consultar, estado real consultado contra la API por el puerto `PaymentStatusQuery` —`PaymentClient` es `final` y no se puede mockear, así que la costura no pudo ser la que la regla 155 describía—, verificación de monto contra `total_cents` y 503 deliberado ante fallo transitorio para que MercadoPago reintente; 378 tests, cada regla verificada mutando la implementación. `revisor-entrega` bloqueó la primera versión: el adaptador real del puerto no lo ejercitaba ningún test y se podía vaciar entero con la suite en verde, y la rama de "pago desconocido" era inalcanzable porque el SDK lanza excepción también en el 404. Se agregó además un cerrojo que impide que cualquier test salga a la red. **Spec 08 fase 08.a implementada**: máquina de estados, descuento de stock al confirmarse el pago con relectura del pedido bajo lock, restitución al cancelar, stock negativo auditado como reposición pendiente; `PlaceOrderAction` alineado con el bloqueo ordenado que pedía la regla 143; 340 tests. **Spec Higiene 02 cerrada**: HIG-04 la auditoría de precio y stock guardaba el valor nuevo como anterior —`getOriginal()` leído después del `save()`—; HIG-06 `PlaceOrderAction` no validaba los datos del cliente que la regla 108 exige, se cumplía por accidente vía `StoreCheckoutRequest`; HIG-07 la revalidación bajo `lockForUpdate` no tenía cobertura y se podía borrar con la suite en verde; HIG-08 guard del reintento MP sobre pedido pagado; HIG-09 la regla 117 enmendada a `find` + redirect. Specs 07.2 y 07.3 enmendadas con su sincronía; 274 tests. Spec 07.4 **verificada de punta a punta contra la API real de MercadoPago** por primera vez: hasta ahora solo estaba probada con gateway fake, y la verificación destapó dos defectos que enmiendan la regla 123 —`auto_return` condicionado a back_url pública y costo de envío en `shipments.cost`—, más credenciales externas neutralizadas en `phpunit.xml` y el botón "Finalizar compra" que faltaba en el carrito; 261 tests. Spec 06 fase 2 cerrada: importador administrativo de tarifas por CP, 253 tests en verde, Pint/PHPStan alineados; Spec 07 cerrada: 07.1/07.2/07.3/07.4 implementadas y mergeadas a `main` — 07.4 `cb9fd2b`/PR #8 — 205 tests; Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte; Spec 06 Envío cerrada 158 tests).
 
 ## Definition of Done (aplica a TODAS las fases y specs)
 
@@ -47,7 +47,7 @@ Cada spec se implementa en orden; cada una depende de la anterior
 | 07 | Checkout | Compra anónima, MercadoPago, transferencia con confirmación manual, creación del pedido | Orders + Payments | ✅ cerrada (2026-09-03): 07.1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway`; 07.2 `PlaceOrderAction` (`Cart` + `lockForUpdate` + `bcmath` + `audit`); 07.3 HTTP `GET /checkout`, `POST /checkout`, `GET /checkout/exito` con `StoreCheckoutRequest` + `CheckoutController` delgado + `session order_id` (sin `{order}`), `shipping !disponible → 0` permitido, 12 tests Checkout, 14 migraciones, **196 tests**; ✅ 07.4 MercadoPago (2026-09-04; verificada contra la API real el 2026-09-10): `MercadoPagoGateway` (SDK `dx-php` pineado, `Preference` + `redirect away init_point`) + `mp_preference_id/mp_init_point` + `POST /checkout/mercadopago/reintentar` + `success` solo lectura (botón continuar/reintentar), 9 tests MP, **205 tests** |
 | H02 | Higiene 02 — auditoría, validación y cobertura | Valor anterior real en la auditoría de precio y stock, validaciones de `PlaceOrderAction` que la regla 108 exige, cobertura real de la revalidación bajo lock, guard del reintento MP | Products + Orders | ✅ cerrada (2026-09-10): reglas HIG-04–HIG-09 implementadas, **274 tests** en verde, Pint/PHPStan alineados. Specs 07.2 y 07.3 enmendadas con su sincronía. Mergeada a `main` (PR #15) |
 | 08 | Gestión de pedidos | Máquina de estados, `ConfirmPaymentAction` con descuento de stock (ADR-005), restitución al cancelar un pedido pagado, webhook de MercadoPago con validación de firma y verificación de monto, panel de pedidos y vista depósito | Orders | 🔨 **en curso** — aprobada por el dueño (2026-09-10), reglas 143–166, entrega **en 3 fases**. ✅ **08.a dominio** (rama `feat/pedidos-08a`): `OrderStatus` con la máquina de estados, `TransitionOrderStatusAction`, `ConfirmPaymentAction` con descuento bajo lock e idempotencia, `CancelOrderAction` con restitución — **340 tests**, Pint/PHPStan alineados. ✅ **08.b webhook** (rama `feat/pedidos-08b`): `POST /webhook/mercadopago` con firma HMAC, filtro por tipo, consulta a la API por el puerto `PaymentStatusQuery`, verificación de monto y 503 deliberado ante fallo transitorio — **378 tests**, quince mutaciones verificadas y dos pasadas de `revisor-entrega`, la primera bloqueante. Falta la prueba contra MercadoPago real (túnel + `MERCADOPAGO_WEBHOOK_SECRET`). ⏳ 08.c panel y despacho. Ventas WhatsApp diferidas a la Spec 08.2 |
-| 08.2 | Ventas manuales por WhatsApp | Alta de pedido desde el panel, opcionalmente con link de pago de MercadoPago | Orders | pendiente (diferida por decisión del dueño, 2026-09-10) |
+| 08.2 | Ventas manuales por WhatsApp | Alta de pedido desde el panel, opcionalmente con link de pago de MercadoPago | Orders | **fuera del MVP** (decisión del dueño, 2026-09-12; diferida antes, el 2026-09-10). Post-MVP: sigue siendo deseable y su enmienda está anotada en `docs/vision.md` §MVP punto 6. Hasta entonces el stock de una venta por WhatsApp se ajusta **a mano** desde el panel de productos, auditado por la regla 68 |
 | 09 | Descuentos (opcional) | Por forma de pago y por monto de compra | Orders | pendiente |
 
 ## Fase 3 — Post-MVP (candidatas, sin compromiso)
@@ -130,6 +130,11 @@ Para hacerlo hace falta, en este orden: levantar el túnel, generar la credencia
 ahí la URL `https://<subdominio>.trycloudflare.com/webhook/mercadopago`. El procedimiento completo
 está en `docs/deployment/desarrollo-local.md` §Webhook.
 
+**Cuándo (decisión del dueño, 2026-09-12): al terminar la Spec 08 completa, no ahora.** El túnel se
+levanta una sola vez y se verifica toda la spec junta, con el panel de 08.c ya disponible para ver
+el resultado —pedido en `paid`, stock descontado, destacado de reposición pendiente— en lugar de
+mirar la base a mano.
+
 #### Cómo se auditó, y por qué importa para la próxima fase
 
 Las dos fases pasaron por `revisor-entrega`, y **las dos fueron bloqueadas en la primera pasada**:
@@ -170,17 +175,24 @@ La enmienda separa lo que la regla protege (el contrato: reglas, criterios de ac
 permisos, alcance) de lo que es registro de avance (Estado, checkboxes, sincronía append-only), y
 fija la forma: van en un commit `docs:` propio, **nunca dentro de uno `feat:`**.
 
-#### Decisión de alcance pendiente: WhatsApp está dentro del MVP según la visión
+#### Decisión de alcance resuelta (2026-09-12): WhatsApp queda fuera del MVP
 
-`docs/vision.md` §MVP, punto 6, incluye *"registro manual de ventas de WhatsApp para control de
-stock"*. El dueño **difirió** esa funcionalidad a una **Spec 08.2** el 2026-09-10, así que hoy la
-visión y el roadmap dicen cosas distintas sobre qué entra en el MVP. Sin esa pieza, el stock de las
-ventas por WhatsApp nunca baja y el número del catálogo miente.
+`docs/vision.md` §MVP punto 6 incluía *"registro manual de ventas de WhatsApp para control de
+stock"*, mientras el roadmap lo difería a una **Spec 08.2** desde el 2026-09-10. Los dos documentos
+decían cosas distintas sobre qué entra en el MVP.
 
-No bloquea nada hasta cerrar 08.c, pero **es la única pieza del MVP sin spec escrita** y hay que
-zanjarla: o se escribe la Spec 08.2 después de la 08.c, o se enmienda la visión dejando WhatsApp
-fuera del MVP con su motivo. La Spec 09 (descuentos) queda fuera: el roadmap la marca opcional y la
-visión no la incluye.
+**Resuelto por el dueño: no entra.** La visión queda enmendada —el texto original **se conserva
+tachado**, con el motivo y la fecha, según la regla de que las decisiones se marcan y no se
+borran—. La funcionalidad sigue siendo deseable y conserva su spec prevista, pero **post-MVP**.
+
+**Consecuencia asumida**: el stock de una venta por WhatsApp no baja solo. Se ajusta a mano desde el
+panel de productos, que ya existe y deja el cambio auditado (Spec 03, regla 68). Lo que reabriría la
+decisión es que ese ajuste se olvide lo suficiente como para vender algo sin stock real — que es,
+además, una de las métricas de éxito declaradas en la visión.
+
+**Con esto, el MVP queda cerrado en su alcance**: lo único que falta para tenerlo completo es la
+**fase 08.c**. La Spec 09 (descuentos) está fuera: el roadmap la marca opcional y la visión no la
+incluye.
 
 #### Cómo se abren los PRs
 

@@ -58,8 +58,29 @@ Fuera de alcance (al menos en la primera versión):
 5. **Checkout** (Orders + Payments): compra anónima, pago con tarjeta vía
    MercadoPago o transferencia bancaria con confirmación manual desde el admin.
 6. **Gestión de pedidos** (Orders): estados (pendiente de pago → pagado → despachado
-   → entregado / cancelado), vista para depósito, registro manual de ventas de
-   WhatsApp para control de stock.
+   → entregado / cancelado), vista para depósito, ~~registro manual de ventas de
+   WhatsApp para control de stock~~.
+
+   **Enmienda 2026-09-12 — el registro manual de ventas de WhatsApp queda FUERA del
+   MVP** (decisión del dueño). El texto original se conserva tachado, no se borra:
+   la funcionalidad sigue siendo deseable y tiene su spec prevista (**Spec 08.2**,
+   `docs/roadmap.md`), pero **post-MVP**.
+
+   - **Motivo**: el MVP existe para que el negocio venda por la web. Las ventas por
+     WhatsApp ya funcionan hoy sin el sistema, así que su registro no bloquea el
+     lanzamiento; la Spec 08 —que sí lo bloquea— ya es la fase más grande del
+     proyecto. Se difirió por primera vez el 2026-09-10, al aprobar la Spec 08; el
+     2026-09-12 se resuelve que además **no forma parte del alcance del MVP**, con
+     lo que esta visión y el roadmap dejan de contradecirse.
+   - **Consecuencia asumida**: el stock de una venta por WhatsApp **no baja solo**.
+     Hasta que exista la Spec 08.2, el dueño lo ajusta a mano desde el panel de
+     productos, que ya existe y deja el cambio auditado (Spec 03, regla 68). Es
+     trabajo manual, no un agujero: el número del catálogo sigue siendo correcto
+     mientras ese ajuste se haga.
+   - **Qué la reabre**: que el ajuste manual se olvide lo suficiente como para
+     vender algo sin stock real. Esa es, además, una de las métricas de éxito de
+     este documento (*cero ventas de productos sin stock real*), así que el
+     disparador ya está escrito.
 
 ## Éxito del proyecto
 
