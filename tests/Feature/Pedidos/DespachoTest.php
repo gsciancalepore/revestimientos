@@ -5,6 +5,7 @@ use App\Enums\UserRole;
 use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\RolesSeeder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Spec 08 fase 08.c — vista depósito (reglas 163 y 164).
@@ -59,16 +60,30 @@ test('la vista deposito ordena por antiguedad', function () {
     $segundo = pedidoDePanel(OrderStatus::Paid);
     $tercero = pedidoDePanel(OrderStatus::Paid);
 
-    // Reescribir la fila más vieja la manda al final del orden físico de Postgres.
-    // Sin esto, con dos filas recién insertadas el orden natural coincide con la
-    // antigüedad y el test daría verde aunque no hubiera `ORDER BY` (así pasa en
-    // producción, donde cada `paid → shipped` reescribe la fila).
+    // Reescribir la fila más vieja la manda al final del orden FÍSICO de Postgres:
+    // `select * from orders` devuelve 2,3,1. Pero `paginate()` devuelve 1,2,3
+    // igual **sin** `ORDER BY`, así que afirmar el orden renderizado daría verde
+    // aunque alguien borrara el `->oldest('id')`. Medido el 2026-09-12; por eso se
+    // afirma el SQL, que es donde la diferencia sí se ve.
     $primero->update(['shipping_address' => 'Reescrita para mover la fila']);
+
+    $consultas = [];
+    DB::listen(function ($query) use (&$consultas): void {
+        $consultas[] = strtolower($query->sql);
+    });
 
     $this->actingAs($this->deposito)
         ->get('/admin/despacho')
         ->assertOk()
         ->assertSeeInOrder(["#{$primero->id}", "#{$segundo->id}", "#{$tercero->id}"]);
+
+    $seleccionDePedidos = array_values(array_filter(
+        $consultas,
+        fn (string $sql): bool => str_contains($sql, 'from "orders"') && str_contains($sql, 'limit')
+    ));
+
+    expect($seleccionDePedidos)->not->toBeEmpty()
+        ->and($seleccionDePedidos[0])->toContain('order by "id" asc');
 });
 
 test('la vista deposito muestra lo necesario para armar el envio', function () {
