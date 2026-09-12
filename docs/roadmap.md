@@ -69,6 +69,38 @@ Cada spec se implementa en orden; cada una depende de la anterior
 
 ## Cómo continuar
 
+### Punto de retome — 2026-09-12, tarde: verificación del webhook contra MercadoPago real
+
+**Leer esto primero si retomás la prueba del webhook.**
+
+**Qué se verificó y funciona** (detalle completo en `docs/specs/08-gestion-pedidos.md` §Sincronía
+2026-09-12 — verificación del webhook contra MercadoPago real): conectividad por el túnel, firma
+HMAC —incluido el rechazo con 401 al alterar un byte—, filtro por tipo, consulta a la API real con
+el 404 traducido a 200, y la lectura del id desde la query string. Todo lo que depende del código,
+anda.
+
+**Qué falta**: un **pago aprobado en sandbox**. Es el único tramo sin probar. No es un problema de
+integración: durante la sesión el pago **entraba como producción** aunque la preferencia se crea con
+credenciales `TEST-`. Al lograrlo hay que verificar cuatro cosas — notificación con `type=payment` e
+id real, pedido en `paid`, stock descontado por la cantidad exacta, y `order.paid` en `audit_logs`
+con `origen: mercadopago` y actor `null`.
+
+**Estado del entorno al cerrar la sesión: NORMAL**, verificado con el chequeo del runbook —
+`APP_URL=http://localhost:8080`, `public/hot` apuntando a `localhost:5173`, `cloudflared` detenido y
+la web local respondiendo 200. El túnel se levantó para la prueba y se bajó al terminar.
+
+Aun así, **no confíes en esta línea**: la sesión anterior la dejó diciendo "en modo túnel" y a los
+diez minutos ya era falsa. El estado real se averigua con los tres comandos de
+`docs/deployment/desarrollo-local.md` §En qué estado está el entorno ahora mismo. Para levantar el
+túnel de nuevo, §Procedimiento; para bajarlo, §Volver al estado normal.
+
+**La URL del túnel cambia en cada arranque**, así que hay que reconfigurarla en el panel de
+MercadoPago cada vez. El secreto no cambia.
+
+**Para la Spec Higiene 03 se suma un quinto punto**: un GET al webhook devuelve **405** donde la
+regla 153 exige **200** — verificado con una entrega real de MercadoPago. El arreglo es chico
+(aceptar GET y responder 200 a lo que no sea `payment`), pero es código y necesita spec aprobada.
+
 ### Punto de retome — cierre del 2026-09-12 (tercera jornada)
 
 **Leer esto primero.** Estado al cortar la sesión:
