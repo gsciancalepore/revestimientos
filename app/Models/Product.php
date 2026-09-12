@@ -14,6 +14,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property ProductSaleUnit $unidad_venta
  * @property array<string, mixed>|null $imagenes
  * @property array<string, mixed>|null $specs
+ * @property int $stock stock **con signo**: la columna se declaró `unsignedInteger`,
+ *                      pero Laravel la mapea en PostgreSQL a `integer` sin `CHECK >= 0` y la regla 145
+ *                      de la Spec 08 usa el negativo como "reposición pendiente". Sin esta anotación,
+ *                      el análisis estático infiere `int<0, max>` y da por imposible `stock < 0`.
  */
 class Product extends Model
 {

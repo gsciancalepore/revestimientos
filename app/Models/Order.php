@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
  * @property-read Collection<int, OrderLine> $lines
@@ -18,6 +19,15 @@ class Order extends Model
 {
     /** @use HasFactory<OrderFactory> */
     use HasFactory;
+
+    /**
+     * Las dos acciones auditadas que destacan un pedido como incidente de pago
+     * (regla 161). Las del webhook no son incidentes: registran qué pasó con una
+     * notificación, y tres de ellas ni siquiera tienen pedido asociado.
+     *
+     * @var list<string>
+     */
+    public const ACCIONES_DE_INCIDENTE = ['order.payment_amount_mismatch', 'order.paid_after_cancel'];
 
     protected $fillable = [
         'status',
@@ -55,6 +65,49 @@ class Order extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(OrderLine::class);
+    }
+
+    /**
+     * Traza de auditoría del pedido (ADR-004). Solo se muestra a admin (regla 162).
+     *
+     * @return MorphMany<AuditLog, $this>
+     */
+    public function auditLogs(): MorphMany
+    {
+        return $this->morphMany(AuditLog::class, 'subject')->latest('id');
+    }
+
+    /**
+     * Regla 145 y 161: el pedido está pagado y alguna de sus líneas apunta a un
+     * producto con stock negativo, así que hay que reponerle al fabricante antes
+     * de despachar.
+     *
+     * Se **deriva del estado**, sin columna ni migración: se apaga solo cuando el
+     * admin repone, que es la propiedad que lo hace útil como señal.
+     */
+    public function necesitaReposicion(): bool
+    {
+        if ($this->status !== OrderStatus::Paid) {
+            return false;
+        }
+
+        // Si el producto faltara —lo impiden la regla 67 y la FK `restrictOnDelete`—
+        // el destacado simplemente no aplica: es una pantalla, no un movimiento de
+        // stock. Descontar y restituir sí lanzan ante esa inconsistencia (regla 149).
+        return $this->lines->contains(fn (OrderLine $line): bool => ($line->product->stock ?? 0) < 0);
+    }
+
+    /**
+     * Reglas 151, 157 y 161: se cobró plata que el pedido no puede aceptar —monto
+     * distinto del total, o cobro sobre un pedido cancelado—. **No se apaga**, y
+     * está bien que no lo haga: esos pedidos quedan trabados a propósito y se
+     * resuelven fuera del sistema.
+     */
+    public function tieneIncidenteDePago(): bool
+    {
+        return $this->auditLogs
+            ->whereIn('action', self::ACCIONES_DE_INCIDENTE)
+            ->isNotEmpty();
     }
 
     /**
