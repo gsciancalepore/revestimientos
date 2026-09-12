@@ -178,6 +178,15 @@ en el panel cada vez que se levanta el túnel.
 Sin secreto configurado el endpoint responde **401 a todo**, a propósito (regla 154): preferible a
 aceptar notificaciones sin verificar.
 
+### Qué marcar en el panel (verificado el 2026-09-12)
+
+- **Alcanza con "Pagos".** Órdenes comerciales y el resto de los tópicos no aportan: el endpoint los
+  responde 200 y los ignora (regla 155). Marcarlos solo agrega ruido y fallas de entrega.
+- **El tilde de "Pagos (legacy)" no cambia el formato**: con y sin él, MercadoPago entrega
+  `POST ?data.id=...&type=payment`. Probado con dos simulaciones consecutivas.
+- **Sin ninguna casilla marcada no llega nada.** El secreto y la URL se configuran a nivel del
+  webhook; las casillas solo deciden qué eventos se envían.
+
 ### Qué esperar al probar
 
 - El botón **"Simular notificación"** del panel sirve para verificar firma y ruta, pero manda un

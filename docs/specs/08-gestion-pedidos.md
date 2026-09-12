@@ -555,3 +555,63 @@ dataset lo pincha con ese monto.
   sobre el orden renderizado puede detectar su ausencia. Ese último se cubre afirmando el SQL, con el
   mismo criterio que la excepción de CSRF en 08.b: cuando el framework vuelve inobservable la
   diferencia desde afuera, se afirma la costura en vez de fingir cobertura.
+
+## Sincronía 2026-09-12 — verificación del webhook contra MercadoPago real
+
+Primera vez que el webhook se prueba contra MercadoPago de verdad, con túnel `cloudflared` y la
+credencial `MERCADOPAGO_WEBHOOK_SECRET` generada en el panel. Hasta hoy solo estaba probado con
+dobles.
+
+### Lo que quedó verificado (funciona)
+
+Cada punto se comprobó con una petición real de MercadoPago o con una firma calculada a mano, y
+quedó registrado en `audit_logs` y en el log de nginx:
+
+1. **Conectividad**: MercadoPago alcanza el endpoint a través del túnel.
+2. **Firma (regla 154)**: una notificación firmada por MercadoPago valida; alterando **un solo byte**
+   de la firma, responde **401** con `webhook.signature_invalid`. Sin secreto configurado responde
+   401 a todo, como manda la regla.
+3. **Filtro por tipo (regla 155)**: llegaron notificaciones reales `topic_merchant_order_wh` y se
+   respondieron **200** con `webhook.ignored`, sin consultar la API.
+4. **Consulta a la API real y el 404 (regla 156)**: con una notificación `type=payment` firmada y un
+   `data.id` inexistente, la consulta salió a MercadoPago, volvió 404, se tradujo a `null` y
+   respondimos **200** con `webhook.payment_not_found`. **Esta es la rama que `revisor-entrega`
+   había encontrado inalcanzable** en la auditoría de 08.b —el SDK lanza `MPApiException` también en
+   el 404— y que ningún test podía ejercitar.
+5. **Lectura del id desde la query**: MercadoPago manda `?data.id=...` y PHP convierte el punto en
+   guion bajo. Se lee correctamente como `data_id`.
+
+### Lo que falta probar
+
+**Un pago aprobado en sandbox.** Es el único tramo sin verificar y no depende del código: el flujo
+`approved → verificación de monto → ConfirmPaymentAction → pedido en `paid` con stock descontado`.
+Durante esta sesión el pago fallaba en MercadoPago porque **entraba como producción** aunque la
+preferencia se crea con credenciales `TEST-`. Es un problema de cuenta, no de integración.
+
+Cuando se logre, hay que verificar cuatro cosas: que la notificación llegue con `type=payment` y un
+id real, que el pedido pase a `paid`, que el stock baje por la cantidad exacta de las líneas, y que
+quede `order.paid` en `audit_logs` con `origen: mercadopago` y **actor `null`** (regla 150).
+
+### Lo que aprendimos del panel de MercadoPago
+
+- **Alcanza con suscribirse a "Pagos"**. Las órdenes comerciales y el resto de los tópicos no
+  aportan nada: el endpoint los responde 200 y los ignora. Suscribirse a todo solo agrega ruido.
+- **El tilde de "Pagos (legacy)" no cambia el formato de entrega.** Se probó con dos simulaciones
+  consecutivas, con y sin ese tilde: las dos llegaron idénticas, `POST ?data.id=...&type=payment`.
+  Las notificaciones reales también llegan en ese formato.
+- **El botón "Simular notificación" responde 200 con `webhook.payment_not_found`**, y eso es lo
+  correcto: manda un `data.id` que la cuenta no conoce. Un 401 ahí sí indicaría un problema de firma.
+- El secreto y la URL se configuran **a nivel del webhook**; las casillas solo deciden qué eventos se
+  envían. Sin ninguna casilla marcada no llega nada.
+
+### Hallazgo abierto: un GET al webhook devuelve 405
+
+Verificado con una entrega real de MercadoPago el 2026-09-12 (*"Falla en entrega - 405"*, evento
+`topic_merchant_order_wh`) y reproducible en el log de nginx: la ruta es **solo POST**, así que
+cualquier entrega por GET —el IPN viejo lo usa— recibe **405**. La **regla 153** exige responder
+**200** ante todo lo que no haya que procesar, justamente para que MercadoPago no reintente
+indefinidamente.
+
+No se corrigió acá: es código y el repo pide spec aprobada. Queda como punto para la **Spec Higiene
+03**, junto con los cuatro hallazgos de la familia Spec 07. El arreglo es chico: aceptar GET en la
+ruta y responder 200 a todo lo que no sea `payment`.
