@@ -75,7 +75,7 @@
 
                         <div>
                             <x-input-label for="stock" :value="__('Stock (cajas o unidades)')" />
-                            <x-text-input id="stock" name="stock" type="number" min="0" class="mt-1 block w-full" :value="old('stock', $producto->stock)" required />
+                            <x-text-input id="stock" name="stock" type="number" class="mt-1 block w-full" :value="old('stock', $producto->stock)" required />
                             <x-input-error class="mt-2" :messages="$errors->get('stock')" />
                         </div>
 

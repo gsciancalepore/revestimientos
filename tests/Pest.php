@@ -48,3 +48,20 @@ function pedidoConLinea(Product $product, int $cantidad, OrderStatus $status = O
 
     return $order->fresh();
 }
+
+/**
+ * Pedido listo para las pruebas del panel (Spec 08.c).
+ *
+ * Vive acá por el mismo motivo que `pedidoConLinea`: lo usan
+ * `OrderPanelPermissionsTest` y `OrderPanelTest`, y declarado en uno de ellos el
+ * otro no se puede correr solo, que es justo el procedimiento con el que este
+ * repo se defiende (mutar la implementación y correr la suite filtrada).
+ */
+function pedidoDePanel(OrderStatus $status = OrderStatus::PendingPayment, string $medioDePago = 'mercadopago'): Order
+{
+    $product = Product::factory()->create(['stock' => 10]);
+    $order = pedidoConLinea($product, 2, $status);
+    $order->update(['payment_method' => $medioDePago]);
+
+    return $order->fresh();
+}

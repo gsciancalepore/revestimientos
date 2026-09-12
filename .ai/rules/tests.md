@@ -21,3 +21,9 @@ assertDatabaseHas(audit_logs, [action, subject_id]) no cubre una regla de audito
 
 ## La concurrencia real no es reproducible en esta suite; cubrir el lock con un doble
 RefreshDatabase envuelve cada test en una transacción, así que una segunda conexión no ve los datos del test y queda bloqueada en el lock con el proceso de tests esperándola: un test de concurrencia real cuelga la suite, no la cubre. La Spec 07.2 llegó a afirmar una cobertura de concurrencia que no existía y quedó enmendada (§Sincronía 2026-09-10). Lo que sí se cubre es la revalidación bajo lockForUpdate, y para llegar a ella hay que sortear la prevalidación `Cart::hasUnpurchasable()`, que intercepta cualquier escenario armado desde el carrito: usar un doble de Cart cuya prevalidación devuelve false mientras la fila en DB ya cambió (`PlaceOrderTest.php`, `cartConPrevalidacionVieja`). Es exactamente la carrera que la regla 109 protege. Todo test de una validación bajo lock debe fallar si se borra la validación: comprobarlo borrándola.
+
+## Un helper que usan dos archivos va en tests/Pest.php
+Declarado dentro de un archivo de test, el otro no puede correr solo (`Call to undefined function`), y eso rompe el procedimiento con el que este repo se defiende: mutar la implementación y correr la suite **filtrada por archivo**. Pasó con `pedidoConLinea` (08.a) y otra vez con `pedidoDePanel` (08.c).
+
+## Buscar una palabra suelta en una página entera da falsos verdes y falsos rojos
+`assertDontSee('-3')` falla porque "-3" aparece en un slug o una clase; `str_contains($html, 'Pedidos')` da verdadero por un texto del dashboard que no es el enlace. Afirmar lo específico: el badge ("Sin stock"), la frase que solo aparece en ese estado ("Quedan"), o el `href` exacto con `route(...)`. Las dos variantes se colaron en 08.c y las dos daban una impresión equivocada de lo que cubrían.

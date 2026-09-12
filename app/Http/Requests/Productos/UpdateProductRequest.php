@@ -27,7 +27,11 @@ class UpdateProductRequest extends FormRequest
             'precio_oferta_cents' => ['nullable', 'integer', 'min:0'],
             'unidad_venta' => ['required', Rule::enum(ProductSaleUnit::class)],
             'm2_por_caja' => ['required_if:unidad_venta,m2', 'nullable', 'decimal:2', 'min:0'],
-            'stock' => ['required', 'integer', 'min:0'],
+            // Regla 146: el stock puede ser negativo cuando un pago cobrado se
+            // confirmó sin mercadería. Con `min:0` el admin no podía guardar
+            // NINGÚN cambio del producto —ni el precio, ni el nombre, ni
+            // desactivarlo— sin llevar el stock a >= 0 en el mismo submit.
+            'stock' => ['required', 'integer'],
             'activo' => ['sometimes', 'boolean'],
             'imagenes' => ['nullable', 'array'],
             'specs' => ['nullable', 'array', new AllowedSpecs],

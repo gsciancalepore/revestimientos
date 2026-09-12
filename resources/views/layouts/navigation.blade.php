@@ -16,6 +16,28 @@
             {{ __('Dashboard') }}
         </a>
 
+        {{-- Pedidos y despacho se muestran por Policy, no por rol: el vendedor ve
+             pedidos y el depósito ve despacho (Spec 08.c, matriz de permisos). --}}
+        @can('viewAny', App\Models\Order::class)
+            <a href="{{ route('pedidos.index') }}"
+                class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition duration-150 ease-in-out {{ request()->routeIs('pedidos.*') ? 'bg-gray-900 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+                {{ __('Pedidos') }}
+            </a>
+        @endcan
+
+        @can('viewDispatch', App\Models\Order::class)
+            <a href="{{ route('despacho.index') }}"
+                class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition duration-150 ease-in-out {{ request()->routeIs('despacho.*') ? 'bg-gray-900 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                {{ __('Despacho') }}
+            </a>
+        @endcan
+
         @if (Auth::user()->hasRole('admin'))
             <a href="{{ route('usuarios.index') }}"
                 class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition duration-150 ease-in-out {{ request()->routeIs('usuarios.*') ? 'bg-gray-900 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">

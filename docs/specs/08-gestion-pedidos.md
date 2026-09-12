@@ -1,6 +1,7 @@
 # Spec 08 — Gestión de pedidos
 
 - **Estado**: **aprobada por el dueño (2026-09-10)** — en implementación por fases. 08.a en curso (rama `feat/pedidos-08a`); 08.b y 08.c pendientes.
+- **Cierre (2026-09-12)**: las tres fases están implementadas y mergeadas. Ver §Sincronía 2026-09-12 — fase 08.c. Falta **solo** la verificación del webhook contra MercadoPago real, que por decisión del dueño se hace ahora que la spec está completa.
 - **Base**: Spec 07 cerrada (101–128: `orders`/`order_lines`, `OrderStatus`, `PaymentGateway`, `PlaceOrderAction` con `lockForUpdate`/`bcmath`/`audit`, `CheckoutController` + `MercadoPagoGateway`), Spec 06 (93–100 envío por CP), Spec 03 (55–68 productos; stock en 55, 59, 60 y 63), Spec 01 (roles admin/vendedor/depósito + `AuditRecorder`), ADR-003 (centavos + bcmath), ADR-004 (auditoría), ADR-005 (gestión de stock), ADR-006 (puertos).
 - **Decisiones del dueño incorporadas (2026-09-10)**: **stock descontado al confirmarse el pago** (ADR-005 ratificada, tras evaluar y descartar la reserva al crear el pedido); webhook con validación de firma **y** consulta a la API; ventas manuales por WhatsApp diferidas a una fase posterior.
 
@@ -328,28 +329,28 @@ el roadmap.
 
 ## Criterios de aceptación
 
-- [ ] `TransitionOrderStatusAction` con la máquina de estados completa; test por cada transición
+- [x] `TransitionOrderStatusAction` con la máquina de estados completa; test por cada transición
       válida y por cada inválida.
-- [ ] `ConfirmPaymentAction` descuenta stock bajo `lockForUpdate` en la misma transacción que el
+- [x] `ConfirmPaymentAction` descuenta stock bajo `lockForUpdate` en la misma transacción que el
       cambio de estado; test de rollback que verifica que ni estado ni stock se movieron.
-- [ ] Regla 145 (**08.a**): test de pago confirmado con stock insuficiente → el pedido **sí** pasa
+- [x] Regla 145 (**08.a**): test de pago confirmado con stock insuficiente → el pedido **sí** pasa
       a `paid`, el stock queda negativo y se registra `audit` con `order.stock_negative`.
-- [ ] Regla 146 (**08.c**): test de que un producto con stock negativo figura como sin stock en el
+- [x] Regla 146 (**08.c**): test de que un producto con stock negativo figura como sin stock en el
       catálogo y no se puede agregar al carrito; que el panel expone el valor real; y que el
       formulario de edición acepta guardar un producto con stock negativo.
-- [ ] Destacados del panel (**08.c**, regla 161): test de que "reposición pendiente" aparece con
+- [x] Destacados del panel (**08.c**, regla 161): test de que "reposición pendiente" aparece con
       `stock < 0` y **desaparece** al reponer, y de que el incidente de pago aparece a partir del
       `audit_log`.
-- [ ] `ConfirmPaymentAction` idempotente y auditada, con los dos orígenes; test de doble
+- [x] `ConfirmPaymentAction` idempotente y auditada, con los dos orígenes; test de doble
       confirmación que verifica que el stock se descuenta una sola vez, y de confirmación sobre
       pedido cancelado.
-- [ ] Restitución al cancelar un pedido `paid`/`shipped`, y ausencia de restitución al cancelar
+- [x] Restitución al cancelar un pedido `paid`/`shipped`, y ausencia de restitución al cancelar
       uno `pending_payment`; test de doble cancelación.
-- [ ] Webhook: firma válida/inválida/ausente, consulta a la API (mockeada, **sin red**), monto
+- [x] Webhook: firma válida/inválida/ausente, consulta a la API (mockeada, **sin red**), monto
       coincidente y no coincidente, `external_reference` inexistente, estados distintos de
       `approved`, notificación duplicada.
-- [ ] Panel de pedidos, detalle y vista depósito con la matriz de permisos cubierta por tests.
-- [ ] Pint, PHPStan nivel 8, Pest verde, CI verde, PR a `main`.
+- [x] Panel de pedidos, detalle y vista depósito con la matriz de permisos cubierta por tests.
+- [x] Pint, PHPStan nivel 8, Pest verde, CI verde, PR a `main`.
 
 ## Riesgos y puntos abiertos
 
@@ -388,18 +389,20 @@ el roadmap.
       abiertos 1 y 2 ya incorporadas al texto.
 - [x] Rama `feat/pedidos-08a` desde `main` (fase 08.a). El nombre lleva la fase, porque la spec se
       entrega en tres y cada una va en su propio PR.
-- [ ] TDD en este orden: máquina de estados → `ConfirmPaymentAction` con descuento de stock →
+- [x] TDD en este orden: máquina de estados → `ConfirmPaymentAction` con descuento de stock →
       restitución al cancelar → webhook → panel y despacho.
-- [ ] Ninguna spec cerrada necesita enmienda: ADR-005 sigue vigente y `00-dominio.md` regla 21,
+- [x] ~~Ninguna spec cerrada necesita enmienda~~ — **resultó falso**: la regla 146 obligó a enmendar
+      la definición de "sin stock" en tres specs cerradas y la validación de la Spec 03. Ver el
+      ítem siguiente. ADR-005 sigue vigente y `00-dominio.md` regla 21,
       `05-carrito.md` y `07-checkout-fase2.md` ya describen este comportamiento.
-- [ ] Actualizar `docs/arquitectura.md`, `docs/roadmap.md`, `.ai/rules/` y
+- [x] Actualizar `docs/arquitectura.md`, `docs/roadmap.md`, `.ai/rules/` y
       **`docs/ubiquitous-language.md`** al cerrar. Términos nuevos a incorporar al glosario:
       *restitución de stock*, *reposición pendiente*, *stock negativo*, *vista depósito*,
       *webhook*, *origen de la confirmación*, *idempotencia*. Y dos entradas existentes quedan
       desactualizadas: **Confirmación de pago** (`:41`, hoy definida como acción manual del admin;
       pasa a ser un caso de uso con dos orígenes, uno automático) y **Sin stock** (`:28`, hoy
       "0 unidades"; pasa a `<= 0`).
-- [ ] Enmiendas a specs cerradas, a anotar como sincronía al cerrar: definición de "sin stock" en
+- [x] Enmiendas a specs cerradas, a anotar como sincronía al cerrar: definición de "sin stock" en
       `00-dominio.md`, `03-productos.md` regla 63 y `04-catalogo-publico.md` regla 74; validación
       `min:0` de stock en los Form Requests de la Spec 03.
 
@@ -509,3 +512,45 @@ las dos suites, y ahora hay un test en cada una que afirma que está instalado y
 comentario de la conversión a centavos también afirmaba de más: `number_format` es load-bearing por
 **redondeo** —sin él `300.555` da 30055 y no 30056—, no por la representación binaria del float; el
 dataset lo pincha con ese monto.
+
+## Sincronía 2026-09-12 — fase 08.c (panel y despacho), y cierre de la spec
+
+- **08.c implementada**: panel de pedidos con filtros y destacados, detalle con traza de auditoría
+  solo para admin, confirmación manual de transferencia, vista depósito con sus dos solapas,
+  cancelaciones y stock negativo visible donde corresponde. Reglas 146 y 159-165. **436 tests.**
+- **La regla 159 terminó viviendo en la Action, no solo en el panel.** La spec la ubicaba en la
+  pantalla; 08.a dejó anotado que eso repetía el patrón de HIG-06 —validación en el Form Request,
+  Action que confía—. El guard está ahora en `ConfirmPaymentAction`: confirmar a mano un pedido de
+  MercadoPago lanza `DomainException`. El botón del panel además no se ofrece.
+  **Y había un test que daba verde encima del agujero**: el que cubría "los dos orígenes" usaba un
+  pedido de MercadoPago para ambos, así que confirmaba a mano algo que nadie había cobrado.
+- **`StoreProductRequest` conserva `min:0`**, aunque la regla 146 lo nombra junto a
+  `UpdateProductRequest`. Un producto que recién se crea no puede tener ventas que lo hayan dejado
+  en negativo. La enmienda habla de *aceptar negativos en edición* y eso es lo que se hizo, sin
+  ampliarla. Anotado en `03-productos.md`.
+- **Para el análisis estático, el stock no podía ser negativo.** La columna se declaró
+  `unsignedInteger`, de donde PHPStan infería `int<0, max>` y marcaba `stock < 0` como comparación
+  **siempre falsa** — es decir, la regla 145 era, a ojos del tipo, código muerto. Postgres no tiene
+  ese `CHECK` (la propia regla 145 lo verificó), así que el tipo mentía. Queda anotado en el modelo
+  con su motivo.
+- **Los destacados no usan columna nueva ni migración**, como pedía la regla 161: *reposición
+  pendiente* se deriva del estado del pedido y del stock de sus líneas —y por eso se apaga sola al
+  reponer—, e *incidente de pago* se deriva de `audit_logs`. Las cuatro auditorías del webhook
+  **no** destacan nada, y hay un test que lo fija: si alguien las agrega a la lista, se pone rojo.
+- **Autorización por Policy, no por middleware de rol.** Las rutas de pedidos y despacho quedan
+  fuera del grupo `role:admin`, porque cada acción tiene su propia fila en la matriz: el vendedor ve
+  pedidos y no cobra ni cancela; el depósito despacha y nunca ve plata. La navegación del panel usa
+  las mismas Policies, así que nadie ve un acceso que no puede abrir.
+- **Lo único que queda de la Spec 08**: probar el webhook contra MercadoPago real, con el túnel de
+  `docs/deployment/desarrollo-local.md` §Webhook y la credencial `MERCADOPAGO_WEBHOOK_SECRET`. Por
+  decisión del dueño (2026-09-12) se hace ahora, con la spec completa, para verificar el circuito de
+  punta a punta desde el panel en vez de mirar la base a mano.
+- **Tres falsos verdes, dos de ellos bloqueantes** (auditoría de entrega, 2026-09-12): `assertSee('-3')`
+  sobre la página entera del panel **no podía fallar nunca** —`-3` aparece en `gap-3`, `px-3` y en un
+  `tabindex="-1"`—, así que esconder el stock negativo dejaba la suite en verde; la grilla del
+  catálogo, que es lo que más ve el cliente, no tenía cobertura aunque el criterio de aceptación
+  dijera "en el catálogo"; y al corregir el orden por antigüedad apareció el tercero: **`paginate()`
+  devuelve las filas ordenadas por id aunque se borre el `ORDER BY`**, de modo que ninguna aserción
+  sobre el orden renderizado puede detectar su ausencia. Ese último se cubre afirmando el SQL, con el
+  mismo criterio que la excepción de CSRF en 08.b: cuando el framework vuelve inobservable la
+  diferencia desde afuera, se afirma la costura en vez de fingir cobertura.

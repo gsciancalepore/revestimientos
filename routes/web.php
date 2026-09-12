@@ -4,7 +4,9 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\DispatchController;
 use App\Http\Controllers\MercadoPagoWebhookController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShippingRateController;
@@ -39,6 +41,18 @@ Route::middleware('auth')->prefix('admin')->group(function () {
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+
+    // Pedidos y despacho autorizan por Policy, no por rol de middleware: cada
+    // acción tiene su propia fila en la matriz de permisos de la Spec 08 (el
+    // vendedor ve pedidos y no cobra; el depósito despacha y no ve plata).
+    Route::get('pedidos', [OrderController::class, 'index'])->name('pedidos.index');
+    Route::get('pedidos/{pedido}', [OrderController::class, 'show'])->name('pedidos.show');
+    Route::post('pedidos/{pedido}/confirmar-pago', [OrderController::class, 'confirmPayment'])->name('pedidos.confirmar-pago');
+    Route::post('pedidos/{pedido}/cancelar', [OrderController::class, 'cancel'])->name('pedidos.cancelar');
+
+    Route::get('despacho', [DispatchController::class, 'index'])->name('despacho.index');
+    Route::post('despacho/{pedido}/despachar', [DispatchController::class, 'ship'])->name('despacho.despachar');
+    Route::post('despacho/{pedido}/entregar', [DispatchController::class, 'deliver'])->name('despacho.entregar');
 
     Route::middleware('role:admin')->group(function () {
         Route::resource('usuarios', UserController::class)
