@@ -85,11 +85,14 @@ credenciales `TEST-`. Al lograrlo hay que verificar cuatro cosas — notificaci�
 id real, pedido en `paid`, stock descontado por la cantidad exacta, y `order.paid` en `audit_logs`
 con `origen: mercadopago` y actor `null`.
 
-**Estado del entorno al escribir esto: EN MODO TÚNEL.** `APP_URL` apunta a una URL pública de
-`trycloudflare.com`, `public/hot` no existe y `cloudflared` está corriendo. Para saber en qué estado
-está realmente, usar los tres comandos de `docs/deployment/desarrollo-local.md` §En qué estado está
-el entorno ahora mismo — **no confiar en esta nota**, que envejece. Para volver a lo normal, la
-sección §Volver al estado normal del mismo archivo.
+**Estado del entorno al cerrar la sesión: NORMAL**, verificado con el chequeo del runbook —
+`APP_URL=http://localhost:8080`, `public/hot` apuntando a `localhost:5173`, `cloudflared` detenido y
+la web local respondiendo 200. El túnel se levantó para la prueba y se bajó al terminar.
+
+Aun así, **no confíes en esta línea**: la sesión anterior la dejó diciendo "en modo túnel" y a los
+diez minutos ya era falsa. El estado real se averigua con los tres comandos de
+`docs/deployment/desarrollo-local.md` §En qué estado está el entorno ahora mismo. Para levantar el
+túnel de nuevo, §Procedimiento; para bajarlo, §Volver al estado normal.
 
 **La URL del túnel cambia en cada arranque**, así que hay que reconfigurarla en el panel de
 MercadoPago cada vez. El secreto no cambia.
