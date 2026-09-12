@@ -28,7 +28,7 @@ Una fase/spec se considera terminada **solo** cuando cumple todo:
 | 1 | Fundación técnica: Docker, Laravel 12, calidad, CI | ✅ |
 | 1b | Calidad de onboarding: spec `calidad-onboarding` (runbook, Makefile, README) | ✅ (2026-08-05) |
 | 1c | Calidad de análisis estático: spec `calidad-analisis-estatico` (PHPStan↔Pest 3.8, gates) | ✅ (2026-08-05): PHPStan app-only, stubs eliminados, 52 tests en verde |
-| 2 | Specs 01..09 (funcionales, TDD) | ⏳ siguiente |
+| 2 | Specs 01..09 (funcionales, TDD) | ✅ **specs 01–08 cerradas** (2026-09-12). La 09 (descuentos) es opcional y quedó **fuera del MVP**; las ventas por WhatsApp (08.2) también, por decisión del dueño |
 
 ## Fase 2 — Entregables funcionales
 
@@ -68,6 +68,31 @@ Cada spec se implementa en orden; cada una depende de la anterior
   tras el instalador de Breeze, que lo baja a v3; ver ADR-007).
 
 ## Cómo continuar
+
+### Punto de retome — cierre del 2026-09-12 (tercera jornada)
+
+**Leer esto primero.** Estado al cortar la sesión:
+
+- **`main` = `f529a4c`**, con la **Spec 08 completa** (08.a dominio, 08.b webhook, 08.c panel y
+  despacho). **436 tests**, PHPStan nivel 8 sin errores, Pint limpio.
+- **PR #24 abierto y sin mergear**: auditoría documental completa del repositorio, más los
+  hallazgos de la verificación de la familia Spec 07. Es lo único pendiente de merge.
+- **El alcance del MVP quedó cerrado**: WhatsApp fuera (decisión del 2026-09-12), Spec 09 opcional.
+
+**Lo próximo, en orden**:
+
+1. **Mergear el PR #24.**
+2. **Verificar el webhook contra MercadoPago real** — es lo único que le falta al MVP. Túnel +
+   `MERCADOPAGO_WEBHOOK_SECRET`, procedimiento completo en `docs/deployment/desarrollo-local.md`
+   §Webhook. Decisión del dueño: se hace ahora que la Spec 08 está completa, para ver el circuito
+   desde el panel en vez de mirar la base a mano.
+3. **Rehacer la verificación de las specs 01, 02, 04 y calidad-onboarding** (el agente se cortó por
+   accidente; ver más abajo).
+4. **Escribir el borrador de Spec Higiene 03** con los cuatro hallazgos de la familia 07 que están
+   documentados más abajo, y con lo que aporte el punto 3. **No se implementa nada hasta que el
+   dueño lo apruebe.**
+
+Lo anterior a esta jornada queda como referencia histórica:
 
 ### Punto de retome — cierre del 2026-09-11 (segunda jornada)
 
@@ -219,6 +244,75 @@ el README:
 commitear**: restaura la versión commiteada y **borra el trabajo en curso**. Pasó dos veces durante
 la 08.b, y la segunda dejó la suite corriendo contra código viejo, dando un "control en rojo" que
 parecía un bug real. Commitear antes de mutar, o respaldar los archivos fuera del repo.
+
+#### Auditoría documental completa (2026-09-12)
+
+Se revisaron los **61 documentos** del repositorio contra el código. Lo sano: cero enlaces rotos,
+cero rutas citadas que no existan, **numeración global de reglas intacta (1 a 166, sin huecos ni
+duplicados)**, los conteos de infraestructura coinciden (15 migraciones, 23 tablas) y el índice de
+`.ai/rules` cubre todos sus archivos con globs que resuelven.
+
+Lo corregido está en el commit de la auditoría. Lo que **queda abierto**, porque marcarlo a ciegas
+sería inventar documentación:
+
+- **Siete specs cerradas conservan ~93 casillas sin marcar**: `01` (15), `04` (20), `07` (15),
+  `07.2` (13), `07.3` (10), `07.4` (10) y `calidad-onboarding` (9). Cada una hay que verificarla
+  contra el código antes de marcarla — que es exactamente el trabajo de `verificador-spec-codigo`.
+  La Spec Higiene 01 era el caso extremo de esto (decía *borrador* con todo implementado) y ya
+  quedó corregida.
+
+#### Verificación spec↔código del 2026-09-12 — hallazgos de la familia Spec 07
+
+Se corrió `verificador-spec-codigo` sobre `07-checkout.md`, `07.2`, `07.3` y `07.4`. **Las 28 reglas
+(101–128) tienen código que las implementa: no hay ninguna regla fantasma**, y las tres secciones de
+sincronía están al día. Pero aparecieron cuatro cosas que **no** conviene dejar dormidas. Son el
+insumo para un borrador de **Spec Higiene 03**, igual que Higiene 02 nació de esta misma verificación.
+
+**H03-01 — `external_reference` y el `paymentUrl()` real no los cubre ningún test** (regla 123).
+Los cinco tests que inspeccionan el payload solo afirman `auto_return`, `back_urls.success` y
+`shipments`; los de `store`/`retry` bindean fakes que **sobrescriben `paymentUrl()` entero**, así que
+el cuerpo de `MercadoPagoGateway::paymentUrl()` (`app/Services/MercadoPagoGateway.php:91-107`) nunca
+se ejecuta en la suite. Si `'external_reference' => (string) $order->id` (`:137`) desaparece, los 436
+tests siguen verdes y **cada pago aprobado cae en `webhook.order_not_found`**: el pedido queda en
+`PendingPayment` para siempre, el stock nunca baja y el cliente pagó. Es la misma forma que
+`revisor-entrega` bloqueó en 08.b —*probar el puerto no prueba el adaptador*—, que en la 07.4 quedó
+sin corregir. **Es el más grave de los cuatro.**
+
+**H03-02 — un producto `M2` sin `m2_por_caja` se vende a precio cero** (regla 110).
+La 07.2 dice explícitamente que ese caso debe lanzar `DomainException`; el código hace
+`($product->precioCajaCents() ?? 0)` en `app/Actions/PlaceOrderAction.php:97-99`, o sea **precio
+cero**. `products.m2_por_caja` es nullable y **sin `CHECK`**, así que cualquier camino que no pase
+por el Form Request —seeder, import, corrección en la base— lo produce. El pedido se crea con total
+= envío, MercadoPago cobra el envío y la auditoría registra `subtotal_cents: 0` sin error alguno.
+**No hay sincronía que enmiende esto**: el código y la spec dicen cosas distintas, y la diferencia es
+plata. Hay que decidir cuál de las dos gana.
+
+**H03-03 — `shipping_address` valida `max:500` contra una columna `varchar(255)`**
+(`app/Http/Requests/Checkout/StoreCheckoutRequest.php:25` vs
+`database/migrations/2026_09_03_162109_create_orders_table.php:22`). Una dirección de 256 a 500
+caracteres pasa el 422, entra a la Action y revienta con `QueryException`; `CheckoutController::store`
+solo captura `DomainException`, así que el cliente ve un **500 con el carrito lleno**. Se arregla
+subiendo la columna o bajando la validación.
+
+**H03-04 — la vista `success` omite 4 de los 7 campos de línea que enumera la regla 119**
+(`resources/views/checkout/success.blade.php:20-25`: faltan `product_codigo`, `marca`,
+`precio_unitario_cents` y `specs`). A diferencia de otras desviaciones de esta familia, **esta no
+está anotada en ninguna sincronía**. Es la única pantalla que le queda al cliente del pedido: ante un
+reclamo por precio no hay qué mostrarle.
+
+**Deuda de segundo orden** (implementado y correcto, pero sin test que lo proteja): el payload del
+audit `order.created` solo verifica 2 de 4 claves y no el `actor null`; `OrderStatus::values()` no se
+usa en ningún lado; de los tres `CHECK >= 0` de `orders` solo se testea uno; nada verifica que
+`orders.shipping_cp` conserve el `0123`; el `trim` de `prepareForValidation` no se ejercita por HTTP;
+y el `find` + redirect que HIG-09 eligió (regla 117) no tiene test, así que un "arreglo" a
+`findOrFail` pasaría sin ruido.
+
+#### Verificación pendiente: specs 01, 02, 04 y calidad-onboarding
+
+**El agente que las estaba verificando se cortó por accidente antes de producir resultados.** Hay
+que volver a correr `verificador-spec-codigo` sobre esas cuatro. Es la otra mitad de la auditoría
+documental y el origen de las ~93 casillas sin marcar (`01`: 15, `04`: 20, `calidad-onboarding`: 9;
+la `02` no tiene casillas pendientes pero nunca se verificó).
 
 #### Pendientes sin fecha
 

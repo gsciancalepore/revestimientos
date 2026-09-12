@@ -1,6 +1,7 @@
 # Spec 08 — Gestión de pedidos
 
-- **Estado**: **aprobada por el dueño (2026-09-10)** — en implementación por fases. 08.a en curso (rama `feat/pedidos-08a`); 08.b y 08.c pendientes.
+- **Estado**: **cerrada (2026-09-12)** — aprobada por el dueño el 2026-09-10 y entregada en tres fases: 08.a dominio, 08.b webhook, 08.c panel y despacho. Queda **solo** la verificación del webhook contra MercadoPago real.
+- **Estado durante la entrega (2026-09-10)**: aprobada — en implementación por fases. 08.a en curso (rama `feat/pedidos-08a`); 08.b y 08.c pendientes.
 - **Cierre (2026-09-12)**: las tres fases están implementadas y mergeadas. Ver §Sincronía 2026-09-12 — fase 08.c. Falta **solo** la verificación del webhook contra MercadoPago real, que por decisión del dueño se hace ahora que la spec está completa.
 - **Base**: Spec 07 cerrada (101–128: `orders`/`order_lines`, `OrderStatus`, `PaymentGateway`, `PlaceOrderAction` con `lockForUpdate`/`bcmath`/`audit`, `CheckoutController` + `MercadoPagoGateway`), Spec 06 (93–100 envío por CP), Spec 03 (55–68 productos; stock en 55, 59, 60 y 63), Spec 01 (roles admin/vendedor/depósito + `AuditRecorder`), ADR-003 (centavos + bcmath), ADR-004 (auditoría), ADR-005 (gestión de stock), ADR-006 (puertos).
 - **Decisiones del dueño incorporadas (2026-09-10)**: **stock descontado al confirmarse el pago** (ADR-005 ratificada, tras evaluar y descartar la reserva al crear el pedido); webhook con validación de firma **y** consulta a la API; ventas manuales por WhatsApp diferidas a una fase posterior.

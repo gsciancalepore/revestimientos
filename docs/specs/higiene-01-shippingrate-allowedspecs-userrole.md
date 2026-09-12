@@ -1,6 +1,7 @@
 # Spec Higiene 01 — ShippingRate Actions + AllowedSpecs + User::role()
 
-- **Estado**: borrador (2026-09-03) — pendiente de aprobación (refactor/higiene, con corrección de comportamiento únicamente para el estado inválido "usuario sin rol asignado"; documentada para implementar **después** de mergear `07.1` y `07.2`)
+- **Estado**: **cerrada (2026-09-03)** — implementada y mergeada a `main` en `bc45b67` (PR #4). El documento quedó diciendo *borrador — pendiente de aprobación* hasta el 2026-09-12, cuando la auditoría documental lo detectó; ver §Sincronía al pie.
+- **Estado original (2026-09-03)**: borrador — pendiente de aprobación (refactor/higiene, con corrección de comportamiento únicamente para el estado inválido "usuario sin rol asignado"; documentada para implementar **después** de mergear `07.1` y `07.2`)
 - **Fuentes**: `.ai/rules/actions.md`, `controllers.md`, `productos.md`, `app.md`, `AGENTS.md: Arquitectura y dominio (Actions delgadas, Policies, validación en Requests, estados Enum, centavos bcmath)`, `ADR-006`/`ADR-007`, principios 5/8 (simplicidad/YAGNI)
 
 ## Objetivo
@@ -43,11 +44,11 @@ Sin cambios: `ShippingRatePolicy` solo `admin` (`role:admin` + `Policy`), `UserP
 
 ## Criterios de aceptación
 
-- [ ] `app/Rules/AllowedSpecs.php` existe, `DataAwareRule` con `setData(): static` y regresión: `AllowedSpecs` rechaza claves inválidas y permite claves válidas por familia.
-- [ ] `StoreProductRequest`/`UpdateProductRequest` usan `new AllowedSpecs`, sin `validateSpecsKeys()`.
-- [ ] `app/Actions/CreateShippingRateAction.php`, `app/Actions/UpdateShippingRateAction.php`, `app/Actions/DeleteShippingRateAction.php` existen y `ShippingRateController` delega (`__construct` DI, `Gate`, `validated()`).
-- [ ] `app/Models/User.php:role()` lanza `DomainException` si no hay roles; `Policies` garantizan `false/403` si no hay rol; `navigation.blade.php` con `hasRole('admin')`; usuarios con roles mantienen comportamiento.
-- [ ] Pint, PHPStan nivel 8 (`app/`), Pest verde (`make lint → stan → test` una suite `ceramica_test`), sin `TODO`s; CI `lint→stan→test` verde. Tests de regresión cubren behaviours afectados (no suite artificial).
+- [x] `app/Rules/AllowedSpecs.php` existe, `DataAwareRule` con `setData(): static` y regresión: `AllowedSpecs` rechaza claves inválidas y permite claves válidas por familia.
+- [x] `StoreProductRequest`/`UpdateProductRequest` usan `new AllowedSpecs`, sin `validateSpecsKeys()`.
+- [x] `app/Actions/CreateShippingRateAction.php`, `app/Actions/UpdateShippingRateAction.php`, `app/Actions/DeleteShippingRateAction.php` existen y `ShippingRateController` delega (`__construct` DI, `Gate`, `validated()`).
+- [x] `app/Models/User.php:role()` lanza `DomainException` si no hay roles; `Policies` garantizan `false/403` si no hay rol; `navigation.blade.php` con `hasRole('admin')`; usuarios con roles mantienen comportamiento.
+- [x] Pint, PHPStan nivel 8 (`app/`), Pest verde (`make lint → stan → test` una suite `ceramica_test`), sin `TODO`s; CI `lint→stan→test` verde. Tests de regresión cubren behaviours afectados (no suite artificial).
 
 ## Decisiones arquitectónicas
 
@@ -62,13 +63,29 @@ Sin cambios: `ShippingRatePolicy` solo `admin` (`role:admin` + `Policy`), `UserP
 
 ## Tareas técnicas
 
-- [ ] `php artisan make:rule AllowedSpecs --no-interaction` + implementar `DataAwareRule`.
-- [ ] Refactor `Store/UpdateProductRequest` → `new AllowedSpecs`.
-- [ ] `Create/Update/DeleteShippingRateAction` + refactor `ShippingRateController`.
-- [ ] `User::role()` throw + `Policies` garantizan `false/403` + `navigation` `hasRole`.
-- [ ] `make format` → `make lint` → `make stan` → `make test`; PR `chore/higiene-01-shippingrate-allowedspecs-userrole` **después** de `07.2` merge (respeta tu orden; rama `chore/` porque es `refactor/chore`, no `feat`).
+- [x] `php artisan make:rule AllowedSpecs --no-interaction` + implementar `DataAwareRule`.
+- [x] Refactor `Store/UpdateProductRequest` → `new AllowedSpecs`.
+- [x] `Create/Update/DeleteShippingRateAction` + refactor `ShippingRateController`.
+- [x] `User::role()` throw + `Policies` garantizan `false/403` + `navigation` `hasRole`.
+- [x] `make format` → `make lint` → `make stan` → `make test`; PR `chore/higiene-01-shippingrate-allowedspecs-userrole` **después** de `07.2` merge (respeta tu orden; rama `chore/` porque es `refactor/chore`, no `feat`).
 
 ## Nota de handoff
 
 Implementar **después** de `07.2` merge a `main`. Rama `chore/higiene-01-shippingrate-allowedspecs-userrole` desde `main`. No requiere TDD (refactor), pero exige tests de regresión para behaviours afectados. Seguir `AGENTS.md`, `.ai/rules`, `PROJECT_PRINCIPLES.md`, `make` Docker.
 
+## Sincronía 2026-09-12 — el documento decía "borrador" con todo implementado
+
+Detectado por la auditoría documental completa del 2026-09-12. La spec se implementó y mergeó el
+2026-09-03 (`bc45b67`, PR #4), pero su línea de Estado y sus diez casillas quedaron como si nada se
+hubiera hecho. Un agente nuevo que leyera `docs/specs/` habría encontrado un borrador sin aprobar
+con diez tareas pendientes, y podía razonablemente ponerse a implementarlo de nuevo.
+
+Verificado punto por punto contra el código antes de marcar nada:
+
+- `app/Rules/AllowedSpecs.php` existe y los dos Form Requests lo usan.
+- `CreateShippingRateAction`, `UpdateShippingRateAction` y `DeleteShippingRateAction` existen, y
+  `ShippingRateController` delega en ellas.
+- `User::role()` lanza `DomainException` cuando el usuario no tiene rol.
+
+El estado original se conserva arriba, según la regla de que las decisiones se marcan y no se
+borran: lo que cambió es el estado, no lo que la spec decidió.

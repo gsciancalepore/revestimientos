@@ -1,6 +1,6 @@
 # Spec 04 — Catálogo público
 
-- **Estado**: aprobada (2026-08-05)
+- **Estado**: **cerrada (2026-08-06)** — 116 tests en verde, Pint/PHPStan alineados (sincronizado con `docs/roadmap.md` el 2026-09-12; la línea decía solo *aprobada*)
 - **Fuentes**: Spec 00 (reglas 1–12, 27), Spec 02 (categorías planas, reglas
   43–54), Spec 03 (productos, reglas 55–68), ADR-003 (m², cajas, dinero),
   visión (objetivo "mostrar stock real" y calculadora), decisiones del dueño
