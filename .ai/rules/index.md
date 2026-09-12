@@ -13,6 +13,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Http/Controllers/ShippingRateImportController.php, app/Http/Requests/ShippingRates/**, app/Services/ShippingRatesCsvParser.php, app/Actions/ImportShippingRatesAction.php | .ai/rules/importador-tarifas.md |
 | app/** | .ai/rules/app.md |
 | app/Http/Requests/Categorias/** | .ai/rules/categorias.md |
+| app/Http/Controllers/OrderController.php, app/Http/Controllers/DispatchController.php, app/Policies/OrderPolicy.php, resources/views/admin/pedidos/**, resources/views/admin/despacho/** | .ai/rules/panel-pedidos.md |
 | app/Http/Controllers/** | .ai/rules/controllers.md |
 | database/factories/ProductFactory.php | .ai/rules/factories.md |
 | vite.config.js, phpstan.neon | .ai/rules/general.md |
