@@ -220,6 +220,22 @@ commitear**: restaura la versión commiteada y **borra el trabajo en curso**. Pa
 la 08.b, y la segunda dejó la suite corriendo contra código viejo, dando un "control en rojo" que
 parecía un bug real. Commitear antes de mutar, o respaldar los archivos fuera del repo.
 
+#### Auditoría documental completa (2026-09-12)
+
+Se revisaron los **61 documentos** del repositorio contra el código. Lo sano: cero enlaces rotos,
+cero rutas citadas que no existan, **numeración global de reglas intacta (1 a 166, sin huecos ni
+duplicados)**, los conteos de infraestructura coinciden (15 migraciones, 23 tablas) y el índice de
+`.ai/rules` cubre todos sus archivos con globs que resuelven.
+
+Lo corregido está en el commit de la auditoría. Lo que **queda abierto**, porque marcarlo a ciegas
+sería inventar documentación:
+
+- **Siete specs cerradas conservan ~93 casillas sin marcar**: `01` (15), `04` (20), `07` (15),
+  `07.2` (13), `07.3` (10), `07.4` (10) y `calidad-onboarding` (9). Cada una hay que verificarla
+  contra el código antes de marcarla — que es exactamente el trabajo de `verificador-spec-codigo`.
+  La Spec Higiene 01 era el caso extremo de esto (decía *borrador* con todo implementado) y ya
+  quedó corregida.
+
 #### Pendientes sin fecha
 
 - Verificar si staging tiene aplicadas las migraciones de `orders` (ver la discrepancia más abajo).
