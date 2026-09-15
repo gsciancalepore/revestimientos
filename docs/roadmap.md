@@ -1,6 +1,6 @@
 # Roadmap
 
-Última actualización: 2026-09-12 (**Spec 08 completa**: las tres fases implementadas — dominio, webhook y panel — con 436 tests; queda solo la verificación del webhook contra MercadoPago real, con túnel y credencial. **Alcance del MVP cerrado**: las ventas manuales por WhatsApp quedan **fuera del MVP** por decisión del dueño, con la visión enmendada y el texto original conservado; lo único que falta para el MVP completo es verificar el webhook contra MercadoPago real (la fase 08.c quedó implementada el 2026-09-12). **Spec 08 fase 08.b implementada**: webhook de MercadoPago autenticado por firma HMAC con comparación en tiempo constante, filtro por tipo antes de consultar, estado real consultado contra la API por el puerto `PaymentStatusQuery` —`PaymentClient` es `final` y no se puede mockear, así que la costura no pudo ser la que la regla 155 describía—, verificación de monto contra `total_cents` y 503 deliberado ante fallo transitorio para que MercadoPago reintente; 378 tests, cada regla verificada mutando la implementación. `revisor-entrega` bloqueó la primera versión: el adaptador real del puerto no lo ejercitaba ningún test y se podía vaciar entero con la suite en verde, y la rama de "pago desconocido" era inalcanzable porque el SDK lanza excepción también en el 404. Se agregó además un cerrojo que impide que cualquier test salga a la red. **Spec 08 fase 08.a implementada**: máquina de estados, descuento de stock al confirmarse el pago con relectura del pedido bajo lock, restitución al cancelar, stock negativo auditado como reposición pendiente; `PlaceOrderAction` alineado con el bloqueo ordenado que pedía la regla 143; 340 tests. **Spec Higiene 02 cerrada**: HIG-04 la auditoría de precio y stock guardaba el valor nuevo como anterior —`getOriginal()` leído después del `save()`—; HIG-06 `PlaceOrderAction` no validaba los datos del cliente que la regla 108 exige, se cumplía por accidente vía `StoreCheckoutRequest`; HIG-07 la revalidación bajo `lockForUpdate` no tenía cobertura y se podía borrar con la suite en verde; HIG-08 guard del reintento MP sobre pedido pagado; HIG-09 la regla 117 enmendada a `find` + redirect. Specs 07.2 y 07.3 enmendadas con su sincronía; 274 tests. Spec 07.4 **verificada de punta a punta contra la API real de MercadoPago** por primera vez: hasta ahora solo estaba probada con gateway fake, y la verificación destapó dos defectos que enmiendan la regla 123 —`auto_return` condicionado a back_url pública y costo de envío en `shipments.cost`—, más credenciales externas neutralizadas en `phpunit.xml` y el botón "Finalizar compra" que faltaba en el carrito; 261 tests. Spec 06 fase 2 cerrada: importador administrativo de tarifas por CP, 253 tests en verde, Pint/PHPStan alineados; Spec 07 cerrada: 07.1/07.2/07.3/07.4 implementadas y mergeadas a `main` — 07.4 `cb9fd2b`/PR #8 — 205 tests; Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte; Spec 06 Envío cerrada 158 tests).
+Última actualización: 2026-09-15 (**Specs 01, 02, 04 y `calidad-onboarding` verificadas contra el código**: ninguna tenía reglas fantasma, pero las cuatro quedan sin poder darse por cerradas y aportan 30 hallazgos al borrador de Higiene 03 — el más grave, la oferta que se muestra y nunca se cobra, con la decisión del dueño de que **sí se cobra**. Repuesta la guía de formato de specs, que se había erosionado hasta desaparecer, y documentadas dos trampas del entorno. **Spec 08 completa**: las tres fases implementadas — dominio, webhook y panel — con 436 tests; queda solo la verificación del webhook contra MercadoPago real, con túnel y credencial. **Alcance del MVP cerrado**: las ventas manuales por WhatsApp quedan **fuera del MVP** por decisión del dueño, con la visión enmendada y el texto original conservado; lo único que falta para el MVP completo es verificar el webhook contra MercadoPago real (la fase 08.c quedó implementada el 2026-09-12). **Spec 08 fase 08.b implementada**: webhook de MercadoPago autenticado por firma HMAC con comparación en tiempo constante, filtro por tipo antes de consultar, estado real consultado contra la API por el puerto `PaymentStatusQuery` —`PaymentClient` es `final` y no se puede mockear, así que la costura no pudo ser la que la regla 155 describía—, verificación de monto contra `total_cents` y 503 deliberado ante fallo transitorio para que MercadoPago reintente; 378 tests, cada regla verificada mutando la implementación. `revisor-entrega` bloqueó la primera versión: el adaptador real del puerto no lo ejercitaba ningún test y se podía vaciar entero con la suite en verde, y la rama de "pago desconocido" era inalcanzable porque el SDK lanza excepción también en el 404. Se agregó además un cerrojo que impide que cualquier test salga a la red. **Spec 08 fase 08.a implementada**: máquina de estados, descuento de stock al confirmarse el pago con relectura del pedido bajo lock, restitución al cancelar, stock negativo auditado como reposición pendiente; `PlaceOrderAction` alineado con el bloqueo ordenado que pedía la regla 143; 340 tests. **Spec Higiene 02 cerrada**: HIG-04 la auditoría de precio y stock guardaba el valor nuevo como anterior —`getOriginal()` leído después del `save()`—; HIG-06 `PlaceOrderAction` no validaba los datos del cliente que la regla 108 exige, se cumplía por accidente vía `StoreCheckoutRequest`; HIG-07 la revalidación bajo `lockForUpdate` no tenía cobertura y se podía borrar con la suite en verde; HIG-08 guard del reintento MP sobre pedido pagado; HIG-09 la regla 117 enmendada a `find` + redirect. Specs 07.2 y 07.3 enmendadas con su sincronía; 274 tests. Spec 07.4 **verificada de punta a punta contra la API real de MercadoPago** por primera vez: hasta ahora solo estaba probada con gateway fake, y la verificación destapó dos defectos que enmiendan la regla 123 —`auto_return` condicionado a back_url pública y costo de envío en `shipments.cost`—, más credenciales externas neutralizadas en `phpunit.xml` y el botón "Finalizar compra" que faltaba en el carrito; 261 tests. Spec 06 fase 2 cerrada: importador administrativo de tarifas por CP, 253 tests en verde, Pint/PHPStan alineados; Spec 07 cerrada: 07.1/07.2/07.3/07.4 implementadas y mergeadas a `main` — 07.4 `cb9fd2b`/PR #8 — 205 tests; Staging: `docs/deployment/staging.md` operativo `~0.3-0.7s`, `Render Oregon + Neon Oregon PG18 (18.6, us-west-2)` co-localizado, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, `RoadRunner 2w`, fixes `cb1002b`/`e56e62c`/`73d2945`/`bbfd1fd` TrustProxies + seed vacío §15.2/15.3 + latencia Oregon §15.4/ADR-010, deploy `https://revestimientos.onrender.com` operativo; `docker-compose.yml` se mantiene en `postgres:17` — bump a 18 se evalúa aparte; Spec 06 Envío cerrada 158 tests).
 
 ## Definition of Done (aplica a TODAS las fases y specs)
 
@@ -67,7 +67,82 @@ Cada spec se implementa en orden; cada una depende de la anterior
 - La Spec 01 usa **Breeze 2.4.2 pineado** y conserva **Tailwind 4** (se restauró
   tras el instalador de Breeze, que lo baja a v3; ver ADR-007).
 
+## Cómo se escribe una spec nueva
+
+Toda spec sigue el mismo formato, con estas secciones en este orden (modelos:
+`docs/specs/00-dominio.md` y `docs/specs/01-autenticacion-roles.md`):
+
+**objetivo · contexto · reglas de negocio · matriz de permisos · casos borde ·
+criterios de aceptación · tareas técnicas**
+
+Además:
+
+- **La numeración de las reglas es global y corrida**, no por spec: cada regla
+  nueva continúa donde terminó la última spec cerrada. Al 2026-09-12 van del 1
+  al 166, sin huecos ni duplicados; verificar el último número real antes de
+  numerar, en vez de confiar en este dato si pasó tiempo.
+- **Proceso**: spec aprobada por el dueño → rama nueva (`feat/...`) → TDD
+  (red → green → refactor) → verificación local (Pint, PHPStan nivel 8, Pest) →
+  Pull Request a `main` con CI en verde → merge.
+- **Antes de que el dueño la apruebe**, el borrador pasa por el agente
+  `revisor-spec` (`.claude/agents/`), que verifica numeración, coherencia con
+  las ADRs y las specs cerradas, cobertura de la matriz de permisos, casos borde
+  y criterios testables.
+- **Contexto para agentes nuevos**: `.ai/rules/index.md` mapea las reglas
+  durables del repo; el runbook de arranque está en el README.
+
+**Por qué esto es una sección propia (2026-09-15)**: esta guía existía desde el
+`532dcb7` (2026-08-05) pero vivía **dentro del bullet "Próximo paso"**, que se
+reescribe cada vez que arranca una spec nueva. Se erosionó en tres reescrituras
+sucesivas —`4f565dd` se llevó la lista de secciones, `3f4f5e6` los archivos de
+ejemplo, `a8bd92d` la frase entera— hasta desaparecer del repositorio el
+2026-09-03. Nadie la borró a propósito: era guía durable estacionada dentro de
+un texto efímero. Se repone acá, fuera del alcance de esa reescritura, para que
+no vuelva a pasar.
+
 ## Cómo continuar
+
+### Punto de retome — 2026-09-15: verificación de las specs 01, 02, 04 y calidad-onboarding
+
+**Leer esto primero.** Se corrió `verificador-spec-codigo` sobre las cuatro specs que la auditoría
+documental del 2026-09-12 había dejado pendientes. `main` sigue en `2ae65ff` con **436 tests**,
+PHPStan nivel 8 sin errores y Pint limpio.
+
+**Ninguna de las cuatro tenía reglas fantasma**: todo lo que las specs dicen está escrito. Lo que
+apareció son **30 hallazgos**, y las cuatro specs quedan **sin poder darse por cerradas**. Los más
+graves, para dimensionar:
+
+- **La oferta se muestra y nunca se cobra.** `precio_oferta_cents` no aparece ni en `Cart.php` ni en
+  `PlaceOrderAction.php`: un producto exhibido con 25 % OFF se cobra al precio de lista entero, y la
+  diferencia viaja al pedido, a MercadoPago y a la factura. **Decisión del dueño (2026-09-15): la
+  oferta se cobra.** La regla 87 queda enmendada —su definición de `precio_vigente_cents` debe
+  contemplar la oferta activa— con sincronía en las Specs 04 y 05.
+- **La calculadora de la ficha es una segunda implementación** en JavaScript que diverge del carrito
+  en una caja entera (209 divergencias en 30.000 combinaciones), contra la regla 75 que fija a
+  `M2Calculator` como único lugar del redondeo.
+- **Tres defectos que hoy devuelven 500**: vaciar el campo "Orden" de una categoría, una dirección de
+  entre 256 y 500 caracteres en el checkout, y la ruta `DELETE /admin/usuarios/{user}` que la regla 37
+  prohíbe y que apunta a un método inexistente.
+- **El carrito le muestra al cliente "quedan −3 cajas"**: la verificación de la regla 146 cubrió
+  grilla, ficha y `Cart.php`, pero no la línea del carrito.
+- **Sin cobertura**: `UserPolicy` (el middleware `role:admin` tapa el 403 en los seis tests de
+  denegación, así que la Policy se puede vaciar en verde), el throttle de login, el un-solo-uso del
+  reset, el `DatabaseSeeder`, el sidebar y el orden del catálogo.
+
+**Lo próximo**: escribir el borrador de **Spec Higiene 03** con estos hallazgos más los cuatro de la
+familia 07 ya documentados abajo. **No se implementa nada hasta que el dueño lo apruebe.** Conviene
+proponerle un corte de alcance: 30 hallazgos es mucho para una sola spec, y la higiene documental
+pura no necesita spec.
+
+**Caso borde anotado, sin urgencia (decisión del dueño, 2026-09-15)**: un admin no puede
+autodesactivarse —guard implementado y testeado— pero **sí puede cambiarse el rol a vendedor**, con el
+mismo efecto de dejar el sistema sin administradores. No debería poder; queda fuera del alcance de
+Higiene 03.
+
+**Incidente de la jornada**: la base de desarrollo se vació con un `migrate:fresh --env=testing`
+durante la verificación. Se reconstruyó con `make migrate && make seed`; **las tarifas de envío las
+recarga el dueño desde su CSV**. La trampa quedó documentada en `.ai/rules/tests.md` y en el README,
+que es donde faltaba.
 
 ### Punto de retome — 2026-09-12, tarde: verificación del webhook contra MercadoPago real
 
