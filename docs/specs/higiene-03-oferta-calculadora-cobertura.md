@@ -1,7 +1,7 @@
 # Spec Higiene 03 — La oferta que no se cobra, la calculadora duplicada y la cobertura que falta
 
-- **Estado**: **borrador — pendiente de aprobación del dueño** (2026-09-15). No se implementa nada
-  hasta que se apruebe.
+- **Estado**: **aprobada por el dueño** (2026-09-16; borrador 2026-09-15, segunda vuelta con
+  PA-1/PA-2/HIG-28 resueltos + ajustes de segunda revisión). En implementación fase 03.a.
 - **Origen**: verificación con `verificador-spec-codigo` de las specs **01**, **02**, **04** y
   `calidad-onboarding` (2026-09-15), más los cuatro hallazgos de la familia Spec 07 y el del
   webhook (`GET` → 405) que las verificaciones del 2026-09-12 dejaron anotados en el roadmap y en la
@@ -14,19 +14,27 @@
 - **Prefijo de reglas**: continúa **`HIG-10`** desde la Spec Higiene 02 (`HIG-04`–`HIG-09`), que a su
   vez continuó de la Higiene 01 (`HIG-01`–`HIG-03`). Estas reglas **no** entran en la numeración
   global 1–166: son correcciones para que el código cumpla reglas que ya existen.
-- **Qué contrato toca esta spec**, declarado por adelantado: **una sola regla de negocio enmendada**,
-  la **87** (HIG-10, decisión del dueño del 2026-09-15); y **una sola matriz de permisos ampliada**,
-  la de la **Spec 08** (HIG-18, que suma el verbo `GET` a la ruta del webhook). Ninguna otra regla,
-  ADR ni matriz cambia. En particular, `precioCajaCents()` **no se toca**, así que la regla 59 de la
-  Spec 03, la regla 3 de la Spec 00 y el punto 5 de **ADR-003 quedan intactos** — ver HIG-10.
+- **Qué contrato toca esta spec**, declarado por adelantado: **cuatro reglas de negocio enmendadas**
+  con su sincronía fechada — la **87** (HIG-10, decisión del dueño del 2026-09-15), la **92**
+  (HIG-12, tercera condición no-comprable), la **68** (HIG-33/PA-2, la auditoría cubre la oferta,
+  decisión del dueño del 2026-09-16) y la **153** más su fila de matriz (HIG-18, que suma el verbo
+  `GET` a la ruta del webhook); más la **sincronía de la regla 44** (HIG-28, sin enmendar su
+  contenido más allá de dejarla al día) y la **eventual sincronía de la regla 75** (HIG-13, solo si
+  el fallback sin estimación en vivo resulta necesario — ver HIG-13). Ninguna otra regla, ADR ni
+  matriz cambia. En particular,
+  `precioCajaCents()` **no se toca**, así que la regla 59 de la Spec 03, la regla 3 de la Spec 00
+  y el punto 5 de **ADR-003 quedan intactos** — ver HIG-10. El punto 4 de ADR-003 tampoco se toca:
+  no fija precisión intermedia, así que HIG-14 no lo enmienda — ver HIG-14.
 
 ## Objetivo
 
-Cerrar la distancia entre lo que cuatro specs cerradas afirman y lo que el código hace. Son **23 reglas**: cinco afectan plata o cantidades cobradas, ocho contradicen su spec o devuelven
-500 en producción, y diez están bien implementadas pero **se pueden borrar enteras con los 436 tests
-en verde**.
+Cerrar la distancia entre lo que cuatro specs cerradas afirman y lo que el código hace. Son **25
+reglas**: seis afectan plata o cantidades cobradas, nueve contradicen su spec o devuelven 500 en
+producción (incluido el placeholder duplicado HIG-28a), y diez están bien implementadas pero **se
+pueden borrar enteras con los 436 tests en verde**.
 
-Se entrega en **dos fases**: `03.a` lo que afecta plata y lo que rompe; `03.b` la cobertura. La
+Se entrega en **dos fases**: `03.a` lo que afecta plata y lo que rompe (más HIG-28a, que va en
+03.a solo para no colisionar con HIG-28); `03.b` la cobertura. La
 justificación del corte está en la nota de handoff.
 
 ## Por qué existe esta spec
@@ -90,8 +98,21 @@ regla de negocio enmendada es la 87, que es exactamente lo que esta spec declara
 
 **La regla 87 queda enmendada**, con sincronía fechada en la Spec 05 y en la Spec 04. El texto
 original se conserva, según la regla del repo de que las decisiones se marcan y no se borran. El
-texto de reemplazo se escribe **en esta spec** antes de implementar, para que la sincronía sea
-transcripción y no interpretación.
+texto de reemplazo vive **en esta spec** para que la sincronía sea transcripción y no
+interpretación, y es el siguiente:
+
+> **Regla 87 (texto de reemplazo, 2026-09-16).** `precio_vigente_cents` es el precio del catálogo
+> al momento de la operación que efectivamente se cobra: el **precio de oferta
+> (`precio_oferta_cents`) cuando la oferta está activa** (`tieneOfertaActiva()`, regla 79), y el
+> precio de lista (`precio_cents`) en caso contrario. En modo `unidad` el vigente es ese valor. En
+> modo `m2` el vigente por caja es `round(precio_vigente × m2_por_caja)` con la misma fórmula y el
+> mismo `bcmath` de siempre; esta regla **no introduce ninguna regla de redondeo nueva**. El
+> `subtotal` es la suma de `precio_vigente × cantidad` sobre las líneas comprables (regla 92).
+
+**Guard PA-1 — Decisión del dueño (2026-09-16): la oferta en `0` se rechaza.** `precio_oferta_cents`
+pasa a validarse con `['nullable','integer','min:1']` en `StoreProductRequest.php:27` y
+`UpdateProductRequest.php:27`: un tipeo de `0` devuelve 422 y nunca publica mercadería gratis. No
+se inventa ningún umbral de descuento máximo: un 99 % OFF explícito sigue siendo legítimo.
 
 **Documentos que quedan desactualizados y hay que sincronizar**: `ubiquitous-language.md:20`
 ("Precio por caja"), `:64` ("Subtotal") y el bullet "Líneas" de `arquitectura.md` §Carrito, que
@@ -135,7 +156,9 @@ mezclaba, y la corrección es mucho más barata de lo que parecía):
   `PaymentStatusQuery` y que `.ai/rules/tests.md` ya documenta: cuando el SDK vuelve la costura
   imposible, se afirma lo que sí se puede afirmar en vez de fingir cobertura. Si el implementador
   encuentra una costura razonable —sin reescribir el gateway para hacerlo testeable— puede cubrirlo;
-  no es requisito de esta regla.
+  no es requisito de esta regla. El hueco (guard de `init_point` vacío + `update mp_*`) queda además
+  registrado como deuda conocida en §Nota de handoff, para que la aprobación no se lea como
+  "circuito cubierto".
 
 **Por qué importa**: si esa línea desaparece, los 436 tests siguen verdes y **cada pago aprobado cae
 en `webhook.order_not_found`**: el webhook no puede encontrar el pedido, queda en `PendingPayment`
@@ -164,13 +187,20 @@ que no pase por el Form Request —seeder, importador, corrección a mano en la 
   daría al cliente un 500 al abrir el carrito — exactamente el modo de falla que HIG-15 y HIG-19
   vienen a eliminar en este mismo documento.
 
+  **Esto agrega una tercera condición a la regla 92** (comprable = `activo && cantidad ≤ stock` **&&
+  en modo `M2`, `m2_por_caja` presente**): es una **enmienda a la regla 92**, con sincronía fechada
+  en la Spec 05. El fondo no cambia — la alternativa (lanzar en lectura) rompería la página —, pero
+  no puede entrar en silencio. La línea no comprable por esta causa **no exhibe precio ni subtotal**
+  (el `?? 0` de `Cart.php:70` no llega a la vista), coherente con HIG-17: informar sin números
+  inventados.
+
 **Por qué importa**: el pedido se crea con `subtotal_cents: 0` y total = solo envío, MercadoPago cobra
 el envío, y la auditoría registra el cero sin ningún error. No hay sincronía que enmiende esto: el
 código y la spec dicen cosas distintas y la diferencia es plata.
 
 ### HIG-13. Una sola calculadora m²→cajas
 
-**Estado actual**: la regla 75 y `docs/arquitectura.md:208-212` fijan a `M2Calculator` como *"único
+**Estado actual**: la regla 75 y `docs/arquitectura.md` §Catálogo y carrito fijan a `M2Calculator` como *"único
 lugar de las reglas de redondeo"*, y la Spec 05 dice que el carrito *"no duplica la lógica"*. El
 carrito cumple (`CartController.php:110-130`). La **ficha no**: tiene su propia calculadora escrita a
 mano en JavaScript (`resources/views/public/producto.blade.php:172-206`), con aritmética de punto
@@ -196,11 +226,22 @@ Los dos primeros son error de flotante puro (`12.65 / 1.15 = 11.000000000000002`
 `ceil` lo lleva a 12) y caen justo en los números redondos que el cliente tipea.
 
 **Corrección**: la ficha deja de calcular por su cuenta y consume el resultado **ya calculado en el
-servidor**, sin ruta HTTP nueva. Descartada explícitamente la alternativa de consultar al servidor al
+servidor**, sin ruta HTTP nueva. En concreto: el render inicial pinta el número que calcula
+`M2Calculator` en el servidor para los valores precargados, el bloque Alpine
+(`resources/views/public/producto.blade.php:172-206`, `parseFloat`/`Math.ceil`) **se elimina** y se
+reemplaza por la presentación de ese resultado, y al enviar manda lo que calcula el servidor al
+agregar al carrito (igual que hoy: la fuente de verdad al comprar ya es el servidor). Descartada explícitamente la alternativa de consultar al servidor al
 tipear: exigiría una ruta pública que ninguna spec autoriza y que no figura en ninguna matriz de
 permisos, y `AGENTS.md` §Arquitectura y dominio prohíbe introducirla sin respaldo de spec. El
 requisito no negociable es que **el número que muestra la ficha y el que arma el carrito salgan del
-mismo cálculo**, con un test que falle si vuelven a divergir.
+mismo cálculo**, con un test que falle si vuelven a divergir. Si al tipear valores arbitrarios la
+ficha no puede estimar en vivo sin calcular por su cuenta, entonces **no estima en vivo**: muestra el
+cálculo inicial y el número definitivo lo pone el carrito al agregar. Ese cambio de UX —dejar de
+prometer estimación interactiva— es parte declarada de esta regla, no un efecto colateral. Si ese
+fallback resulta necesario, la regla 75 de la Spec 04 (el cliente ingresa dimensiones o m² y ve m² +
+cajas) deja de cumplirse en la ficha y pasa a ser una quinta regla enmendada, con su sincronía
+fechada en la Spec 04; si la ficha conserva estimación en vivo con el cálculo unificado, la 75 no se
+toca. La tarea de sincronía ya lista Spec 04 para HIG-13, así que ningún caso entra en silencio.
 
 **Además**: la calculadora y el formulario de compra son hoy dos widgets independientes —la
 calculadora acepta largo × ancho, el formulario solo superficie—, así que el cliente está obligado a
@@ -217,9 +258,14 @@ está tres centímetros más arriba, y el carrito le arma 11. Es la superficie d
 (`bcdiv(..., '100', 2)`), así que 1,05 m² + 10 % = 1,155 m² se convierte en 1,15 m² y el carrito
 cotiza **una sola caja de 1,15 m²** para cubrir una superficie de 1,155 m².
 
-**Corrección**: el truncamiento no puede comerse el margen que el cliente pidió explícitamente. Queda
-a criterio del implementador si se sube la precisión intermedia o si el redondeo se hace hacia arriba;
-el requisito es que **las cajas cotizadas cubran siempre la superficie con desperdicio incluido**.
+**Corrección**: el truncamiento no puede comerse el margen que el cliente pidió explícitamente. El
+mecanismo fijado es **subir la precisión intermedia** (no redondear hacia arriba el intermedio):
+la superficie con desperdicio se calcula con precisión suficiente para no perder el margen y el
+`ceil` final se aplica sobre esa superficie completa; el requisito es que **las cajas cotizadas
+cubran siempre la superficie con desperdicio incluido**. Se descarta el redondeo hacia arriba del
+valor intermedio porque cambia otros bordes de forma distinta con el mismo test en verde. Esto
+**no enmienda ADR-003 punto 4**: ese punto no fija precisión intermedia, solo centavos + `bcmath`,
+y así se deja escrito.
 
 **Por qué importa**: el desperdicio existe para que el cliente tenga margen de corte y roturas. En las
 superficies chicas hoy va la caja justa, que es precisamente lo contrario de lo que la regla promete.
@@ -254,7 +300,7 @@ La regla 37 dice, textual: *"Un usuario se desactiva, **nunca se borra**"*.
 
 **Por qué importa**: hoy cualquier disparo de ese verbo devuelve un 500 en producción en vez de un 403
 o un 404. Pero lo más caro es el contrato: la app **anuncia** una operación de borrado de usuarios que
-las Specs 00 y 01 prohíben, y `UserPolicy` no tiene `delete`. Si alguien implementa el método viendo
+la Spec 01 (regla 37) prohíbe, y `UserPolicy` no tiene `delete`. Si alguien implementa el método viendo
 `usuarios.destroy` en `route:list`, el borrado queda autorizado **solo por el middleware `role:admin`**
 — exactamente el patrón que HIG-06 y la regla 159 tuvieron que corregir.
 
@@ -284,7 +330,15 @@ evento `topic_merchant_order_wh`).
 **Corrección**: aceptar GET en la ruta y responder 200 a todo lo que no sea una notificación de
 `payment` procesable. **La firma sigue siendo obligatoria** para lo que sí se procesa (regla 154): esta
 corrección no abre una puerta sin autenticar, solo deja de rechazar por verbo lo que la regla ya manda
-ignorar con un 200.
+ignorar con un 200. Todo GET ignorado que traiga parámetros de notificación de MercadoPago deja
+rastro en la auditoría como `webhook.ignored` — un ignorado silencioso sin audit sería una pérdida
+invisible. Un GET pelado (bots, health checks, sin parámetros MP) responde 200 sin auditar: no se
+ensucia `audit_logs`, inmutable por ADR-004, con tráfico que nunca fue una notificación.
+
+**Decisión del dueño (2026-09-16, convalidada)**: un pago genuino entregado por GET se ignora con
+200 y no se procesa — aceptar un pago por GET sería inventar un formato que el proveedor no usa
+(entregas por POST verificadas el 2026-09-12). Si MercadoPago alguna vez entrega pagos por GET, se
+reabre esta regla.
 
 **Por qué importa**: cada entrega por GET —el IPN viejo lo usa— queda marcada como fallida del lado de
 MercadoPago y entra en su ciclo de reintentos, que es precisamente lo que la regla 153 quiere evitar.
@@ -326,8 +380,9 @@ stock' … **y sin acción de compra**"*. El badge está; el formulario de
 `resources/views/public/producto.blade.php:77-99` **no está condicionado por el stock** y se renderiza
 siempre, con su botón "Agregar al carrito".
 
-**Corrección**: **no renderizar** el formulario cuando `stock <= 0`, coherente con lo que el
-carrito ya hace con su botón "Finalizar compra".
+**Corrección**: **no renderizar** el formulario cuando `stock <= 0`. En el carrito el avance se
+deshabilita sin esconderse (`cart/show.blade.php:55-59`: `span` deshabilitado si `hasUnpurchasable`);
+en la ficha no hay avance parcial posible, así que lo coherente acá es no renderizar el form.
 
 **Por qué importa**: el servidor rechaza igual (`Cart::add` lanza `DomainException`), así que **no se
 vende lo que no hay**: es ruido, no plata. Pero es literalmente lo que la regla prohíbe, y se coló
@@ -369,6 +424,37 @@ no hay riesgo de datos. El riesgo es de URL: el admin escribe `porcelanato-gris`
 guarda sin ver ningún error, y la URL publicada es `porcelanato-gris-2`. El folleto, el QR o el aviso
 apuntan a otro producto o a un 404.
 
+### HIG-28a. Eliminar el placeholder "Pedidos" duplicado (03.a)
+
+**Estado actual**: `navigation.blade.php:79` muestra un placeholder deshabilitado "Pedidos" mientras
+`:22` ya es el link real (Spec 08.c). El único placeholder legítimo es "Ventas WhatsApp" (`:86`),
+coherente con que esa venta quedó fuera del MVP.
+
+**Corrección (Decisión del dueño 2026-09-16)**: eliminar el placeholder duplicado en 03.a, junto al
+resto de cambios visibles. La sincronía de la regla 44 y los tests del sidebar quedan en HIG-28
+(03.b): separar así evita que las dos ramas toquen `navigation.blade.php` y la regla 44 en
+paralelo.
+
+### HIG-33. La auditoría de precios cubre `precio_oferta_cents` (PA-2 resuelto)
+
+**Decisión del dueño (2026-09-16): `product.price_changed` pasa a cubrir `precio_oferta_cents`.**
+
+**Estado actual**: la regla 68 audita los cambios de precio para poder responder *"¿a qué precio
+estaba antes y desde cuándo se vendió mal?"* (Higiene 02 la arregló con HIG-04).
+`UpdateProductAction.php:63-77` captura anteriores y registra únicamente `precio_cents`. Después de
+HIG-10, **cambiar `precio_oferta_cents` cambia lo que se cobra y no deja rastro**.
+
+**Corrección**: `UpdateProductAction` captura el anterior de `precio_oferta_cents` (igual que
+HIG-04 hizo con precio y stock) y registra `product.price_changed` cuando cambia la lista, la
+oferta, o ambas — con claves fijas `previous_precio_cents`, `new_precio_cents`,
+`previous_oferta_cents` y `new_oferta_cents` (las de oferta van en `null` cuando no hay oferta de
+ese lado). Es **enmienda a la regla 68**, con sincronía
+fechada en la Spec 03.
+
+**Por qué importa**: sin esto, una oferta mal cargada que se cobró durante días no se puede
+reconstruir: la pregunta que la regla 68 promete contestar queda sin respuesta justo para el campo
+que ahora cobra.
+
 ## Fase 03.b — Cobertura: lo que hoy se puede borrar en verde
 
 Todo lo de esta fase **ya está bien implementado**. Lo que falta es que algo falle si alguien lo borra.
@@ -381,7 +467,10 @@ pero **solo en la capa HTTP** (`Rule::unique` en los Form Requests). La tabla `c
 índice único: su único índice es `categories_pkey`. Compará con `products.slug`, que sí lo tiene
 (`2026_08_06_022248_add_slug_to_products_table.php:30`).
 
-**Corrección**: migración que agregue los dos índices únicos.
+**Corrección**: migración que agregue los dos índices únicos, con **pre-chequeo en PHP que liste
+los duplicados antes del `ADD CONSTRAINT`**: si el entorno ya tiene duplicados, la migración falla
+de forma legible nombrando los slugs en conflicto, no con el error crudo de Postgres. Test que
+seedea duplicados y corre la migración esperando ese fallo legible.
 
 **Por qué está en 03.b y no en 03.a**: no hay ningún defecto observado. `CategoriesSeeder` usa
 `updateOrCreate(['slug' => ...])`, no existe importador de categorías, y la unicidad HTTP está
@@ -483,8 +572,8 @@ escribir el test** — si no, se codifica una regla que ya no es cierta:
 - La regla **no menciona Despacho** (`:32`, Spec 08) ni **Tarifas de envío** (`:66`, Spec 06), que
   están en el sidebar.
 - El único placeholder legítimo que queda es **Ventas WhatsApp** (`:86`) — coherente con que la venta
-  por WhatsApp haya quedado fuera del MVP. El placeholder de Pedidos (`:79`) es el duplicado que esta
-  spec manda borrar.
+  por WhatsApp haya quedado fuera del MVP. El placeholder de Pedidos (`:79`) es el duplicado que
+  HIG-28a borra en 03.a.
 
 **Corrección**: sincronía fechada en la Spec 02 que deje la regla 44 al día —placeholders reales y
 secciones admin-only completas, incluidas Productos y Tarifas de envío—, y recién después los tests:
@@ -589,36 +678,32 @@ borrar usuarios. No hace falta enmendar la Spec 01; el código pasa a cumplirla.
 El resto de las correcciones opera dentro de permisos ya establecidos. HIG-24 **no** cambia quién puede
 hacer qué: agrega tests sobre el control que ya existe.
 
-## Puntos abiertos — decisiones que faltan del dueño
+## Puntos abiertos — decisiones del dueño (resueltas 2026-09-16)
 
-Los tres que había (la columna de HIG-19, el `unique` de HIG-22 y el orden de HIG-29) quedaron
-resueltos el 2026-09-15 y están anotados en sus reglas. La revisión de `revisor-spec` destapó **dos
-más**, los dos derivados de que HIG-10 convierte un campo de exhibición en un campo que cobra:
+Los tres originales (la columna de HIG-19, el `unique` de HIG-22 y el orden de HIG-29) quedaron
+resueltos el 2026-09-15 y están anotados en sus reglas. Los dos que destapó `revisor-spec`
+quedaron resueltos el 2026-09-16 y están anotados en sus reglas: **PA-1** (oferta en `0` →
+`min:1`, ver HIG-10) y **PA-2** (`product.price_changed` cubre `precio_oferta_cents`, ver HIG-33).
+No quedan puntos abiertos: el alcance de 03.a está cerrado en 25 reglas.
 
-### PA-1. Una oferta en `0` publica mercadería gratis
+### PA-1. Una oferta en `0` publica mercadería gratis — resuelto: `min:1`
 
-`precio_oferta_cents` se valida hoy con `['nullable','integer','min:0']`
-(`StoreProductRequest.php:27`, `UpdateProductRequest.php:27`) porque es un dato que solo se muestra.
-Con HIG-10 pasa a ser el precio que se cobra, y `tieneOfertaActiva()` devuelve `true` con `0 <
-precio_cents`: **un tipeo de `0` en el panel publica el producto gratis**, sin ningún guard, y el
-pedido se crea con `subtotal_cents: 0` — el mismo agujero que HIG-12 cierra por el otro lado.
+`precio_oferta_cents` se validaba con `['nullable','integer','min:0']`
+(`StoreProductRequest.php:27`, `UpdateProductRequest.php:27`) porque era un dato que solo se
+mostraba. Con HIG-10 pasa a ser el precio que se cobra, y `tieneOfertaActiva()` devuelve `true`
+con `0 < precio_cents`.
 
-Opciones: mínimo de 1 centavo; un umbral de descuento máximo (por ejemplo, rechazar ofertas de más
-del 70 %); o aceptar el 0 como legítimo. **Recomiendo el mínimo de 1 centavo**: es el guard más
-barato, no inventa una regla de negocio sobre cuánto se puede descontar, y deja la puerta abierta a
-un umbral si alguna vez hace falta.
+**Decisión del dueño (2026-09-16): mínimo de 1 centavo.** Es el guard más barato, no inventa una
+regla de negocio sobre cuánto se puede descontar, y deja la puerta abierta a un umbral si alguna
+vez hace falta. Ver HIG-10.
 
-### PA-2. El precio que pasa a cobrarse queda fuera de la auditoría
+### PA-2. El precio que pasa a cobrarse queda fuera de la auditoría — resuelto: se audita
 
-La regla 68 audita los cambios de precio para poder responder *"¿a qué precio estaba antes y desde
-cuándo se vendió mal?"* — es la regla que Higiene 02 tuvo que arreglar con HIG-04.
-`UpdateProductAction.php:67,73` registra únicamente `precio_cents`. Después de HIG-10, **cambiar
-`precio_oferta_cents` cambia lo que se cobra y no deja rastro**, que es exactamente la pregunta que la
-regla 68 promete contestar.
+La regla 68 audita los cambios de precio; `UpdateProductAction.php:63-77` registraba únicamente
+`precio_cents`.
 
-**Recomiendo que `product.price_changed` pase a cubrir `precio_oferta_cents`.** Si el dueño está de
-acuerdo, es una regla más de 03.a y una sincronía en la Spec 03; si no, queda anotado que la
-auditoría de precios tiene un hueco conocido.
+**Decisión del dueño (2026-09-16): `product.price_changed` pasa a cubrir `precio_oferta_cents`.**
+Es la regla HIG-33 de 03.a, con sincronía en la Spec 03.
 
 ## Casos borde
 
@@ -629,6 +714,11 @@ auditoría de precios tiene un hueco conocido.
 - **HIG-10** — oferta que cambia mientras el producto está en el carrito: el carrito deriva en lectura
   (regla 92), así que el precio mostrado sigue al catálogo hasta que se crea el pedido. Es el
   comportamiento actual y no cambia.
+- **HIG-10 / PA-1** — oferta en `0`: se rechaza con 422 en create y en update. Oferta `null`
+  (sin oferta): se cobra lista, sin audit de oferta si nada más cambió.
+- **HIG-33** — oferta que se quita (pasa a `null`) o que se crea desde `null`: también deja
+  `product.price_changed` con su anterior/nuevo. Cambio solo de `precio_cents` con oferta activa:
+  audita ambos valores igual, porque lo cobrado pudo cambiar por las dos vías.
 - **HIG-12** — producto en modo `Unidad` sin `m2_por_caja`: correcto, sigue siendo `null`. La excepción
   es **solo** para modo `M2`.
 - **HIG-13** — producto `M2` sin `m2_por_caja` en la ficha: la calculadora no se muestra (hoy tampoco),
@@ -653,28 +743,31 @@ auditoría de precios tiene un hueco conocido.
   envía: manda lo que calcula el servidor al agregar al carrito. Es la misma clase de dato que cambia
   entre dos momentos del flujo que la regla 92 ya resuelve en lectura.
 - **HIG-23** — la migración de índices únicos corre sobre un entorno con duplicados preexistentes
-  (en staging las migraciones son un step manual, `docs/deployment/staging.md`): debe fallar de forma
-  legible, nombrando los slugs en conflicto, no con el error crudo de Postgres.
+  (en staging las migraciones son un step manual, `docs/deployment/staging.md`): el pre-chequeo en
+  PHP falla de forma legible, nombrando los slugs en conflicto, no con el error crudo de Postgres.
 
 ## Fuera de alcance
 
 **Higiene documental pura, que no necesita spec aprobada.** Va en un PR `docs:` aparte, en paralelo:
 
-- `AGENTS.md` abre con el bloque de Laravel Boost —en inglés, contra la regla 4— que manda correr
+- `AGENTS.md` abre con el bloque de Laravel Boost —en inglés, contra la regla de idioma
+  ("toda la documentación en español")— que manda correr
   `php artisan` y `npm` directamente en el host, donde `which php` devuelve *not found*. La corrección
   aparece 250 líneas más abajo. Hay que reordenarlo o anotarlo al pie.
 - `docs/specs/02-panel-categorias.md:18` dice *"CRUD de categorías **jerárquicas**"*, contra su propia
   regla 45. En el código no quedó nada de la versión jerárquica.
-- `docs/arquitectura.md:208-215` afirma que `M2Calculator` es el único lugar del redondeo y que no hay
-  acción de compra sin stock. Se corrige **después** de HIG-13 y HIG-21, cuando pase a ser cierto.
+- `docs/arquitectura.md` §Catálogo y carrito afirma que `M2Calculator` es el único lugar del redondeo
+  y que no hay acción de compra sin stock. Se corrige **después** de HIG-13 y HIG-21, cuando pase a
+  ser cierto.
 - El runbook del README: credenciales concretas del admin de desarrollo, `assets` en la lista de
   contenedores del paso 2, y mención de la base `ceramica_test`.
 
 **Reclasificados — no son `docs:` y no van en ese PR**:
 
 - **El placeholder "Pedidos" duplicado** (`navigation.blade.php:79` contra el link real de `:22`)
-  **pasa a 03.a**, dentro de HIG-28: es UI, y además colisiona con la sincronía de la regla 44 que esa
-  regla necesita. Hacerlo en dos PRs en paralelo garantiza conflicto.
+  **va en 03.a como HIG-28a**: es UI visible, y además colisiona con la sincronía de la regla 44 que
+  HIG-28 necesita en 03.b. Hacerlo en dos PRs en paralelo garantizaría conflicto, así que el borrado
+  va con los cambios visibles y la sincronía+tests después.
 - **`npm install` → `npm ci`** en `docker-compose.yml:81` y `Makefile:58` cambia el comportamiento de
   `make setup` y `make npm-build`: por la convención de commits del repo es **`chore:`**, no `docs:`.
   Va en su propio PR.
@@ -700,39 +793,53 @@ auditoría de precios tiene un hueco conocido.
 
 ## Criterios de aceptación
 
-**Fase 03.a** (HIG-10 a HIG-22)
+**Fase 03.a** (HIG-10 a HIG-22 más HIG-28a y HIG-33)
 
 - [ ] HIG-10: un producto con oferta activa se cobra al precio de oferta en el carrito, en el pedido y
       en el payload de MercadoPago, en modo `unidad` y en modo `m2`. `precioCajaCents()` **sigue
       derivando del precio de lista** (regla 59 y ADR-003 intactas). La regla 87 queda enmendada con
-      sincronía fechada en las Specs 05 y 04, y el glosario gana la fila de `precio vigente`.
+      el texto de reemplazo de esta spec, sincronía fechada en las Specs 05 y 04, y el glosario gana
+      la fila de `precio vigente`. Una oferta en `0` se rechaza con 422 (`min:1`, PA-1).
 - [ ] HIG-11: los tests que ya inspeccionan el payload **assertan `external_reference`** y fallan si
-      se borra. El cuerpo de `paymentUrl()` queda declarado sin cubrir, con su motivo escrito.
+      se borra. El cuerpo de `paymentUrl()` queda declarado sin cubrir, con su motivo escrito y
+      registrado como deuda en §Nota de handoff.
 - [ ] HIG-12: `PlaceOrderAction` lanza `DomainException` con un producto `M2` sin `m2_por_caja`,
       invocada directamente; y `GET /carrito` con ese mismo producto **responde 200** con la línea
-      marcada no comprable.
+      marcada no comprable y sin precio ni subtotal exhibidos. **Enmienda a la regla 92** con
+      sincronía en la Spec 05.
 - [ ] HIG-13: la ficha y el carrito devuelven **11, 22 y 2** cajas en los tres casos de la tabla, con
-      test que falla si vuelven a divergir.
-- [ ] HIG-14: las cajas cotizadas cubren la superficie con el desperdicio incluido; test en el borde
-      (1,05 m² + 10 % → 2 cajas).
+      test que falla si vuelven a divergir. El bloque Alpine de la ficha se elimina; sin ruta nueva;
+      si la ficha no puede estimar en vivo, no estima en vivo.
+- [ ] HIG-14: las cajas cotizadas cubren la superficie con el desperdicio incluido por **precisión
+      intermedia suficiente** (no redondeo hacia arriba del intermedio); test en el borde
+      (1,05 m² + 10 % → 2 cajas). ADR-003 punto 4 intacto.
 - [ ] HIG-15: `sort_order` vacío crea y edita la categoría sin error; test con `sort_order => ''` en
       create y en update.
 - [ ] HIG-16: `DELETE /admin/usuarios/{user}` no existe en `route:list`.
 - [ ] HIG-17: la línea de carrito con stock ≤ 0 no muestra ningún número; test que falla si se quita la
       guarda.
-- [ ] HIG-18: `GET /webhook/mercadopago` responde 200; la firma sigue siendo obligatoria para procesar
-      un pago. **Sincronía en la Spec 08**: regla 153 y su fila de matriz de permisos.
+- [ ] HIG-18: `GET /webhook/mercadopago` responde 200; el GET con parámetros MP ignorado deja
+      `webhook.ignored` en la auditoría y el GET pelado no audita; la firma sigue siendo obligatoria
+      para procesar
+      un pago. **Sincronía en la Spec 08**: regla 153 y su fila de matriz de permisos. Un pago genuino
+      por GET se ignora por diseño (decisión del dueño 2026-09-16).
 - [ ] HIG-19: `shipping_address` acepta 500 en columna y validación; test en el borde de 500.
 - [ ] HIG-20: la pantalla de éxito muestra los siete campos de la regla 119.
 - [ ] HIG-21: con stock ≤ 0 **no se renderiza** el formulario de compra.
 - [ ] HIG-22: un slug escrito por el admin que colisiona da error de validación; un slug vacío sigue
       recibiendo el sufijo; en edición el producto no colisiona consigo mismo. El docblock de
       `ProductSlugGenerator` y `ProductSlugTest` dicen lo mismo que el código.
+- [ ] HIG-28a: el placeholder "Pedidos" duplicado (`navigation.blade.php:79`) no se renderiza; el link
+      real (`:22`) y "Ventas WhatsApp" (`:86`) quedan como están.
+- [ ] HIG-33: cambiar solo `precio_oferta_cents` (incluido quitarla a `null`) deja `product.price_changed`
+      con las cuatro claves fijas (`previous/new_precio_cents`, `previous/new_oferta_cents`); mutar
+      la auditoría de oferta pone un test en rojo.
+      **Enmienda a la regla 68** con sincronía en la Spec 03.
 
 **Fase 03.b** (HIG-23 a HIG-32)
 
-- [ ] HIG-23: migración con índices únicos en `categories.name` y `categories.slug`, que falla de
-      forma legible si el entorno ya tiene duplicados.
+- [ ] HIG-23: migración con índices únicos en `categories.name` y `categories.slug`, con pre-chequeo
+      en PHP que lista los duplicados; test que seedea duplicados y espera el fallo legible.
 - [ ] HIG-24: tests unitarios de `UserPolicy` que **fallan si la Policy devuelve `true` a cualquiera**,
       sin depender del middleware.
 - [ ] HIG-25: test del bloqueo al sexto intento y de la limpieza del contador tras un login válido.
@@ -740,8 +847,8 @@ auditoría de precios tiene un hueco conocido.
 - [ ] HIG-27: `ADMIN_*` fijadas en `phpunit.xml`; test del `DatabaseSeeder` (3 roles, 1 admin activo,
       4 categorías), test de idempotencia corriéndolo dos veces, y el seeder falla con un mensaje que
       nombra la variable ausente si falta `ADMIN_EMAIL`.
-- [ ] HIG-28: sincronía de la regla 44 en la Spec 02 **antes** de los tests; placeholder "Pedidos"
-      duplicado eliminado; tests del sidebar por rol afirmando el `href` exacto.
+- [ ] HIG-28: sincronía de la regla 44 en la Spec 02 **antes** de los tests; tests del sidebar por
+      rol afirmando el `href` exacto. El borrado del placeholder duplicado ya lo hizo HIG-28a en 03.a.
 - [ ] HIG-29: test que asserta las tarjetas realmente renderizadas y el orden por nombre, con nombres
       cuyo orden alfabético difiera del de inserción.
 - [ ] HIG-30: test HTTP del borrado de categoría con productos y test del orden del listado del panel,
@@ -763,12 +870,13 @@ auditoría de precios tiene un hueco conocido.
 
 ## Tareas técnicas
 
-- [ ] Este documento → revisión de `revisor-spec` (hecha el 2026-09-15, correcciones aplicadas) →
-      **aprobación del dueño**.
-- [ ] Resolver los dos puntos abiertos de §Puntos abiertos: **PA-1** (la oferta en `0`) y **PA-2** (si
-      la auditoría de precios cubre `precio_oferta_cents`). Los tres anteriores ya están resueltos.
-- [ ] Escribir el **texto de reemplazo de la regla 87** en esta spec antes de implementar, para que la
-      sincronía sea transcripción y no interpretación.
+- [x] Este documento → revisión de `revisor-spec` (hecha el 2026-09-15, correcciones aplicadas;
+      segunda vuelta 2026-09-16 con PA-1/PA-2/HIG-28 resueltos, texto de reemplazo de la regla 87 y
+      ajustes de segunda revisión, veredicto: aprobable) →
+      **aprobación del dueño (2026-09-16)**.
+- [ ] Puntos abiertos PA-1/PA-2 cerrados el 2026-09-16 y anotados en HIG-10/HIG-33. No quedan puntos
+      abiertos.
+- [ ] Texto de reemplazo de la regla 87 escrito en HIG-10: la sincronía es transcripción.
 - [ ] Rama `fix/higiene-03a` **desde `main`** — la Higiene 02 se cortó de otra rama y arrastró 10
       commits ajenos; no repetir.
 - [ ] TDD en este orden: **HIG-14 antes que HIG-13** (si no, la fila 3 de la tabla se unifica en el
@@ -777,9 +885,11 @@ auditoría de precios tiene un hueco conocido.
 - [ ] Rama `fix/higiene-03b` desde `main` ya con 03.a mergeada.
 - [ ] PR `docs:` aparte con la higiene documental de §Fuera de alcance, y un PR `chore:` propio para
       `npm ci`.
-- [ ] Anotar las sincronías: Specs 05 y 04 más el glosario y `arquitectura.md` (HIG-10), Spec 08
+- [ ] Anotar las sincronías: Specs 05 y 04 más el glosario y `arquitectura.md` (HIG-10, HIG-13 y
+      eventual regla 75), Spec 05
+      regla 92 (HIG-12), Spec 03 regla 68 (HIG-33), Spec 08
       regla 153 y su matriz (HIG-18), Spec 04 (HIG-13, HIG-21), Spec 07.3 (HIG-20), Spec 02 regla 44
-      (HIG-28).
+      (HIG-28) y `arquitectura.md` §Panel y categorías (HIG-28a: ya no hay placeholder de Pedidos).
 - [ ] Actualizar `docs/arquitectura.md` **después** de HIG-13 y HIG-21.
 - [ ] Actualizar `docs/roadmap.md` al cerrar cada fase.
 
@@ -803,3 +913,8 @@ apariciones conocidas, pero no hay ningún test estructural que impida una terce
 después de esta spec, un test de más alto nivel que recorra ficha → carrito → pedido → payload de
 MercadoPago sobre el mismo producto y verifique que el número es el mismo en las cuatro superficies.
 Sería el único test del repo que cubriría la clase entera de defecto en lugar de sus instancias.
+
+**Deuda conocida que 03.a deja abierta.** El cuerpo de `paymentUrl()` (`MercadoPagoGateway.php:91-107`,
+guard de `init_point` vacío + `update mp_*`) queda declarado sin cubrir (HIG-11): el SDK (`PreferenceClient`
+`final`) vuelve la costura imposible sin reescribir el gateway. La aprobación de esta spec **no** se lee
+como "circuito cubierto": ese tramo lo ejercita la verificación manual con túnel.
