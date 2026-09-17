@@ -92,11 +92,32 @@ test('el slug editable no cambia al editar sin modificarlo', function () {
     $this->assertSame('porcelanato-gris', $product->refresh()->slug);
 });
 
-test('el admin puede editar el slug a uno ya existente con sufijo', function () {
+test('el admin recibe error de validación al escribir un slug que ya existe (HIG-22)', function () {
+    $admin = User::factory()->withRole(UserRole::Admin)->create();
+    $category = Category::factory()->create();
+    Product::factory()->create(['name' => 'Porcelanato Gris', 'slug' => 'porcelanato-gris']);
+
+    $this->actingAs($admin)->post('/admin/productos', [
+        'category_id' => $category->id,
+        'name' => 'Otro Porcelanato',
+        'slug' => 'porcelanato-gris',
+        'codigo' => 'ILV-40005',
+        'precio_cents' => 100000,
+        'unidad_venta' => ProductSaleUnit::M2->value,
+        'm2_por_caja' => '1.15',
+        'stock' => 1,
+        'activo' => 1,
+    ])->assertSessionHasErrors('slug');
+
+    $this->assertDatabaseMissing('products', ['codigo' => 'ILV-40005']);
+});
+
+test('el admin recibe error de validación al editar el slug a uno ya existente (HIG-22)', function () {
     $admin = User::factory()->withRole(UserRole::Admin)->create();
     $category = Category::factory()->create();
     Product::factory()->create(['name' => 'Porcelanato Gris', 'slug' => 'porcelanato-gris']);
     $product = Product::factory()->create(['name' => 'Otro', 'category_id' => $category->id]);
+    $slugOriginal = $product->slug;
 
     $this->actingAs($admin)->patch(route('productos.update', $product), [
         'category_id' => $product->category_id,
@@ -108,9 +129,9 @@ test('el admin puede editar el slug a uno ya existente con sufijo', function () 
         'm2_por_caja' => $product->m2_por_caja,
         'stock' => $product->stock,
         'activo' => 1,
-    ])->assertSessionHasNoErrors();
+    ])->assertSessionHasErrors('slug');
 
-    $this->assertSame('porcelanato-gris-2', $product->refresh()->slug);
+    $this->assertSame($slugOriginal, $product->refresh()->slug);
 });
 
 test('un slug con caracteres inválidos es rechazado', function () {
