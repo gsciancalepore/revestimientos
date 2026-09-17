@@ -348,3 +348,39 @@ test('el bloqueo de productos al crear el pedido pide las filas ordenadas por id
     expect($lock)->not->toBeNull();
     expect($lock)->toContain('order by "id" asc');
 });
+
+// HIG-12: un producto M2 sin `m2_por_caja` no se vende a precio cero.
+test('producto m2 sin m2 por caja lanza DomainException bajo lock y no crea pedido (HIG-12)', function () {
+    $product = Product::factory()->create([
+        'activo' => true,
+        'stock' => 10,
+        'precio_cents' => 10000,
+        'unidad_venta' => 'm2',
+        'm2_por_caja' => null,
+    ]);
+    cartConPrevalidacionVieja($product, 1);
+
+    expect(fn () => app(PlaceOrderAction::class)->execute('Juan', 'juan@test.com', '1122334455', '1407', null, 'transferencia'))
+        ->toThrow(DomainException::class);
+
+    expect(Order::count())->toBe(0);
+});
+
+test('producto m2 sin m2 por caja figura no comprable en el carrito sin precio (HIG-12)', function () {
+    $product = Product::factory()->create([
+        'activo' => true,
+        'stock' => 10,
+        'precio_cents' => 10000,
+        'unidad_venta' => 'm2',
+        'm2_por_caja' => null,
+    ]);
+    app(Cart::class)->putItems([$product->id => 1]);
+
+    $lines = app(Cart::class)->lines();
+    expect($lines->first()['comprable'])->toBeFalse();
+
+    $this->get(route('carrito.show'))
+        ->assertOk()
+        ->assertSee('No comprable')
+        ->assertDontSee('por caja');
+});

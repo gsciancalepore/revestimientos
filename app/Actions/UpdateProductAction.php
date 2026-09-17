@@ -66,13 +66,20 @@ class UpdateProductAction
         // se captura antes; leerlo después devolvía el valor recién guardado.
         $previousPrecioCents = (int) $product->getOriginal('precio_cents');
         $previousStock = (int) $product->getOriginal('stock');
+        // HIG-33: la oferta también se cobra (HIG-10), así que su cambio deja
+        // rastro con las mismas garantías que el precio de lista.
+        $previousOfertaCents = $product->getOriginal('precio_oferta_cents') !== null
+            ? (int) $product->getOriginal('precio_oferta_cents')
+            : null;
 
         $product->save();
 
-        if (isset($changes['precio_cents'])) {
+        if (isset($changes['precio_cents']) || isset($changes['precio_oferta_cents'])) {
             $this->recorder->record('product.price_changed', $product, [
-                'previous' => $previousPrecioCents,
-                'new' => $product->precio_cents,
+                'previous_precio_cents' => $previousPrecioCents,
+                'new_precio_cents' => $product->precio_cents,
+                'previous_oferta_cents' => $previousOfertaCents,
+                'new_oferta_cents' => $product->precio_oferta_cents,
             ]);
         }
 

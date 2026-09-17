@@ -44,8 +44,9 @@ class Cart
     /**
      * Líneas enriquecidas con producto, precio y condición comprable.
      *
-     * Condición derivada al leer (Spec 05, regla 92):
-     * comprable = activo && cantidad <= stock.
+     * Condición derivada al leer (Spec 05, regla 92, enmendada por HIG-12):
+     * comprable = activo && cantidad <= stock && (en modo M2, `m2_por_caja`
+     * presente). La lectura no lanza: la línea se marca no comprable.
      *
      * @return Collection<int, array{product: Product, cantidad: int, precioUnitario: int, subtotal: int, comprable: bool}>
      */
@@ -67,8 +68,9 @@ class Cart
                 return null;
             }
 
-            $precioUnitario = $product->isM2Mode() ? ($product->precioCajaCents() ?? 0) : $product->precio_cents;
-            $comprable = $product->activo && $cantidad <= $product->stock && $cantidad >= 1;
+            $precioUnitario = $product->isM2Mode() ? ($product->precioVigenteCajaCents() ?? 0) : $product->precioVigenteCents();
+            $comprable = $product->activo && $cantidad <= $product->stock && $cantidad >= 1
+                && (! $product->isM2Mode() || $product->m2_por_caja !== null);
 
             return [
                 'product' => $product,

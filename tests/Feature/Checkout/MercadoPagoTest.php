@@ -232,6 +232,7 @@ test('auto_return se envía cuando la back_url es pública', function () {
 
     expect($payload['auto_return'])->toBe('approved');
     expect($payload['back_urls']['success'])->toContain('revestimientos.onrender.com');
+    expect($payload['external_reference'])->toBe((string) $order->id);
 });
 
 test('auto_return se omite cuando la back_url es localhost', function () {
@@ -245,6 +246,7 @@ test('auto_return se omite cuando la back_url es localhost', function () {
 
     expect($payload)->not->toHaveKey('auto_return');
     expect($payload['back_urls']['success'])->toContain('localhost');
+    expect($payload['external_reference'])->toBe((string) $order->id);
 });
 
 test('auto_return se omite cuando la back_url apunta a una IP privada', function () {
@@ -257,6 +259,7 @@ test('auto_return se omite cuando la back_url apunta a una IP privada', function
     $payload = (new PayloadInspectorGateway)->payloadFor($order);
 
     expect($payload)->not->toHaveKey('auto_return');
+    expect($payload['external_reference'])->toBe((string) $order->id);
 });
 
 test('el costo de envío viaja en shipments y el payload suma el total del pedido', function () {
@@ -285,6 +288,7 @@ test('el costo de envío viaja en shipments y el payload suma el total del pedid
     ));
 
     expect($itemsTotal + $payload['shipments']['cost'])->toBe((float) bcdiv((string) $order->total_cents, '100', 2));
+    expect($payload['external_reference'])->toBe((string) $order->id);
 });
 
 test('sin costo de envío el payload no declara shipments', function () {
@@ -298,4 +302,32 @@ test('sin costo de envío el payload no declara shipments', function () {
     $payload = (new PayloadInspectorGateway)->payloadFor($order);
 
     expect($payload)->not->toHaveKey('shipments');
+    expect($payload['external_reference'])->toBe((string) $order->id);
+});
+
+test('el payload cobra el total con oferta y declara external_reference (HIG-10/HIG-11)', function () {
+    $order = Order::factory()->create([
+        'payment_method' => 'mercadopago',
+        'subtotal_cents' => 15000,
+        'shipping_cost_cents' => 0,
+        'total_cents' => 15000,
+    ]);
+    OrderLine::factory()->create([
+        'order_id' => $order->id,
+        'cantidad' => 2,
+        'precio_unitario_cents' => 7500,
+        'subtotal_cents' => 15000,
+    ]);
+    $order->load('lines');
+
+    $payload = (new PayloadInspectorGateway)->payloadFor($order);
+
+    expect($payload['external_reference'])->toBe((string) $order->id);
+
+    $itemsTotal = array_sum(array_map(
+        fn (array $item): float => $item['unit_price'] * $item['quantity'],
+        $payload['items']
+    ));
+
+    expect($itemsTotal)->toBe(150.0);
 });

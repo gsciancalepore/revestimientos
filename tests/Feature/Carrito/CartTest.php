@@ -287,3 +287,46 @@ test('carrito con líneas no comprables no enlaza a checkout', function () {
         ->assertSee('Finalizar compra')
         ->assertDontSee(route('checkout.show'));
 });
+
+test('la línea de carrito cobra la oferta en modo unidad (HIG-10)', function () {
+    $product = Product::factory()->unitMode()->create([
+        'precio_cents' => 10000,
+        'precio_oferta_cents' => 7500,
+        'stock' => 10,
+    ]);
+
+    $this->post(route('carrito.add'), ['producto' => $product->slug, 'cantidad' => 2])
+        ->assertRedirect(route('carrito.show'));
+
+    expect(app(Cart::class)->subtotal())->toBe(15000);
+});
+
+test('la línea de carrito cobra la oferta en modo m2 (HIG-10)', function () {
+    $product = Product::factory()->m2Mode()->create([
+        'precio_cents' => 10000,
+        'precio_oferta_cents' => 8000,
+        'm2_por_caja' => '2.00',
+        'stock' => 10,
+    ]);
+
+    // 4 m² / 2 = 2 cajas × round(8000 × 2) = 32000 (a lista serían 40000).
+    $this->post(route('carrito.add'), ['producto' => $product->slug, 'superficie' => 4])
+        ->assertRedirect(route('carrito.show'));
+
+    expect(app(Cart::class)->subtotal())->toBe(32000);
+});
+
+test('la línea de carrito con stock negativo no muestra ningún número (HIG-17)', function () {
+    $product = Product::factory()->unitMode()->create(['stock' => 3, 'precio_cents' => 1000]);
+
+    $this->post(route('carrito.add'), ['producto' => $product->slug, 'cantidad' => 2])
+        ->assertRedirect(route('carrito.show'));
+
+    // Otro pedido pagado dejó el stock en negativo (regla 145).
+    $product->update(['stock' => -3]);
+
+    $this->get(route('carrito.show'))
+        ->assertOk()
+        ->assertSee('Producto no disponible')
+        ->assertDontSee('quedan -3');
+});
