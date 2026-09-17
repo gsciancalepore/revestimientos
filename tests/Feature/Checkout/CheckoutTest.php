@@ -246,6 +246,8 @@ test('POST /checkout conserva el cero inicial del código postal (HIG-32)', func
 });
 
 test('POST /checkout recorta espacios de los datos del cliente (HIG-32)', function () {
+    // El `prepareForValidation` corre en cada POST (más el TrimStrings global del
+    // framework): valores con espacios llegan recortados a la columna.
     $product = Product::factory()->unitMode()->create(['activo' => true, 'stock' => 10, 'precio_cents' => 10000]);
     putCart($product, 1);
 
@@ -254,6 +256,7 @@ test('POST /checkout recorta espacios de los datos del cliente (HIG-32)', functi
         'customer_email' => '  espacios@test.com  ',
         'customer_phone' => '  1122334455  ',
         'shipping_cp' => '  1407  ',
+        'shipping_address' => '  Calle 123  ',
         'payment_method' => 'transferencia',
     ])->assertRedirect(route('checkout.success'));
 
@@ -262,6 +265,8 @@ test('POST /checkout recorta espacios de los datos del cliente (HIG-32)', functi
     expect($order->customer_email)->toBe('espacios@test.com');
     expect($order->customer_phone)->toBe('1122334455');
     expect($order->shipping_cp)->toBe('1407');
+    // `shipping_address` solo la recorta el Request: la Action no la toca.
+    expect($order->shipping_address)->toBe('Calle 123');
 });
 
 test('GET /checkout/exito muestra los siete campos de línea de la regla 119 (HIG-20)', function () {
