@@ -123,6 +123,29 @@ test('order check impide shipping_cost_cents negativo', function () {
     ]))->toThrow(QueryException::class);
 });
 
+test('order check impide subtotal_cents y total_cents negativos (HIG-32)', function () {
+    $base = [
+        'status' => OrderStatus::PendingPayment->value,
+        'customer_name' => 'Test',
+        'customer_email' => 'test@test.com',
+        'customer_phone' => '1122334455',
+        'shipping_cp' => '1407',
+        'shipping_cost_cents' => 0,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ];
+
+    expect(fn () => DB::table('orders')->insert(array_merge($base, [
+        'subtotal_cents' => -1,
+        'total_cents' => 0,
+    ])))->toThrow(QueryException::class);
+
+    expect(fn () => DB::table('orders')->insert(array_merge($base, [
+        'subtotal_cents' => 0,
+        'total_cents' => -1,
+    ])))->toThrow(QueryException::class);
+});
+
 test('order_line FK product restrictOnDelete', function () {
     $product = Product::factory()->create();
     $order = Order::factory()->create();
