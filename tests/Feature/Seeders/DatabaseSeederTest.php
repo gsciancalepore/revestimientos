@@ -3,7 +3,6 @@
 use App\Models\User;
 use Database\Seeders\AdminSeeder;
 use Illuminate\Support\Facades\Artisan;
-use RuntimeException;
 use Spatie\Permission\Models\Role;
 
 test('DatabaseSeeder crea 3 roles, 1 admin activo y 4 categorías (HIG-27)', function () {
