@@ -38,3 +38,19 @@ test('correct password must be provided to update password', function () {
         ->assertSessionHasErrorsIn('updatePassword', 'current_password')
         ->assertRedirect(route('profile.edit', absolute: false));
 });
+
+test('el cambio de contraseña propia rechaza menos de 8 caracteres (HIG-31)', function () {
+    $user = User::factory()->create();
+
+    $this
+        ->actingAs($user)
+        ->from('/admin/profile')
+        ->put('/admin/password', [
+            'current_password' => 'password',
+            'password' => 'corta7',
+            'password_confirmation' => 'corta7',
+        ])
+        ->assertSessionHasErrorsIn('updatePassword', 'password');
+
+    $this->assertTrue(Hash::check('password', $user->refresh()->password));
+});
