@@ -170,10 +170,29 @@ test('los filtros de specs solo se ofrecen dentro de una categoría', function (
     $this->get('/categorias/porcelanatos')->assertOk()->assertSee('Atributos');
 });
 
-test('el listado pagina de a 12 productos', function () {
-    Product::factory()->count(13)->create();
+test('el listado pagina de a 12 tarjetas (HIG-29)', function () {
+    foreach (range(1, 13) as $i) {
+        Product::factory()->create(['name' => sprintf('Prod %02d', $i)]);
+    }
 
-    $this->get('/catalogo')->assertOk()->assertSee('13 productos');
+    // El "13 productos" sale del total del conjunto, no del tamaño de página:
+    // lo que prueba la paginación es cuántas tarjetas se renderizan.
+    $pagina1 = $this->get('/catalogo')->assertOk()->assertSee('13 productos')->getContent();
+    expect(substr_count($pagina1, 'group flex flex-col overflow-hidden'))->toBe(12);
+
+    $pagina2 = $this->get('/catalogo?page=2')->assertOk()->getContent();
+    expect(substr_count($pagina2, 'group flex flex-col overflow-hidden'))->toBe(1);
+});
+
+test('el listado ordena por nombre y no por inserción (HIG-29)', function () {
+    Product::factory()->create(['name' => 'Zeta Final']);
+    Product::factory()->create(['name' => 'Alfa Primera']);
+    Product::factory()->create(['name' => 'Media Intermedia']);
+
+    // El orden alfabético difiere del orden de inserción a propósito: sin el
+    // `orderBy('name')`, `paginate()` devolvería las filas ordenadas por id.
+    $this->get('/catalogo')->assertOk()
+        ->assertSeeInOrder(['Alfa Primera', 'Media Intermedia', 'Zeta Final']);
 });
 
 test('el catálogo se navega sin autenticación', function () {
