@@ -11,6 +11,7 @@ class M2Calculator
      *
      * @param  numeric-string  $largoCm
      * @param  numeric-string  $anchoCm
+     * @return numeric-string
      */
     public function m2DesdeDimensiones(string $largoCm, string $anchoCm): string
     {
@@ -23,8 +24,14 @@ class M2Calculator
     /**
      * Aplica el porcentaje de desperdicio (por defecto 10 %, regla 12).
      *
+     * La precisión intermedia es de 4 decimales a propósito (HIG-14): con 2, una
+     * superficie como 1,05 m² + 10 % = 1,155 m² se truncaba a 1,15 m² y el
+     * desperdicio se perdía antes del `ceil`. ADR-003 no fija precisión
+     * intermedia, solo centavos + `bcmath`, así que no se enmienda nada.
+     *
      * @param  numeric-string  $m2
      * @param  numeric-string  $porcentaje
+     * @return numeric-string
      */
     public function aplicarDesperdicio(string $m2, string $porcentaje = '10'): string
     {
@@ -36,7 +43,7 @@ class M2Calculator
 
         $factor = bcadd('100', $porcentaje, 2);
 
-        return bcdiv(bcmul($m2, $factor, 4), '100', 2);
+        return bcdiv(bcmul($m2, $factor, 4), '100', 4);
     }
 
     /**
