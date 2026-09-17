@@ -207,15 +207,41 @@ test('admins can update a product and price changes are audited', function () {
     $this->assertSame(3, $product->stock);
 
     // HIG-05: la regla 68 promete el contenido del payload, no que la fila exista.
+    // HIG-33: el payload cubre lista y oferta con claves fijas.
     $priceAudit = AuditLog::where('action', 'product.price_changed')->where('subject_id', $product->id)->firstOrFail();
 
-    $this->assertSame(100000, $priceAudit->payload['previous']);
-    $this->assertSame(150000, $priceAudit->payload['new']);
+    $this->assertSame(100000, $priceAudit->payload['previous_precio_cents']);
+    $this->assertSame(150000, $priceAudit->payload['new_precio_cents']);
+    $this->assertNull($priceAudit->payload['previous_oferta_cents']);
+    $this->assertNull($priceAudit->payload['new_oferta_cents']);
 
     $stockAudit = AuditLog::where('action', 'product.stock_changed')->where('subject_id', $product->id)->firstOrFail();
 
     $this->assertSame(5, $stockAudit->payload['previous']);
     $this->assertSame(3, $stockAudit->payload['new']);
+});
+
+test('cambiar solo la oferta deja auditoría con anterior y nuevo de lista y oferta (HIG-33)', function () {
+    $admin = User::factory()->withRole(UserRole::Admin)->create();
+    $product = Product::factory()->unitMode()->create(['precio_cents' => 10000, 'precio_oferta_cents' => null]);
+
+    $this->actingAs($admin)->patch(route('productos.update', $product), [
+        'category_id' => $product->category_id,
+        'name' => $product->name,
+        'codigo' => $product->codigo,
+        'precio_cents' => 10000,
+        'precio_oferta_cents' => 8000,
+        'unidad_venta' => ProductSaleUnit::Unidad->value,
+        'stock' => $product->stock,
+        'activo' => 1,
+    ])->assertSessionHasNoErrors();
+
+    $audit = AuditLog::where('action', 'product.price_changed')->where('subject_id', $product->id)->firstOrFail();
+
+    $this->assertSame(10000, $audit->payload['previous_precio_cents']);
+    $this->assertSame(10000, $audit->payload['new_precio_cents']);
+    $this->assertNull($audit->payload['previous_oferta_cents']);
+    $this->assertSame(8000, $audit->payload['new_oferta_cents']);
 });
 
 test('updating a product in unit mode clears m2 per box', function () {
@@ -299,4 +325,32 @@ test('a category with products cannot be deleted', function () {
         ->assertSessionHasErrors('delete');
 
     $this->assertDatabaseHas('categories', ['id' => $category->id]);
+});
+
+test('una oferta en cero se rechaza al crear y al editar (PA-1)', function () {
+    $admin = User::factory()->withRole(UserRole::Admin)->create();
+    $category = Category::factory()->create();
+
+    $payload = [
+        'category_id' => $category->id,
+        'name' => 'Porcelanato Gratis',
+        'codigo' => 'ILV-90001',
+        'precio_cents' => 10000,
+        'precio_oferta_cents' => 0,
+        'unidad_venta' => ProductSaleUnit::Unidad->value,
+        'stock' => 10,
+    ];
+
+    $this->actingAs($admin)->post('/admin/productos', $payload)
+        ->assertSessionHasErrors('precio_oferta_cents');
+
+    $this->assertDatabaseMissing('products', ['codigo' => 'ILV-90001']);
+
+    $product = Product::factory()->unitMode()->create(['precio_cents' => 10000]);
+
+    $this->actingAs($admin)->patch(route('productos.update', $product), array_merge($payload, [
+        'codigo' => $product->codigo,
+    ]))->assertSessionHasErrors('precio_oferta_cents');
+
+    expect($product->refresh()->precio_oferta_cents)->toBeNull();
 });

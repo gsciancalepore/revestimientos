@@ -94,9 +94,16 @@ class PlaceOrderAction
                     throw new \DomainException('La cantidad solicitada supera el stock disponible.');
                 }
 
+                // HIG-12: en modo M2 `m2_por_caja` nunca es null (Spec 03:59); si
+                // ocurre por un camino que no pasó por el Form Request, vender a
+                // precio cero no es opción: se rechaza con DomainException.
+                if ($product->isM2Mode() && $product->m2_por_caja === null) {
+                    throw new \DomainException('El producto no tiene m² por caja configurado.');
+                }
+
                 $precioUnitarioCents = $product->isM2Mode()
-                    ? ($product->precioCajaCents() ?? 0)
-                    : $product->precio_cents;
+                    ? ($product->precioVigenteCajaCents() ?? 0)
+                    : $product->precioVigenteCents();
 
                 $subtotalLinea = (int) bcmul((string) $cantidad, (string) $precioUnitarioCents, 0);
                 $subtotalCents = bcadd($subtotalCents, (string) $subtotalLinea, 0);

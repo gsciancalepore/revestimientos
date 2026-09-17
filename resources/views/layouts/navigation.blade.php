@@ -78,13 +78,6 @@
 
         <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-500 rounded-md cursor-not-allowed" aria-disabled="true" tabindex="-1">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3 4.6A1 1 0 005.7 19H19M9 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z" />
-            </svg>
-            {{ __('Pedidos') }}
-        </a>
-
-        <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-500 rounded-md cursor-not-allowed" aria-disabled="true" tabindex="-1">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.4-4 8-9 8-1.2 0-2.3-.2-3.4-.6L3 21l1.6-3.6C3.6 15.9 3 14.1 3 12c0-4.4 4-8 9-8s9 3.6 9 8z" />
             </svg>
             {{ __('Ventas WhatsApp') }}

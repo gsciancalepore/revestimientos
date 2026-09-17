@@ -215,3 +215,7 @@ pierde su `min="0"`.
 que recién se está creando no puede tener ventas que lo hayan dejado en negativo, así que un valor
 negativo ahí solo puede ser un error de tipeo. La enmienda de la regla 146 habla de *aceptar
 negativos en edición*; esto respeta esa intención sin ampliarla.
+
+## Sincronía 2026-09-17 — Higiene 03 fase 03.a: la auditoría cubre la oferta (enmienda a la regla 68, HIG-33)
+
+El texto original de la regla 68 se conserva arriba. Desde que la oferta se cobra (HIG-10, enmienda a la regla 87 de la Spec 05), cambiar `precio_oferta_cents` cambia lo que se cobra y no podía quedar sin rastro: `UpdateProductAction` registra `product.price_changed` cuando cambia la lista, la oferta o ambas, con claves fijas `previous/new_precio_cents` y `previous/new_oferta_cents` (las de oferta en `null` cuando no hay oferta de ese lado). Decisión del dueño del 2026-09-16.

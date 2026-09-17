@@ -19,7 +19,14 @@
             <div class="mt-6 space-y-3">
                 @foreach ($lines as $line)
                     <div class="flex justify-between text-sm">
-                        <span class="text-stone-600">{{ $line->product_name }} × {{ $line->cantidad }}</span>
+                        <div>
+                            <span class="font-medium text-stone-900">{{ $line->product_name }} × {{ $line->cantidad }}</span>
+                            <p class="text-xs text-stone-500">{{ $line->product_codigo }} · {{ $line->marca ?? 'Sin marca' }}</p>
+                            <p class="text-xs text-stone-500">Precio unitario: ${{ number_format($line->precio_unitario_cents / 100, 2, ',', '.') }}</p>
+                            @if (! empty($line->specs))
+                                <p class="text-xs text-stone-500">{{ collect($line->specs)->map(fn ($valor, $clave) => $clave.': '.$valor)->join(', ') }}</p>
+                            @endif
+                        </div>
                         <span class="font-medium">${{ number_format($line->subtotal_cents / 100, 2, ',', '.') }}</span>
                     </div>
                 @endforeach

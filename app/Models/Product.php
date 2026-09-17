@@ -110,6 +110,30 @@ class Product extends Model
     }
 
     /**
+     * Precio que efectivamente se cobra (regla 87 enmendada, HIG-10): la oferta
+     * cuando está activa (`tieneOfertaActiva()`, regla 79), la lista en caso
+     * contrario. Punto único que consumen `Cart` y `PlaceOrderAction` para no
+     * volver a divergir.
+     */
+    public function precioVigenteCents(): int
+    {
+        return $this->tieneOfertaActiva() ? (int) $this->precio_oferta_cents : $this->precio_cents;
+    }
+
+    /**
+     * Derivación por caja del precio vigente (solo modo m², misma fórmula y
+     * mismo `bcmath` de siempre). NULL en modo unidad o sin `m2_por_caja`.
+     */
+    public function precioVigenteCajaCents(): ?int
+    {
+        if (! $this->isM2Mode() || $this->m2_por_caja === null) {
+            return null;
+        }
+
+        return (int) round((float) bcmul((string) $this->precioVigenteCents(), (string) $this->m2_por_caja, 2));
+    }
+
+    /**
      * Route-model binding público por slug (Spec 04, regla 71).
      */
     public function getRouteKeyName(): string

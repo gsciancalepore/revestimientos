@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Order;
+use App\Models\OrderLine;
 use App\Models\Product;
 use App\Models\ShippingRate;
 use App\Services\Cart;
@@ -180,4 +181,66 @@ test('POST /checkout carrito vacio redirige sin crear', function () {
     ])->assertRedirect(route('carrito.show'));
 
     expect(Order::count())->toBe(0);
+});
+
+test('POST /checkout congela el precio de oferta en la línea (HIG-10)', function () {
+    $product = Product::factory()->unitMode()->create([
+        'activo' => true,
+        'stock' => 10,
+        'precio_cents' => 10000,
+        'precio_oferta_cents' => 7500,
+    ]);
+    putCart($product, 2);
+
+    $this->post(route('checkout.store'), [
+        'customer_name' => 'Oferta',
+        'customer_email' => 'oferta@test.com',
+        'customer_phone' => '1122334455',
+        'shipping_cp' => '1407',
+        'payment_method' => 'transferencia',
+    ])->assertRedirect(route('checkout.success'));
+
+    $order = Order::first();
+    expect($order->subtotal_cents)->toBe(15000);
+    expect($order->lines->first()->precio_unitario_cents)->toBe(7500);
+});
+
+test('POST /checkout acepta dirección de 500 caracteres (HIG-19)', function () {
+    $product = Product::factory()->unitMode()->create(['activo' => true, 'stock' => 10, 'precio_cents' => 10000]);
+    putCart($product, 1);
+
+    $direccion = str_repeat('a', 500);
+
+    $this->post(route('checkout.store'), [
+        'customer_name' => 'Larga',
+        'customer_email' => 'larga@test.com',
+        'customer_phone' => '1122334455',
+        'shipping_cp' => '1407',
+        'shipping_address' => $direccion,
+        'payment_method' => 'transferencia',
+    ])->assertRedirect(route('checkout.success'));
+
+    expect(Order::first()->shipping_address)->toBe($direccion);
+});
+
+test('GET /checkout/exito muestra los siete campos de línea de la regla 119 (HIG-20)', function () {
+    $order = Order::factory()->create(['payment_method' => 'transferencia']);
+    OrderLine::factory()->create([
+        'order_id' => $order->id,
+        'product_name' => 'Porcelanato Gris',
+        'product_codigo' => 'ILV-12345',
+        'marca' => 'Weber',
+        'cantidad' => 2,
+        'precio_unitario_cents' => 7500,
+        'subtotal_cents' => 15000,
+        'specs' => ['medida' => '60x60'],
+    ]);
+
+    $this->withSession(['order_id' => $order->id])->get(route('checkout.success'))
+        ->assertOk()
+        ->assertSee('Porcelanato Gris')
+        ->assertSee('ILV-12345')
+        ->assertSee('Weber')
+        ->assertSee('75,00')
+        ->assertSee('60x60');
 });

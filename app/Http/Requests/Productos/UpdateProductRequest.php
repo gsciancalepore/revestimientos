@@ -19,12 +19,12 @@ class UpdateProductRequest extends FormRequest
         return [
             'category_id' => ['required', 'integer', 'exists:categories,id'],
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'],
+            'slug' => ['nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('products', 'slug')->ignore($this->route('product'))],
             'marca' => ['nullable', 'string', 'max:255'],
             'codigo' => ['required', 'string', 'max:255', Rule::unique('products', 'codigo')->ignore($this->route('product'))],
             'descripcion' => ['nullable', 'string'],
             'precio_cents' => ['required', 'integer', 'min:0'],
-            'precio_oferta_cents' => ['nullable', 'integer', 'min:0'],
+            'precio_oferta_cents' => ['nullable', 'integer', 'min:1'],
             'unidad_venta' => ['required', Rule::enum(ProductSaleUnit::class)],
             'm2_por_caja' => ['required_if:unidad_venta,m2', 'nullable', 'decimal:2', 'min:0'],
             // Regla 146: el stock puede ser negativo cuando un pago cobrado se

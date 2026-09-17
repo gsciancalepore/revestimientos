@@ -121,9 +121,9 @@ Implementado en la Spec 02 (revisada 2026-08-05: **categorías planas**):
 
 - **Layout del panel**: `layouts/app` con **sidebar lateral** (`layouts/navigation`)
    + área de contenido. El sidebar muestra las secciones según el rol del usuario:
-   Dashboard (todos), Usuarios, Categorías, Productos y Tarifas de envío (solo admin); **placeholders
-   deshabilitados** de Pedidos y Ventas WhatsApp (recordatorio de las
-   specs 07/08).
+   Dashboard (todos), Usuarios, Categorías, Productos y Tarifas de envío (solo admin); Pedidos
+   (admin, vendedor) y Despacho (admin, depósito) por Policy; **placeholder
+   deshabilitado** de Ventas WhatsApp (recordatorio de la spec post-MVP 08.2).
 - **Categorías** en `/admin/categorias` (middleware `role:admin` +
   `CategoryPolicy`): modelo `Category` **sin jerarquía** (`name`, `slug`,
   `sort_order`). La revisión del 2026-08-05 **elimina `parent_id`** (las
@@ -206,8 +206,9 @@ Implementado en la **Spec 04** (cliente web anónimo, Spec 00 regla 27):
 - **`M2Calculator`** (Spec 04, ADR-003): servicio puro con bcmath
   (`m2DesdeDimensiones`, `aplicarDesperdicio`, `cajasNecesarias`); único lugar de
   las reglas de redondeo (reglas 9–12), lo reutiliza el carrito (Spec 05). La
-  calculadora de la ficha es un widget Alpine de estimación (no agrega al
-  carrito).
+  calculadora de la ficha también lo consume en el servidor (Higiene 03 HIG-13):
+  la ficha se re-renderiza con query params, sin ruta nueva y sin lógica
+  duplicada en JS.
 - **Stock visible** (regla 73–74): "Quedan N cajas/unidades"; sin stock se
    muestra el badge "Sin stock" y no hay acción de compra (el carrito llega con
    las Specs 05/06).
@@ -217,9 +218,9 @@ Implementado en la **Spec 04** (cliente web anónimo, Spec 00 regla 27):
 Implementado en la **Spec 05** (cliente anónimo, sin reserva de stock, `subtotal` sí / `total` no):
 
 - **Carrito en sesión** (regla 81): `session('cart')` como `array<product_id, cantidad>` (YAGNI: sin tabla `carts`, `docs/arquitectura.md:58-65`). No reserva stock; no persiste en DB.
-- **Líneas**: cada línea referencia `Product` + `cantidad` entera (cajas si `M2`, unidades si `Unidad`, regla 82). Derivación m²→cajas con `M2Calculator::cajasNecesarias` y `aplicarDesperdicio` (10 % antes de `ceil`, regla 84); la cantidad almacenada es siempre entero de cajas. Subtotal línea reutiliza semántica `Spec 03/ADR-003`: `precio_cents` directo en `Unidad`, `precio_caja_cents = round(precio_cents × m2_por_caja)` en `M2` (regla 87).
+- **Líneas**: cada línea referencia `Product` + `cantidad` entera (cajas si `M2`, unidades si `Unidad`, regla 82). Derivación m²→cajas con `M2Calculator::cajasNecesarias` y `aplicarDesperdicio` (10 % antes de `ceil`, regla 84); la cantidad almacenada es siempre entero de cajas. Subtotal línea = `precio_vigente × cantidad` sobre líneas comprables: `precioVigenteCents()` (oferta activa o lista) y su derivación por caja en `M2` con la misma fórmula y `bcmath` (regla 87 enmendada, Higiene 03 HIG-10; `precioCajaCents()` intacto para la regla 59).
 - **Validaciones** (reglas 85–86): `cantidad ≤ stock` en la unidad de `unidad_venta` y `activo==true`; agregar acumula (regla 89) y actualizar reemplaza (regla 90); cantidad 0 elimina. Exceder stock (ej. 3→4) se rechaza con error.
-- **Condición derivada al leer** (regla 92): línea comprable si `activo && cantidad ≤ stock`; si no, figura como no comprable (sin estado persistente `no_disponible`) y bloquea avance a checkout. `Cart::lines()` enriquece con `precioUnitario`, `subtotal`, `comprable`; `subtotal()` suma solo líneas comprables; `hasUnpurchasable()` indica bloqueo.
+- **Condición derivada al leer** (regla 92, enmendada por Higiene 03 HIG-12): línea comprable si `activo && cantidad ≤ stock` y, en `M2`, `m2_por_caja` presente; si no, figura como no comprable (sin estado persistente `no_disponible`) y bloquea avance a checkout. La línea M2 sin `m2_por_caja` no exhibe precio ni subtotal. `Cart::lines()` enriquece con `precioUnitario`, `subtotal`, `comprable`; `subtotal()` suma solo líneas comprables; `hasUnpurchasable()` indica bloqueo.
 - **`Cart` + `CartController` delgado** (`show`, `add`, `update`, `remove`, `clear`) + `AddToCartRequest`/`UpdateCartRequest`. Rutas públicas `GET /carrito`, `POST /carrito/agregar`, `PATCH /carrito/{producto:slug}`, `DELETE /carrito/{producto:slug}`, `DELETE /carrito`.
 - **Vistas**: `cart/show` (layout `layouts/site` con `categorias` prop) + componente `cart-line` (precio, cantidad, subtotal, badge no comprable). Form de agregar en `public/producto` (superficie + desperdicio para `M2`, cantidad para `Unidad`). Sin `ShippingCalculator`/`DiscountCalculator`/`precio_congelado_cents` en esta spec; evolución `06: total=subtotal+shipping`, `09: total=subtotal+shipping-discount` solo documentada; reserva diferida vinculada a `ADR-005`.
 
@@ -237,7 +238,7 @@ Estructura cerrada en `docs/specs/07-checkout.md:1`. Fase 1 **solo persistencia 
 
 Implementado en `docs/specs/07-checkout-fase2.md:1` (cerrada, sin rutas).
 
-- **`PlaceOrderAction`** (`app/Actions/PlaceOrderAction.php`): inyecta `Cart` + `ShippingCalculator` + `AuditRecorder`; `execute(customer_name/email/phone, shipping_cp/address, payment_method): Order` valida **sus propias entradas** (nombre y teléfono no vacíos tras `trim`, email por `FILTER_VALIDATE_EMAIL`, CP `^[0-9]{4}$`, medio de pago en el enum → `DomainException`; red de seguridad del dominio para llamadores que no pasan por `StoreCheckoutRequest`, Spec Higiene 02 HIG-06), `cart no vacío` + prevalidación `hasUnpurchasable()` (regla 108), luego `DB::transaction` + `Product::lockForUpdate()` valida definitivamente `activo` y `cantidad ≤ stock` (regla 109, `M2→cajas`/`Unidad→unidades`); calcula `precio_unitario` vía `Product::precioCajaCents()` / `M2Calculator` para `M2` y `precio_cents` para `Unidad` con `bcmul/bcadd` (regla 110, nunca `float`, `m2_por_caja string`); `ShippingQuote` `quote(trim cp)` → `shipping_cost = disponible? costo:0` snapshot (no recalcula); crea `Order` (`PendingPayment`) + `OrderLines` snapshot (`product_name/codigo/marca/unidad_venta/m2_por_caja/specs`) + `audit order.created` (ADR-004, `actor null` anónimo); **no descuenta stock** (ADR-005 → Spec 08). `Cart::clear()` **solo tras `COMMIT`**, fuera de transacción; `rollback` mantiene carrito (regla 112).
+- **`PlaceOrderAction`** (`app/Actions/PlaceOrderAction.php`): inyecta `Cart` + `ShippingCalculator` + `AuditRecorder`; `execute(customer_name/email/phone, shipping_cp/address, payment_method): Order` valida **sus propias entradas** (nombre y teléfono no vacíos tras `trim`, email por `FILTER_VALIDATE_EMAIL`, CP `^[0-9]{4}$`, medio de pago en el enum → `DomainException`; red de seguridad del dominio para llamadores que no pasan por `StoreCheckoutRequest`, Spec Higiene 02 HIG-06), `cart no vacío` + prevalidación `hasUnpurchasable()` (regla 108),   luego `DB::transaction` + `Product::lockForUpdate()` valida definitivamente `activo` y `cantidad ≤ stock` (regla 109, `M2→cajas`/`Unidad→unidades`); en `M2` sin `m2_por_caja` lanza `DomainException` en vez de vender a cero (Higiene 03 HIG-12); calcula `precio_unitario` vía `Product::precioVigenteCents()`/`precioVigenteCajaCents()` (regla 87 enmendada, nunca `float`, `m2_por_caja string`); `ShippingQuote` `quote(trim cp)` → `shipping_cost = disponible? costo:0` snapshot (no recalcula); crea `Order` (`PendingPayment`) + `OrderLines` snapshot (`product_name/codigo/marca/unidad_venta/m2_por_caja/specs`) + `audit order.created` (ADR-004, `actor null` anónimo); **no descuenta stock** (ADR-005 → Spec 08). `Cart::clear()` **solo tras `COMMIT`**, fuera de transacción; `rollback` mantiene carrito (regla 112).
 - **Tests**: `tests/Feature/Orders/PlaceOrderTest.php` (25 tests, incluidas las validaciones de entrada y **dos que llegan efectivamente a la revalidación bajo lock** —stock agotado y producto desactivado después de la prevalidación, con un doble de `Cart` cuya prevalidación quedó vieja— que fallan si se borra la revalidación; la concurrencia real no es reproducible con `RefreshDatabase` y la Spec 07.2 quedó enmendada: vacío, `hasUnpurchasable`, `activo/stock` bajo lock, `M2/Unidad`, `shipping disp/no-disp`, snapshot independencia, `audit`, `clear` vs `rollback`, concurrencia PG `lockForUpdate`; cantidad surge de behaviours).
 - **Sin anticipación**: no controladores/rutas, no `ConfirmPaymentAction`, no `DTOs/Events/Listeners/Jobs`, no `PaymentGateway` `confirm/createPreference` (Fase 2 solo `name()`).
 

@@ -13,12 +13,14 @@ use Throwable;
 class MercadoPagoWebhookController extends Controller
 {
     /**
-     * `POST /webhook/mercadopago` (Spec 08, reglas 153 a 155).
+     * `GET|POST /webhook/mercadopago` (Spec 08, reglas 153 a 155, con la enmienda
+     * de HIG-18 a la 153).
      *
      * Responde 200 cuando la notificación fue procesada o cuando no había nada
      * que hacer, porque un 4xx/5xx hace que MercadoPago reintente. La excepción
      * es deliberada: si la consulta a la API falla por causa transitoria se
      * responde no-200 a propósito, para no perder el pago para siempre.
+     * Por GET nunca se procesa nada: se responde 200 siempre.
      */
     public function __invoke(
         Request $request,
@@ -27,6 +29,23 @@ class MercadoPagoWebhookController extends Controller
         AuditRecorder $recorder,
     ): Response {
         $paymentId = $this->paymentId($request);
+
+        // HIG-18: MercadoPago también entrega por GET (el IPN viejo lo usa). Un
+        // pago genuino por GET se ignora por diseño —el proveedor entrega los
+        // pagos por POST— y la firma sigue siendo obligatoria solo para lo que
+        // sí se procesa (regla 154). Se audita únicamente cuando trae
+        // parámetros de notificación; un GET pelado responde 200 sin ensuciar
+        // `audit_logs`.
+        if ($request->isMethod('get')) {
+            if ($this->tipo($request) !== '' || $paymentId !== '') {
+                $recorder->record('webhook.ignored', null, [
+                    'tipo' => $this->tipo($request),
+                    'payment_id' => $paymentId,
+                ]);
+            }
+
+            return response('', 200);
+        }
 
         if (! $verifier->verify($request, $paymentId)) {
             $recorder->record('webhook.signature_invalid', null, [

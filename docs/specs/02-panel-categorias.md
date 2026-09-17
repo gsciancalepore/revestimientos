@@ -148,3 +148,9 @@ base de navegación del catálogo público (Spec 04).
 - [x] Verificación de calidad: pint, PHPStan, Pest, CI.
 - [x] Actualizar `arquitectura.md`, `ubiquitous-language.md` (término
       "Categoría") y `roadmap.md`.
+
+## Sincronía 2026-09-17 — Higiene 03: regla 44 al día (HIG-28/HIG-28a)
+
+El texto original de la regla 44 se conserva arriba. Tres specs posteriores la dejaron desactualizada: **Productos** es link real desde la Spec 03 y **Pedidos** también desde la 08.c; el sidebar además tiene **Despacho** (Spec 08) y **Tarifas de envío** (Spec 06), que la regla no mencionaba. El único placeholder legítimo que queda es **Ventas WhatsApp** —coherente con que esa venta quedó fuera del MVP— y el placeholder duplicado de Pedidos se eliminó en la fase 03.a (HIG-28a).
+
+Secciones al día: Dashboard (todos); Pedidos (admin, vendedor) y Despacho (admin, depósito) por Policy; Usuarios, Categorías, Productos y Tarifas de envío (solo admin).

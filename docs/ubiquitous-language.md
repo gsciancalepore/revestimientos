@@ -18,6 +18,7 @@ sentido, es un bug de lenguaje.
 | **m²/caja** | Superficie que cubre una caja del producto (solo modo m²). Atributo del producto. | 1 caja cubre 1,15 m² |
 | **Precio** | Precio de venta unitario mostrado en el catálogo; su significado lo da la unidad de venta (por m² o por bolsa/pieza). | Es la base del cálculo del total |
 | **Precio por caja** | Precio efectivamente cobrado por caja completa (solo modo m²). Se deriva del precio y del m²/caja. | El total se calcula sobre cajas enteras |
+| **Precio vigente** | Precio que efectivamente se cobra: la oferta cuando está activa, la lista en caso contrario (regla 87 enmendada, Higiene 03). | Base del subtotal del carrito y del pedido |
 | **Calculadora** | Herramienta de la ficha de producto (solo modo m²): el cliente ingresa dimensiones (largo × ancho) y obtiene m² → cajas necesarias, con o sin desperdicio. | Se muestra también el m² resultante |
 | **Formato** | Tamaño de la pieza en centímetros. | 46×46, 60×60, 80×80, 61×122 |
 | **Calidad** | Calidad de fábrica del producto. | 1.ª, 2.ª |

@@ -117,7 +117,6 @@ class CartController extends Controller
                 /** @var numeric-string $m2PorCaja */
                 $m2PorCaja = (string) $product->m2_por_caja;
 
-                // @phpstan-ignore argument.type
                 return $calculator->cajasNecesarias($m2, $m2PorCaja);
             }
 

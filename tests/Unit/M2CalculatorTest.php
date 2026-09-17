@@ -13,14 +13,14 @@ it('calcula los m² a partir de dimensiones en centímetros', function () {
 it('aplica el porcentaje de desperdicio por defecto del 10 %', function () {
     $calculator = new M2Calculator;
 
-    expect($calculator->aplicarDesperdicio('20'))->toBe('22.00');
-    expect($calculator->aplicarDesperdicio('22.00'))->toBe('24.20');
+    expect($calculator->aplicarDesperdicio('20'))->toBe('22.0000');
+    expect($calculator->aplicarDesperdicio('22.00'))->toBe('24.2000');
 });
 
 it('aplica un porcentaje de desperdicio personalizado', function () {
     $calculator = new M2Calculator;
 
-    expect($calculator->aplicarDesperdicio('20', '15'))->toBe('23.00');
+    expect($calculator->aplicarDesperdicio('20', '15'))->toBe('23.0000');
 });
 
 it('calcula las cajas necesarias redondeando hacia arriba', function () {
@@ -29,6 +29,15 @@ it('calcula las cajas necesarias redondeando hacia arriba', function () {
     expect($calculator->cajasNecesarias('20', '1.15'))->toBe(18);
     expect($calculator->cajasNecesarias('2.3', '1.15'))->toBe(2);
     expect($calculator->cajasNecesarias('0.5', '1.15'))->toBe(1);
+});
+
+it('no pierde el desperdicio por redondeo intermedio (HIG-14)', function () {
+    $calculator = new M2Calculator;
+
+    // 1,05 m² + 10 % = 1,155 m²: las cajas deben cubrir la superficie completa.
+    expect($calculator->cajasNecesarias($calculator->aplicarDesperdicio('1.05'), '1.15'))->toBe(2);
+    expect($calculator->cajasNecesarias($calculator->aplicarDesperdicio('11.50'), '1.15'))->toBe(11);
+    expect($calculator->cajasNecesarias($calculator->aplicarDesperdicio('23.00'), '1.15'))->toBe(22);
 });
 
 it('rechaza dimensiones menores o iguales a cero', function (string $largo, string $ancho) {

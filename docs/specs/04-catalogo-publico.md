@@ -229,3 +229,11 @@ comparaba `> 0` desde el principio, así que un producto en negativo ya se compo
 **El cliente nunca ve un número negativo**: en catálogo, ficha y carrito el producto figura como sin
 stock, sin cantidad. El valor real, con signo, se muestra **solo en el panel**, porque es exactamente
 cuánto hay que reponerle al fabricante antes de despachar.
+
+## Sincronía 2026-09-17 — Higiene 03 fase 03.a (HIG-10, HIG-13, HIG-21)
+
+**HIG-10.** La regla 87 de la Spec 05 queda enmendada con el texto de reemplazo transcripto en su sincronía: `precio_vigente_cents` es la oferta activa o la lista. La ficha ya mostraba la oferta (regla 73); ahora también se cobra.
+
+**HIG-13.** La calculadora de la ficha deja de ser una segunda implementación en JavaScript y pasa a calcularse en el servidor con `M2Calculator` —la misma cuenta del carrito, sin ruta HTTP nueva (la ficha se re-renderiza con query params)—. La regla 75 se preserva tal cual —el cliente sigue ingresando dimensiones o m² y viendo m² + cajas— así que **no se enmienda**: el fallback sin estimación en vivo que la Spec Higiene 03 preveía no resultó necesario.
+
+**HIG-21.** La regla 74 ("sin acción de compra") ahora se cumple completa: con `stock <= 0` el formulario de compra **no se renderiza** (el badge "Sin stock" ya estaba).

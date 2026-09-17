@@ -74,7 +74,8 @@
                 @endif
 
                 <div class="mt-6 flex flex-col gap-3">
-                    <form action="{{ route('carrito.add') }}" method="post" class="rounded-lg border border-stone-200 bg-white p-4">
+                    @if ($producto->stock > 0)
+                        <form action="{{ route('carrito.add') }}" method="post" class="rounded-lg border border-stone-200 bg-white p-4">
                         @csrf
                         <input type="hidden" name="producto" value="{{ $producto->slug }}">
                         @if ($esPorM2)
@@ -96,112 +97,87 @@
                             </div>
                         @endif
                         <button type="submit" class="mt-4 w-full rounded-md bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800">Agregar al carrito</button>
-                    </form>
+                        </form>
+                    @endif
 
-                @if ($esPorM2)
-                    <div
-                        class="rounded-lg border border-stone-200 bg-white p-4"
-                        x-data="calculadoraM2({{ $producto->m2_por_caja ?? 1 }})"
-                    >
+                @if ($esPorM2 && $producto->m2_por_caja)
+                    <div class="rounded-lg border border-stone-200 bg-white p-4">
                         <h2 class="text-sm font-semibold uppercase tracking-wide text-stone-500">Calculadora m² → cajas</h2>
 
-                        <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div>
-                                <label for="calc-largo" class="text-sm font-medium text-stone-700">Largo (cm)</label>
+                        <form action="{{ route('catalogo.producto', $producto) }}" method="get">
+                            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label for="calc-largo" class="text-sm font-medium text-stone-700">Largo (cm)</label>
+                                    <input
+                                        id="calc-largo"
+                                        type="number"
+                                        name="largo"
+                                        min="0"
+                                        step="0.01"
+                                        value="{{ request('largo') }}"
+                                        class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                                    >
+                                </div>
+                                <div>
+                                    <label for="calc-ancho" class="text-sm font-medium text-stone-700">Ancho (cm)</label>
+                                    <input
+                                        id="calc-ancho"
+                                        type="number"
+                                        name="ancho"
+                                        min="0"
+                                        step="0.01"
+                                        value="{{ request('ancho') }}"
+                                        class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                                    >
+                                </div>
+                            </div>
+
+                            <p class="mt-3 text-center text-sm text-stone-400">— o —</p>
+
+                            <div class="mt-3">
+                                <label for="calc-superficie" class="text-sm font-medium text-stone-700">Superficie (m²)</label>
                                 <input
-                                    id="calc-largo"
+                                    id="calc-superficie"
                                     type="number"
+                                    name="superficie"
                                     min="0"
-                                    x-model.number="largo"
+                                    step="0.01"
+                                    value="{{ request('superficie') }}"
                                     class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
                                 >
                             </div>
-                            <div>
-                                <label for="calc-ancho" class="text-sm font-medium text-stone-700">Ancho (cm)</label>
+
+                            <label class="mt-4 flex items-center gap-2 text-sm font-medium text-stone-700">
                                 <input
-                                    id="calc-ancho"
-                                    type="number"
-                                    min="0"
-                                    x-model.number="ancho"
-                                    class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                                    type="checkbox"
+                                    name="desperdicio"
+                                    value="1"
+                                    @checked(request()->boolean('desperdicio'))
+                                    class="rounded border-stone-300 text-orange-600 shadow-sm focus:ring-orange-500"
                                 >
+                                Incluir 10 % de desperdicio
+                            </label>
+
+                            <button type="submit" class="mt-4 w-full rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700">Calcular cajas</button>
+                        </form>
+
+                        @if ($estimacion !== null)
+                            <div class="mt-5 rounded-md bg-stone-50 p-4 text-center">
+                                <p class="text-sm text-stone-500">
+                                    Superficie a cubrir:
+                                    <span class="font-semibold text-stone-900">{{ number_format((float) $estimacion['m2'], 2, ',', '.') }}</span> m²
+                                </p>
+                                <p class="mt-1 text-2xl font-bold text-stone-900">
+                                    {{ $estimacion['cajas'] }} caja{{ $estimacion['cajas'] === 1 ? '' : 's' }}
+                                </p>
                             </div>
-                        </div>
+                        @endif
 
-                        <p class="mt-3 text-center text-sm text-stone-400">— o —</p>
-
-                        <div class="mt-3">
-                            <label for="calc-superficie" class="text-sm font-medium text-stone-700">Superficie (m²)</label>
-                            <input
-                                id="calc-superficie"
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                x-model.number="superficie"
-                                class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                            >
-                        </div>
-
-                        <label class="mt-4 flex items-center gap-2 text-sm font-medium text-stone-700">
-                            <input
-                                type="checkbox"
-                                x-model="desperdicio"
-                                class="rounded border-stone-300 text-orange-600 shadow-sm focus:ring-orange-500"
-                            >
-                            Incluir 10 % de desperdicio
-                        </label>
-
-                        <div class="mt-5 rounded-md bg-stone-50 p-4 text-center" x-show="m2Efectivo > 0">
-                            <p class="text-sm text-stone-500">
-                                Superficie a cubrir:
-                                <span class="font-semibold text-stone-900" x-text="m2Mostrar.toFixed(2)"></span> m²
-                            </p>
-                            <p class="mt-1 text-2xl font-bold text-stone-900">
-                                <span x-text="cajas"></span> caja<span x-text="cajas === 1 ? '' : 's'"></span>
-                            </p>
-                        </div>
-
-                        <p class="mt-3 text-xs text-stone-400">La calculadora solo estima las cajas; el pedido se confirma con un asesor.</p>
+                        <p class="mt-3 text-xs text-stone-400">El cálculo usa la misma cuenta del carrito; al agregar se confirma la cantidad.</p>
                     </div>
                 @endif
                 </div>
             </div>
         </div>
     </div>
-
-    <script>
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('calculadoraM2', (m2PorCaja) => ({
-                m2PorCaja: parseFloat(m2PorCaja),
-                largo: null,
-                ancho: null,
-                superficie: null,
-                desperdicio: false,
-
-                get m2Dimensiones() {
-                    if (this.largo > 0 && this.ancho > 0) {
-                        return (this.largo * this.ancho) / 10000;
-                    }
-
-                    return 0;
-                },
-
-                get m2Efectivo() {
-                    return Math.max(this.superficie > 0 ? this.superficie : this.m2Dimensiones, 0);
-                },
-
-                get m2Mostrar() {
-                    return this.desperdicio ? this.m2Efectivo * 1.1 : this.m2Efectivo;
-                },
-
-                get cajas() {
-                    if (this.m2Efectivo <= 0) {
-                        return 0;
-                    }
-
-                    return Math.ceil(this.m2Mostrar / this.m2PorCaja);
-                },
-            }));
-        });
-    </script>
 </x-layouts.site>
