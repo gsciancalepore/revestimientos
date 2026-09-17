@@ -207,3 +207,11 @@ test('un estado inexistente en la query no filtra nada en vez de romper', functi
         ->assertSee("#{$pagado->id}")
         ->assertSee("#{$impago->id}");
 });
+
+test('el sidebar no duplica el enlace de Pedidos con un placeholder (HIG-28a)', function () {
+    $contenido = $this->actingAs($this->admin)->get('/admin')->assertOk()->getContent();
+
+    // Una sola mención: el link real. El placeholder deshabilitado se eliminó.
+    expect(substr_count($contenido, 'Pedidos'))->toBe(1);
+    expect(substr_count($contenido, 'Ventas WhatsApp'))->toBe(1);
+});
