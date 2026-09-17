@@ -118,3 +118,13 @@ Reglas para esta tarea:
 - Tras editar PHP: `make format`; validar con `make lint` → `make stan` → `make test` (una suite).
 - Tests que renderizan vistas requieren assets de Vite (`make npm-dev` o `make npm-build`).
 - Registrar con `record-rule` cualquier regla durable nueva descubierta (p. ej. patrón de carrito en sesión).
+
+## Sincronía 2026-09-17 — Higiene 03 fase 03.a: la oferta se cobra (enmienda a la regla 87) y tercera condición no-comprable (enmienda a la regla 92)
+
+El texto original de las reglas 87 y 92 se conserva arriba; lo que sigue es transcripción de la Spec Higiene 03 (HIG-10, HIG-12), aprobada por el dueño el 2026-09-16.
+
+**Regla 87 (texto de reemplazo).** `precio_vigente_cents` es el precio del catálogo al momento de la operación que efectivamente se cobra: el **precio de oferta (`precio_oferta_cents`) cuando la oferta está activa** (`tieneOfertaActiva()`, regla 79 de la Spec 04), y el precio de lista (`precio_cents`) en caso contrario. En modo `unidad` el vigente es ese valor. En modo `m2` el vigente por caja es `round(precio_vigente × m2_por_caja)` con la misma fórmula y el mismo `bcmath` de siempre; esta regla **no introduce ninguna regla de redondeo nueva**. El `subtotal` es la suma de `precio_vigente × cantidad` sobre las líneas comprables (regla 92).
+
+El punto único es `Product::precioVigenteCents()` (y su derivación por caja `precioVigenteCajaCents()`), que consumen `Cart` y `PlaceOrderAction`. `precioCajaCents()` sigue derivando del precio de lista (regla 59 de la Spec 03, regla 3 de la Spec 00, punto 5 de ADR-003 intactos). Una oferta en `0` se rechaza con 422 (`min:1`, PA-1, decisión del dueño del 2026-09-16).
+
+**Regla 92 (enmienda).** Comprable = `activo && cantidad ≤ stock` **y, en modo `M2`, `m2_por_caja` presente**. En lectura la línea se marca no comprable (sin precio ni subtotal exhibidos, coherente con HIG-17); en escritura `PlaceOrderAction` lanza `DomainException` bajo lock.

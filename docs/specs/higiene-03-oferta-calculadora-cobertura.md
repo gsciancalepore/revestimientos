@@ -1,7 +1,8 @@
 # Spec Higiene 03 — La oferta que no se cobra, la calculadora duplicada y la cobertura que falta
 
-- **Estado**: **aprobada por el dueño** (2026-09-16; borrador 2026-09-15, segunda vuelta con
-  PA-1/PA-2/HIG-28 resueltos + ajustes de segunda revisión). En implementación fase 03.a.
+- **Estado**: **aprobada por el dueño** (2026-09-16); **fase 03.a implementada** (2026-09-17,
+  rama `fix/higiene-03a`, 462 tests — 436 base + 26 nuevos — cada regla verificada mutando la
+  implementación); fase 03.b pendiente.
 - **Origen**: verificación con `verificador-spec-codigo` de las specs **01**, **02**, **04** y
   `calidad-onboarding` (2026-09-15), más los cuatro hallazgos de la familia Spec 07 y el del
   webhook (`GET` → 405) que las verificaciones del 2026-09-12 dejaron anotados en el roadmap y en la
@@ -795,43 +796,43 @@ Es la regla HIG-33 de 03.a, con sincronía en la Spec 03.
 
 **Fase 03.a** (HIG-10 a HIG-22 más HIG-28a y HIG-33)
 
-- [ ] HIG-10: un producto con oferta activa se cobra al precio de oferta en el carrito, en el pedido y
+- [x] HIG-10: un producto con oferta activa se cobra al precio de oferta en el carrito, en el pedido y
       en el payload de MercadoPago, en modo `unidad` y en modo `m2`. `precioCajaCents()` **sigue
       derivando del precio de lista** (regla 59 y ADR-003 intactas). La regla 87 queda enmendada con
       el texto de reemplazo de esta spec, sincronía fechada en las Specs 05 y 04, y el glosario gana
       la fila de `precio vigente`. Una oferta en `0` se rechaza con 422 (`min:1`, PA-1).
-- [ ] HIG-11: los tests que ya inspeccionan el payload **assertan `external_reference`** y fallan si
+- [x] HIG-11: los tests que ya inspeccionan el payload **assertan `external_reference`** y fallan si
       se borra. El cuerpo de `paymentUrl()` queda declarado sin cubrir, con su motivo escrito y
       registrado como deuda en §Nota de handoff.
-- [ ] HIG-12: `PlaceOrderAction` lanza `DomainException` con un producto `M2` sin `m2_por_caja`,
+- [x] HIG-12: `PlaceOrderAction` lanza `DomainException` con un producto `M2` sin `m2_por_caja`,
       invocada directamente; y `GET /carrito` con ese mismo producto **responde 200** con la línea
       marcada no comprable y sin precio ni subtotal exhibidos. **Enmienda a la regla 92** con
       sincronía en la Spec 05.
-- [ ] HIG-13: la ficha y el carrito devuelven **11, 22 y 2** cajas en los tres casos de la tabla, con
+- [x] HIG-13: la ficha y el carrito devuelven **11, 22 y 2** cajas en los tres casos de la tabla, con
       test que falla si vuelven a divergir. El bloque Alpine de la ficha se elimina; sin ruta nueva;
       si la ficha no puede estimar en vivo, no estima en vivo.
-- [ ] HIG-14: las cajas cotizadas cubren la superficie con el desperdicio incluido por **precisión
+- [x] HIG-14: las cajas cotizadas cubren la superficie con el desperdicio incluido por **precisión
       intermedia suficiente** (no redondeo hacia arriba del intermedio); test en el borde
       (1,05 m² + 10 % → 2 cajas). ADR-003 punto 4 intacto.
-- [ ] HIG-15: `sort_order` vacío crea y edita la categoría sin error; test con `sort_order => ''` en
+- [x] HIG-15: `sort_order` vacío crea y edita la categoría sin error; test con `sort_order => ''` en
       create y en update.
-- [ ] HIG-16: `DELETE /admin/usuarios/{user}` no existe en `route:list`.
-- [ ] HIG-17: la línea de carrito con stock ≤ 0 no muestra ningún número; test que falla si se quita la
+- [x] HIG-16: `DELETE /admin/usuarios/{user}` no existe en `route:list`.
+- [x] HIG-17: la línea de carrito con stock ≤ 0 no muestra ningún número; test que falla si se quita la
       guarda.
-- [ ] HIG-18: `GET /webhook/mercadopago` responde 200; el GET con parámetros MP ignorado deja
+- [x] HIG-18: `GET /webhook/mercadopago` responde 200; el GET con parámetros MP ignorado deja
       `webhook.ignored` en la auditoría y el GET pelado no audita; la firma sigue siendo obligatoria
       para procesar
       un pago. **Sincronía en la Spec 08**: regla 153 y su fila de matriz de permisos. Un pago genuino
       por GET se ignora por diseño (decisión del dueño 2026-09-16).
-- [ ] HIG-19: `shipping_address` acepta 500 en columna y validación; test en el borde de 500.
-- [ ] HIG-20: la pantalla de éxito muestra los siete campos de la regla 119.
-- [ ] HIG-21: con stock ≤ 0 **no se renderiza** el formulario de compra.
-- [ ] HIG-22: un slug escrito por el admin que colisiona da error de validación; un slug vacío sigue
+- [x] HIG-19: `shipping_address` acepta 500 en columna y validación; test en el borde de 500.
+- [x] HIG-20: la pantalla de éxito muestra los siete campos de la regla 119.
+- [x] HIG-21: con stock ≤ 0 **no se renderiza** el formulario de compra.
+- [x] HIG-22: un slug escrito por el admin que colisiona da error de validación; un slug vacío sigue
       recibiendo el sufijo; en edición el producto no colisiona consigo mismo. El docblock de
       `ProductSlugGenerator` y `ProductSlugTest` dicen lo mismo que el código.
-- [ ] HIG-28a: el placeholder "Pedidos" duplicado (`navigation.blade.php:79`) no se renderiza; el link
+- [x] HIG-28a: el placeholder "Pedidos" duplicado (`navigation.blade.php:79`) no se renderiza; el link
       real (`:22`) y "Ventas WhatsApp" (`:86`) quedan como están.
-- [ ] HIG-33: cambiar solo `precio_oferta_cents` (incluido quitarla a `null`) deja `product.price_changed`
+- [x] HIG-33: cambiar solo `precio_oferta_cents` (incluido quitarla a `null`) deja `product.price_changed`
       con las cuatro claves fijas (`previous/new_precio_cents`, `previous/new_oferta_cents`); mutar
       la auditoría de oferta pone un test en rojo.
       **Enmienda a la regla 68** con sincronía en la Spec 03.
@@ -874,23 +875,23 @@ Es la regla HIG-33 de 03.a, con sincronía en la Spec 03.
       segunda vuelta 2026-09-16 con PA-1/PA-2/HIG-28 resueltos, texto de reemplazo de la regla 87 y
       ajustes de segunda revisión, veredicto: aprobable) →
       **aprobación del dueño (2026-09-16)**.
-- [ ] Puntos abiertos PA-1/PA-2 cerrados el 2026-09-16 y anotados en HIG-10/HIG-33. No quedan puntos
+- [x] Puntos abiertos PA-1/PA-2 cerrados el 2026-09-16 y anotados en HIG-10/HIG-33. No quedan puntos
       abiertos.
-- [ ] Texto de reemplazo de la regla 87 escrito en HIG-10: la sincronía es transcripción.
-- [ ] Rama `fix/higiene-03a` **desde `main`** — la Higiene 02 se cortó de otra rama y arrastró 10
+- [x] Texto de reemplazo de la regla 87 escrito en HIG-10: la sincronía es transcripción.
+- [x] Rama `fix/higiene-03a` **desde `main`** — la Higiene 02 se cortó de otra rama y arrastró 10
       commits ajenos; no repetir.
-- [ ] TDD en este orden: **HIG-14 antes que HIG-13** (si no, la fila 3 de la tabla se unifica en el
+- [x] TDD en este orden: **HIG-14 antes que HIG-13** (si no, la fila 3 de la tabla se unifica en el
       valor equivocado); HIG-10 a HIG-14 primero por ser lo único que afecta plata; después el resto
       de 03.a.
 - [ ] Rama `fix/higiene-03b` desde `main` ya con 03.a mergeada.
 - [ ] PR `docs:` aparte con la higiene documental de §Fuera de alcance, y un PR `chore:` propio para
       `npm ci`.
-- [ ] Anotar las sincronías: Specs 05 y 04 más el glosario y `arquitectura.md` (HIG-10, HIG-13 y
+- [x] Anotar las sincronías: Specs 05 y 04 más el glosario y `arquitectura.md` (HIG-10, HIG-13 y
       eventual regla 75), Spec 05
       regla 92 (HIG-12), Spec 03 regla 68 (HIG-33), Spec 08
       regla 153 y su matriz (HIG-18), Spec 04 (HIG-13, HIG-21), Spec 07.3 (HIG-20), Spec 02 regla 44
       (HIG-28) y `arquitectura.md` §Panel y categorías (HIG-28a: ya no hay placeholder de Pedidos).
-- [ ] Actualizar `docs/arquitectura.md` **después** de HIG-13 y HIG-21.
+- [x] Actualizar `docs/arquitectura.md` **después** de HIG-13 y HIG-21.
 - [ ] Actualizar `docs/roadmap.md` al cerrar cada fase.
 
 ## Nota de handoff

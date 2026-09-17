@@ -298,6 +298,7 @@ el roadmap.
 | Acción | Público | admin | vendedor | depósito |
 |---|---|---|---|---|
 | `POST /webhook/mercadopago` | ✓ (firma) | — | — | — |
+| `GET /webhook/mercadopago` | ✓ responde 200 e ignora (HIG-18) | — | — | — |
 | `GET /admin/pedidos`, `GET /admin/pedidos/{pedido}` | — | ✓ | ✓ | — |
 | Confirmar pago manual (transferencia) | — | ✓ | — | — |
 | Cancelar pedido impago (`pending_payment`, sin restitución) | — | ✓ | — | — |
@@ -615,3 +616,7 @@ indefinidamente.
 No se corrigió acá: es código y el repo pide spec aprobada. Queda como punto para la **Spec Higiene
 03**, junto con los cuatro hallazgos de la familia Spec 07. El arreglo es chico: aceptar GET en la
 ruta y responder 200 a todo lo que no sea `payment`.
+
+## Sincronía 2026-09-17 — Higiene 03 fase 03.a: GET al webhook responde 200 (enmienda a la regla 153, HIG-18)
+
+El texto original de la regla 153 se conserva arriba. La ruta pasa a aceptar `GET` además de `POST`: por GET nunca se procesa nada —un pago genuino entregado por GET se ignora por diseño, porque el proveedor entrega los pagos por POST— y se responde 200 siempre. Se audita `webhook.ignored` únicamente cuando trae parámetros de notificación; un GET pelado (bots, health checks) responde 200 sin ensuciar `audit_logs`. La firma sigue siendo obligatoria solo para lo que sí se procesa (regla 154). Con esto queda cerrado el hallazgo abierto de arriba. Decisión del dueño del 2026-09-16; matriz de permisos con la fila GET agregada.

@@ -114,3 +114,7 @@ La regla 117 enumera `['lines','subtotal','hasUnpurchasable','isEmpty','categori
 controlador pasa `lines`, `subtotal` y `categorias`. Es inocuo: `show` redirige antes en los dos
 casos que usarían `hasUnpurchasable` e `isEmpty`, así que la vista nunca los necesita. **Se anota y
 no se toca**: agregar variables muertas a la vista sería peor que la desviación.
+
+## Sincronía 2026-09-17 — Higiene 03 fase 03.a: el éxito muestra los siete campos (HIG-20)
+
+La regla 119 ya exigía los siete campos de línea y la vista mostraba tres; esta era la única desviación de la familia sin sincronía anotada. Ahora `success.blade.php` muestra los siete desde el snapshot de `OrderLine` (regla 111): `product_name`, `product_codigo`, `marca`, `cantidad`, `precio_unitario_cents`, `subtotal_cents` y `specs`. La regla 119 no se enmienda: se termina de implementar lo que ya decía.
