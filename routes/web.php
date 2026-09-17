@@ -31,8 +31,9 @@ Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.s
 Route::post('/checkout/mercadopago/reintentar', [CheckoutController::class, 'retryMercadoPago'])->name('checkout.mercadopago.retry');
 Route::get('/checkout/exito', [CheckoutController::class, 'success'])->name('checkout.success');
 
-// Sin auth y sin sesión: lo autentica la firma de MercadoPago (Spec 08, reglas 153 y 154).
-Route::post('/webhook/mercadopago', MercadoPagoWebhookController::class)->name('webhook.mercadopago');
+// Sin auth y sin sesión: lo autentica la firma de MercadoPago (Spec 08, reglas 153 y 154,
+// enmendada por HIG-18: el GET también responde 200, sin procesar nada).
+Route::match(['get', 'post'], '/webhook/mercadopago', MercadoPagoWebhookController::class)->name('webhook.mercadopago');
 
 Route::middleware('auth')->prefix('admin')->group(function () {
     Route::get('/', function () {

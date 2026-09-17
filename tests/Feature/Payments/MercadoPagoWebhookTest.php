@@ -2,6 +2,7 @@
 
 use App\Contracts\PaymentStatusQuery;
 use App\Enums\OrderStatus;
+use App\Models\AuditLog;
 use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -297,4 +298,20 @@ it('no exige sesión ni usuario autenticado', function () {
 
     expect($audit->actor_id)->toBeNull()
         ->and(json_decode((string) $audit->payload, true)['origen'])->toBe('mercadopago');
+});
+
+// --- HIG-18: GET responde 200 sin procesar -----------------------------------
+
+test('GET al webhook sin parámetros responde 200 sin auditar (HIG-18)', function () {
+    $this->getJson(route('webhook.mercadopago'))->assertOk();
+
+    expect(AuditLog::count())->toBe(0);
+});
+
+test('GET al webhook con parámetros de notificación se ignora con 200 y deja webhook.ignored (HIG-18)', function () {
+    $this->getJson(route('webhook.mercadopago').'?topic=merchant_order_wh&data_id=123')->assertOk();
+
+    $audit = AuditLog::where('action', 'webhook.ignored')->firstOrFail();
+
+    expect($audit->payload['tipo'])->toBe('merchant_order_wh');
 });
