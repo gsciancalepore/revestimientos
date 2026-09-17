@@ -182,3 +182,23 @@ test('the categories seeder is idempotent and builds the flat business categorie
 
     $this->assertDatabaseCount('categories', 4);
 });
+
+test('vaciar el campo orden crea y edita sin 500 (HIG-15)', function () {
+    $admin = User::factory()->withRole(UserRole::Admin)->create();
+
+    $this->actingAs($admin)->post('/admin/categorias', [
+        'name' => 'Sin Orden',
+        'sort_order' => '',
+    ])->assertSessionHasNoErrors()->assertRedirect(route('categorias.index', absolute: false));
+
+    $this->assertSame(0, Category::where('name', 'Sin Orden')->firstOrFail()->sort_order);
+
+    $category = Category::factory()->create(['sort_order' => 5]);
+
+    $this->actingAs($admin)->patch(route('categorias.update', $category), [
+        'name' => $category->name,
+        'sort_order' => '',
+    ])->assertSessionHasNoErrors()->assertRedirect(route('categorias.index', absolute: false));
+
+    $this->assertSame(0, $category->refresh()->sort_order);
+});

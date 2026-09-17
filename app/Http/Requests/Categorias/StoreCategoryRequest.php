@@ -20,4 +20,15 @@ class StoreCategoryRequest extends FormRequest
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ];
     }
+
+    protected function prepareForValidation(): void
+    {
+        // HIG-15: vaciar el campo manda `sort_order => null`
+        // (`ConvertEmptyStringsToNull`); la clave existe en `validated()` con valor
+        // null, así que el default del controlador nunca aplica y el null llegaba
+        // al `int` no-nullable de la Action → TypeError → 500.
+        if ($this->exists('sort_order') && $this->input('sort_order') === null) {
+            $this->merge(['sort_order' => 0]);
+        }
+    }
 }

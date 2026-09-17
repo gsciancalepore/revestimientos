@@ -20,4 +20,12 @@ class UpdateCategoryRequest extends FormRequest
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ];
     }
+
+    protected function prepareForValidation(): void
+    {
+        // HIG-15: igual que en el alta — el campo vaciado se normaliza a 0.
+        if ($this->exists('sort_order') && $this->input('sort_order') === null) {
+            $this->merge(['sort_order' => 0]);
+        }
+    }
 }
