@@ -1,7 +1,7 @@
 # Spec Higiene 03 — La oferta que no se cobra, la calculadora duplicada y la cobertura que falta
 
-- **Estado**: **aprobada por el dueño** (2026-09-16); **fase 03.a implementada** (2026-09-17,
-  rama `fix/higiene-03a`, 462 tests — 436 base + 26 nuevos — cada regla verificada mutando la
+- **Estado**: **aprobada por el dueño** (2026-09-16); **fase 03.a implementada y mergeada**
+  (2026-09-17, PR #30, 462 tests — 436 base + 26 nuevos — cada regla verificada mutando la
   implementación); fase 03.b pendiente.
 - **Origen**: verificación con `verificador-spec-codigo` de las specs **01**, **02**, **04** y
   `calidad-onboarding` (2026-09-15), más los cuatro hallazgos de la familia Spec 07 y el del
