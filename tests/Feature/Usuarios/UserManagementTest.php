@@ -4,6 +4,7 @@ use App\Enums\UserRole;
 use App\Models\User;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 
 beforeEach(function () {
     $this->seed(RolesSeeder::class);
@@ -279,4 +280,16 @@ test('the admin cannot deactivate himself', function () {
 
     $this->assertTrue($admin->refresh()->is_active);
     $this->assertDatabaseCount('audit_logs', 0);
+});
+
+test('no existe ruta de borrado de usuarios: se desactivan, nunca se borran (HIG-16)', function () {
+    $admin = User::factory()->withRole(UserRole::Admin)->create();
+    $user = User::factory()->withRole(UserRole::Vendedor)->create();
+
+    expect(Route::has('usuarios.destroy'))->toBeFalse();
+
+    // El path coincide con `usuarios.update` (PUT/PATCH) pero sin verbo DELETE:
+    // 405, no un 500 contra un método inexistente.
+    $this->actingAs($admin)->delete('/admin/usuarios/'.$user->id)->assertMethodNotAllowed();
+    $this->assertDatabaseHas('users', ['id' => $user->id]);
 });
