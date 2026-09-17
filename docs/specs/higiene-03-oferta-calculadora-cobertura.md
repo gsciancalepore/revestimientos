@@ -1,8 +1,7 @@
 # Spec Higiene 03 — La oferta que no se cobra, la calculadora duplicada y la cobertura que falta
 
-- **Estado**: **aprobada por el dueño** (2026-09-16); **fase 03.a implementada y mergeada**
-  (2026-09-17, PR #30, 462 tests — 436 base + 26 nuevos — cada regla verificada mutando la
-  implementación); fase 03.b pendiente.
+- **Estado**: **aprobada por el dueño** (2026-09-16); **fases 03.a y 03.b implementadas**
+  (03.a mergeada en PR #30; 03.b en rama `fix/higiene-03b`, pendiente de revisión y PR).
 - **Origen**: verificación con `verificador-spec-codigo` de las specs **01**, **02**, **04** y
   `calidad-onboarding` (2026-09-15), más los cuatro hallazgos de la familia Spec 07 y el del
   webhook (`GET` → 405) que las verificaciones del 2026-09-12 dejaron anotados en el roadmap y en la
@@ -839,23 +838,23 @@ Es la regla HIG-33 de 03.a, con sincronía en la Spec 03.
 
 **Fase 03.b** (HIG-23 a HIG-32)
 
-- [ ] HIG-23: migración con índices únicos en `categories.name` y `categories.slug`, con pre-chequeo
+- [x] HIG-23: migración con índices únicos en `categories.name` y `categories.slug`, con pre-chequeo
       en PHP que lista los duplicados; test que seedea duplicados y espera el fallo legible.
-- [ ] HIG-24: tests unitarios de `UserPolicy` que **fallan si la Policy devuelve `true` a cualquiera**,
+- [x] HIG-24: tests unitarios de `UserPolicy` que **fallan si la Policy devuelve `true` a cualquiera**,
       sin depender del middleware.
-- [ ] HIG-25: test del bloqueo al sexto intento y de la limpieza del contador tras un login válido.
-- [ ] HIG-26: test del token reutilizado y del usuario desactivado que resetea y sigue sin poder entrar.
-- [ ] HIG-27: `ADMIN_*` fijadas en `phpunit.xml`; test del `DatabaseSeeder` (3 roles, 1 admin activo,
+- [x] HIG-25: test del bloqueo al sexto intento y de la limpieza del contador tras un login válido.
+- [x] HIG-26: test del token reutilizado y del usuario desactivado que resetea y sigue sin poder entrar.
+- [x] HIG-27: `ADMIN_*` fijadas en `phpunit.xml`; test del `DatabaseSeeder` (3 roles, 1 admin activo,
       4 categorías), test de idempotencia corriéndolo dos veces, y el seeder falla con un mensaje que
       nombra la variable ausente si falta `ADMIN_EMAIL`.
-- [ ] HIG-28: sincronía de la regla 44 en la Spec 02 **antes** de los tests; tests del sidebar por
+- [x] HIG-28: sincronía de la regla 44 en la Spec 02 **antes** de los tests; tests del sidebar por
       rol afirmando el `href` exacto. El borrado del placeholder duplicado ya lo hizo HIG-28a en 03.a.
-- [ ] HIG-29: test que asserta las tarjetas realmente renderizadas y el orden por nombre, con nombres
+- [x] HIG-29: test que asserta las tarjetas realmente renderizadas y el orden por nombre, con nombres
       cuyo orden alfabético difiera del de inserción.
-- [ ] HIG-30: test HTTP del borrado de categoría con productos y test del orden del listado del panel,
+- [x] HIG-30: test HTTP del borrado de categoría con productos y test del orden del listado del panel,
       en `tests/Feature/Categorias/`.
-- [ ] HIG-31: el mínimo de 8 se asserta en el cambio propio y en el reset.
-- [ ] HIG-32, uno por item: (1) el audit `order.created` assertea sus 4 claves y el actor `null`;
+- [x] HIG-31: el mínimo de 8 se asserta en el cambio propio y en el reset.
+- [x] HIG-32, uno por item: (1) el audit `order.created` assertea sus 4 claves y el actor `null`;
       (2) los tres `CHECK >= 0` de `orders` tienen test; (3) un test verifica que `shipping_cp`
       conserva el `0123`; (4) el `trim` de `prepareForValidation` se ejercita por HTTP; (5) la regla
       117 tiene test del `find` + redirect, que falla si se cambia a `findOrFail`.
@@ -883,7 +882,7 @@ Es la regla HIG-33 de 03.a, con sincronía en la Spec 03.
 - [x] TDD en este orden: **HIG-14 antes que HIG-13** (si no, la fila 3 de la tabla se unifica en el
       valor equivocado); HIG-10 a HIG-14 primero por ser lo único que afecta plata; después el resto
       de 03.a.
-- [ ] Rama `fix/higiene-03b` desde `main` ya con 03.a mergeada.
+- [x] Rama `fix/higiene-03b` desde `main` ya con 03.a mergeada.
 - [ ] PR `docs:` aparte con la higiene documental de §Fuera de alcance, y un PR `chore:` propio para
       `npm ci`.
 - [x] Anotar las sincronías: Specs 05 y 04 más el glosario y `arquitectura.md` (HIG-10, HIG-13 y
@@ -892,7 +891,7 @@ Es la regla HIG-33 de 03.a, con sincronía en la Spec 03.
       regla 153 y su matriz (HIG-18), Spec 04 (HIG-13, HIG-21), Spec 07.3 (HIG-20), Spec 02 regla 44
       (HIG-28) y `arquitectura.md` §Panel y categorías (HIG-28a: ya no hay placeholder de Pedidos).
 - [x] Actualizar `docs/arquitectura.md` **después** de HIG-13 y HIG-21.
-- [ ] Actualizar `docs/roadmap.md` al cerrar cada fase.
+- [x] Actualizar `docs/roadmap.md` al cerrar cada fase.
 
 ## Nota de handoff
 
