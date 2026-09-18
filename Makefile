@@ -49,10 +49,10 @@ format:
 	docker compose exec app ./vendor/bin/pint
 
 npm-install:
-	docker compose run --rm assets npm install
+	docker compose run --rm assets npm ci
 
 npm-dev: ## Levanta el dev server de Vite (servicio assets)
 	docker compose up -d assets
 
 npm-build:
-	docker compose run --rm assets sh -c "npm install && npm run build"
+	docker compose run --rm assets sh -c "npm ci && npm run build"
