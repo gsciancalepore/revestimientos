@@ -1,7 +1,8 @@
 # Spec Higiene 03 — La oferta que no se cobra, la calculadora duplicada y la cobertura que falta
 
 - **Estado**: **aprobada por el dueño** (2026-09-16); **fases 03.a y 03.b implementadas**
-  (03.a mergeada en PR #30; 03.b en rama `fix/higiene-03b`, pendiente de revisión y PR).
+  (03.a mergeada en PR #30; 03.b en rama `fix/higiene-03b`, auditada por `revisor-entrega`: apto,
+  pendiente de push y PR).
 - **Origen**: verificación con `verificador-spec-codigo` de las specs **01**, **02**, **04** y
   `calidad-onboarding` (2026-09-15), más los cuatro hallazgos de la familia Spec 07 y el del
   webhook (`GET` → 405) que las verificaciones del 2026-09-12 dejaron anotados en el roadmap y en la
