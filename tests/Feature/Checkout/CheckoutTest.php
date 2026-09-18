@@ -154,6 +154,13 @@ test('GET /checkout/exito sin session redirige a carrito', function () {
     $this->get(route('checkout.success'))->assertRedirect(route('carrito.show'));
 });
 
+test('GET /checkout/exito con pedido inexistente redirige a carrito en vez de 404 (HIG-32)', function () {
+    // La regla 117 eligió `find` + redirect (HIG-09): un "arreglo" a `findOrFail`
+    // rompería al cliente con sesión viva cuyo pedido ya no existe.
+    $this->withSession(['order_id' => 999999])->get(route('checkout.success'))
+        ->assertRedirect(route('carrito.show'));
+});
+
 test('GET /checkout/exito con session muestra pedido snapshot', function () {
     $product = Product::factory()->create(['name' => 'Orig', 'precio_cents' => 100000, 'm2_por_caja' => '1.00', 'stock' => 10, 'activo' => true, 'unidad_venta' => 'm2']);
     putCart($product, 1);
@@ -221,6 +228,45 @@ test('POST /checkout acepta dirección de 500 caracteres (HIG-19)', function () 
     ])->assertRedirect(route('checkout.success'));
 
     expect(Order::first()->shipping_address)->toBe($direccion);
+});
+
+test('POST /checkout conserva el cero inicial del código postal (HIG-32)', function () {
+    $product = Product::factory()->unitMode()->create(['activo' => true, 'stock' => 10, 'precio_cents' => 10000]);
+    putCart($product, 1);
+
+    $this->post(route('checkout.store'), [
+        'customer_name' => 'Cero',
+        'customer_email' => 'cero@test.com',
+        'customer_phone' => '1122334455',
+        'shipping_cp' => '0123',
+        'payment_method' => 'transferencia',
+    ])->assertRedirect(route('checkout.success'));
+
+    expect(Order::first()->shipping_cp)->toBe('0123');
+});
+
+test('POST /checkout recorta espacios de los datos del cliente (HIG-32)', function () {
+    // El `prepareForValidation` corre en cada POST (más el TrimStrings global del
+    // framework): valores con espacios llegan recortados a la columna.
+    $product = Product::factory()->unitMode()->create(['activo' => true, 'stock' => 10, 'precio_cents' => 10000]);
+    putCart($product, 1);
+
+    $this->post(route('checkout.store'), [
+        'customer_name' => '  Espacios  ',
+        'customer_email' => '  espacios@test.com  ',
+        'customer_phone' => '  1122334455  ',
+        'shipping_cp' => '  1407  ',
+        'shipping_address' => '  Calle 123  ',
+        'payment_method' => 'transferencia',
+    ])->assertRedirect(route('checkout.success'));
+
+    $order = Order::first();
+    expect($order->customer_name)->toBe('Espacios');
+    expect($order->customer_email)->toBe('espacios@test.com');
+    expect($order->customer_phone)->toBe('1122334455');
+    expect($order->shipping_cp)->toBe('1407');
+    // `shipping_address` solo la recorta el Request: la Action no la toca.
+    expect($order->shipping_address)->toBe('Calle 123');
 });
 
 test('GET /checkout/exito muestra los siete campos de línea de la regla 119 (HIG-20)', function () {

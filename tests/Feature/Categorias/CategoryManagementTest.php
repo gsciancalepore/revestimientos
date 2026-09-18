@@ -2,9 +2,11 @@
 
 use App\Enums\UserRole;
 use App\Models\Category;
+use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\CategoriesSeeder;
 use Database\Seeders\RolesSeeder;
+use Illuminate\Database\QueryException;
 
 beforeEach(function () {
     $this->seed(RolesSeeder::class);
@@ -201,4 +203,50 @@ test('vaciar el campo orden crea y edita sin 500 (HIG-15)', function () {
     ])->assertSessionHasNoErrors()->assertRedirect(route('categorias.index', absolute: false));
 
     $this->assertSame(0, $category->refresh()->sort_order);
+});
+
+test('nombre y slug de categoría son únicos en base (HIG-23)', function () {
+    Category::factory()->create(['name' => 'Unica', 'slug' => 'unica']);
+
+    expect(fn () => Category::factory()->create(['name' => 'Unica', 'slug' => 'otra']))
+        ->toThrow(QueryException::class);
+    expect(fn () => Category::factory()->create(['name' => 'Otra', 'slug' => 'unica']))
+        ->toThrow(QueryException::class);
+});
+
+test('la migración de índices únicos falla legible si hay duplicados (HIG-23)', function () {
+    $this->artisan('migrate:rollback', ['--step' => 1]);
+
+    Category::factory()->create(['name' => 'Duplicada', 'slug' => 'duplicada']);
+    Category::factory()->create(['name' => 'Duplicada', 'slug' => 'duplicada']);
+
+    try {
+        $this->artisan('migrate', ['--force' => true]);
+        $this->fail('La migración debió fallar por los duplicados.');
+    } catch (RuntimeException $e) {
+        expect($e->getMessage())->toContain('duplicada');
+    }
+});
+
+test('borrar una categoría con productos muestra el mensaje sin 500 (HIG-30)', function () {
+    $admin = User::factory()->withRole(UserRole::Admin)->create();
+    $category = Category::factory()->create();
+    Product::factory()->create(['category_id' => $category->id]);
+
+    $this->actingAs($admin)->delete(route('categorias.destroy', $category))
+        ->assertRedirect(route('categorias.index', absolute: false))
+        ->assertSessionHasErrors('delete');
+
+    $this->assertDatabaseHas('categories', ['id' => $category->id]);
+});
+
+test('el listado del panel ordena por sort_order (HIG-30)', function () {
+    $admin = User::factory()->withRole(UserRole::Admin)->create();
+    Category::factory()->create(['name' => 'Tercera Panel', 'sort_order' => 30]);
+    Category::factory()->create(['name' => 'Primera Panel', 'sort_order' => 10]);
+    Category::factory()->create(['name' => 'Segunda Panel', 'sort_order' => 20]);
+
+    $this->actingAs($admin)->get(route('categorias.index'))
+        ->assertOk()
+        ->assertSeeInOrder(['Primera Panel', 'Segunda Panel', 'Tercera Panel']);
 });

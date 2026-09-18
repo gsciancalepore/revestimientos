@@ -203,8 +203,12 @@ test('audit order.created con payload y sin descontar stock', function () {
 
     $log = AuditLog::where('action', 'order.created')->where('subject_type', Order::class)->where('subject_id', $order->id)->first();
     expect($log)->not->toBeNull();
+    // HIG-32: el payload promete 4 claves y actor null, no solo que la fila exista.
     expect($log->payload['subtotal_cents'])->toBe($order->subtotal_cents);
     expect($log->payload['shipping_cost_cents'])->toBe($order->shipping_cost_cents);
+    expect($log->payload['total_cents'])->toBe($order->total_cents);
+    expect($log->payload['lines'])->toBe([['product_id' => $product->id, 'cantidad' => 2]]);
+    expect($log->actor_id)->toBeNull();
 
     $product->refresh();
     expect($product->stock)->toBe($stockBefore); // no descuenta en Fase 2

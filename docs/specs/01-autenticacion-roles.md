@@ -85,12 +85,12 @@ administración).
 - [ ] Login con credenciales válidas entra al panel.
 - [ ] Login con credenciales inválidas muestra error genérico.
 - [ ] Un usuario desactivado no ingresa (mismo error genérico).
-- [ ] 5 intentos fallidos en un minuto → bloqueo temporal (error).
+- [x] 5 intentos fallidos en un minuto → bloqueo temporal (error). (HIG-25: bloqueo al sexto intento y limpieza tras login válido.)
 - [ ] Logout → vuelve al login.
-- [ ] "Olvidé mi contraseña": email con link, reset de un solo uso, nueva
-      contraseña ≥ 8 caracteres.
+- [x] "Olvidé mi contraseña": email con link, reset de un solo uso, nueva
+      contraseña ≥ 8 caracteres. (HIG-26: token reutilizado rechazado y reseteo sin reactivar; HIG-31: mínimo de 8 en el reset.)
 - [ ] Mi perfil: cambiar nombre/email y contraseña propios.
-- [ ] Solo admin accede a `/admin/usuarios` (vendedor/depósito → 403).
+- [x] Solo admin accede a `/admin/usuarios` (vendedor/depósito → 403). (HTTP más tests unitarios directos de `UserPolicy`, HIG-24.)
 - [ ] Admin crea un usuario con rol; email duplicado se rechaza.
 - [ ] Admin edita un usuario; el cambio de rol se audita (anterior → nuevo).
 - [ ] Admin desactiva/reactiva; el desactivado no ingresa; ambas acciones se
@@ -98,8 +98,8 @@ administración).
 - [ ] El admin no puede desactivarse a sí mismo.
 - [ ] Cada acción crítica deja una fila en `audit_logs` con actor, acción,
       sujeto, payload, IP y fecha.
-- [ ] `php artisan db:seed` crea los 3 roles y el admin inicial (credenciales de
-      entorno).
+- [x] `php artisan db:seed` crea los 3 roles y el admin inicial (credenciales de
+      entorno). (HIG-27: test del `DatabaseSeeder` + idempotencia; `ADMIN_*` fijadas en `phpunit.xml`.)
 
 ## Decisiones arquitectónicas
 

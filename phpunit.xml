@@ -40,5 +40,10 @@
         <env name="MERCADOPAGO_ACCESS_TOKEN" value=""/>
         <env name="MERCADOPAGO_PUBLIC_KEY" value=""/>
         <env name="MERCADOPAGO_WEBHOOK_SECRET" value=""/>
+        <!-- HIG-27: el DatabaseSeeder nace de estas credenciales; sin fijarlas el
+             test dependería del .env del desarrollador y fallaría en CI. -->
+        <env name="ADMIN_NAME" value="Admin Test"/>
+        <env name="ADMIN_EMAIL" value="admin@test.com"/>
+        <env name="ADMIN_PASSWORD" value="password"/>
     </php>
 </phpunit>
