@@ -15,7 +15,7 @@
 
 Dar al panel administrativo un **layout con sidebar** preparado para las specs
 funcionales (usuarios hoy; categorías, productos y pedidos después), y el
-**CRUD de categorías** jerárquicas del catálogo (dominio Products), que es la
+**CRUD de categorías** planas del catálogo (dominio Products), que es la
 base de navegación del catálogo público (Spec 04).
 
 ## Contexto
