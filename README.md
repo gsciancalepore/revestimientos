@@ -33,7 +33,8 @@ calculadora de m² → cajas y panel para operar productos, pedidos y stock.
 
 - Login en `/admin/login`; la cuenta inicial se crea automáticamente con
   `make setup` (o `make seed`) usando las credenciales de entorno
-  (`ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` en `.env`).
+  (`ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` en `.env`). En desarrollo, los
+  valores de `.env.example` son `Admin` / `admin@ceramica.local` / `admin1234`.
 
 ## Requisitos
 
@@ -49,7 +50,7 @@ make setup
 Esto, en orden:
 
 1. Copia `.env.example` a `.env` (si no existe).
-2. Construye y levanta los contenedores (`app`, `web`, `db`, `redis`, `mailpit`).
+2. Construye y levanta los contenedores (`app`, `web`, `db`, `redis`, `mailpit`, `assets`).
 3. Instala dependencias de Composer desde `composer.lock`.
 4. Genera la clave de la app.
 5. Aplica las migraciones y siembra los 3 roles y el admin inicial
@@ -79,7 +80,7 @@ no necesita PHP ni Node. El Makefile lo resume:
 | `make artisan cmd="route:list"` | Cualquier comando Artisan (ej: `migrate`, `tinker`) |
 | `make migrate` | Aplica migraciones |
 | `make seed` | Siembra roles, admin inicial y las 4 categorías (idempotente) |
-| `make test` | Suite de tests (Pest) |
+| `make test` | Suite de tests (Pest, base dedicada `ceramica_test`) |
 | `make lint` | Laravel Pint (verifica estilo) |
 | `make format` | Aplica estilo con Pint |
 | `make stan` | PHPStan nivel 8 (análisis estático) |

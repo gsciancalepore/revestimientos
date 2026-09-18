@@ -1,3 +1,10 @@
+> **Nota de idioma y entorno:** el bloque "Laravel Boost Guidelines" que sigue
+> está en inglés por ser texto provisto por el framework, mientras el resto de
+> este documento y del repo está en español. Además, sus ejemplos invocan
+> `php artisan` y `npm` directo en el host, pero en este proyecto todo corre en
+> Docker Compose: usar `make ...` o `docker compose exec ...` (ver §Entorno y
+> comandos más abajo).
+
 <laravel-boost-guidelines>
 === foundation rules ===
 
