@@ -119,12 +119,12 @@ El catálogo es **público**: no hay roles. Todos los accesos están abiertos.
 - [ ] La ficha muestra specs de la familia, precio según `unidad_venta`, oferta
       con precio tachado + % OFF y stock ("Quedan N cajas"/"unidades").
 - [ ] Un producto sin stock se muestra con el badge "Sin stock".
-- [ ] La calculadora aparece solo en modo m²: largo × ancho o m², desperdicio
-      opcional del 10 %, resultado en cajas (ceil) y m² a cubrir con desperdicio.
+- [x] La calculadora aparece solo en modo m²: largo × ancho o m², desperdicio
+      opcional del 10 %, resultado en cajas (ceil) y m² a cubrir con desperdicio. (HIG-13: cálculo unificado en el servidor; HIG-14: el desperdicio no se pierde por redondeo.)
 - [ ] Los listados filtran por categoría, ofertas, marca, specs por familia y
       búsqueda por texto; los filtros son combinables.
 - [ ] La búsqueda hace coincidencia parcial en nombre, código y marca.
-- [ ] Los listados se ordenan por categoría/nombre y pagan en grillas de 12.
+- [x] Los listados se ordenan por categoría/nombre y pagan en grillas de 12. (HIG-29: conteo de tarjetas renderizadas y orden distinto al de inserción.)
 - [ ] El catálogo se navega sin login (no usa el layout del panel).
 - [ ] Pint, PHPStan nivel 8 y Pest en verde; CI alineado.
 

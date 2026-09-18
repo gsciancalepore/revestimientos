@@ -133,7 +133,9 @@ Implementado en la Spec 02 (revisada 2026-08-05: **categorías planas**):
   `DeleteCategoryAction` (esta última lanza `DomainException` si la categoría
   tiene productos).
 - **Validación** en `StoreCategoryRequest` / `UpdateCategoryRequest`: `name` y
-  `slug` **únicos en todo el catálogo** (`Rule::unique`). El slug se auto-genera
+  `slug` **únicos en todo el catálogo** (`Rule::unique`), respaldados por
+  índices únicos en base (Higiene 03 HIG-23; la migración falla legible si el
+  entorno ya trae duplicados). El slug se auto-genera
   del nombre (`Str::slug`) con un sufijo (`-2`, `-3`...) si colisiona
   (`CategorySlugGenerator`); puede editarse en el formulario.
 - **Orden manual** (`categories.sort_order`): campo numérico en el formulario,
