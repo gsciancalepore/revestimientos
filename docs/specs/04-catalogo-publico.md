@@ -237,3 +237,23 @@ cuánto hay que reponerle al fabricante antes de despachar.
 **HIG-13.** La calculadora de la ficha deja de ser una segunda implementación en JavaScript y pasa a calcularse en el servidor con `M2Calculator` —la misma cuenta del carrito, sin ruta HTTP nueva (la ficha se re-renderiza con query params)—. La regla 75 se preserva tal cual —el cliente sigue ingresando dimensiones o m² y viendo m² + cajas— así que **no se enmienda**: el fallback sin estimación en vivo que la Spec Higiene 03 preveía no resultó necesario.
 
 **HIG-21.** La regla 74 ("sin acción de compra") ahora se cumple completa: con `stock <= 0` el formulario de compra **no se renderiza** (el badge "Sin stock" ya estaba).
+
+## Sincronía 2026-09-20 — nueva regla 167: sección "Productos" en la home
+
+**Motivo (decisión del dueño, 2026-09-20)**: la regla 72 limita la home a "destacados con oferta
+activa". Con pocos productos cargados y ninguno en oferta, la home no muestra ningún producto —
+un comercio recién empezando a cargar catálogo no tiene nada que mostrarle al cliente. La regla 72
+**no se enmienda ni se reescribe**: sigue significando exactamente lo mismo. Se agrega una regla
+nueva, independiente, que continúa la numeración global (última usada: 166, Spec 08).
+
+167. La **home** muestra además una sección **"Productos"**, siempre que exista al menos un
+     producto activo: los **productos activos más recientes** (`latest()`, mismo criterio de
+     orden que la regla 72), sin exigir oferta activa, limitados a 8. Convive con la sección de
+     destacados con oferta (regla 72): si no hay ninguna oferta activa, la home muestra solo
+     "Productos"; si hay ofertas, muestra ambas secciones. Un producto puede aparecer en las dos
+     secciones a la vez (con oferta y además reciente) — no se excluye de una por estar en la
+     otra, son dos recortes distintos del mismo catálogo, no una lista sin repetición.
+
+Reutiliza `<x-product-card>` sin cambios de contrato (mismo componente que ya usan home y
+catálogo). Sin ruta, controlador de dominio ni Form Request nuevos: `CatalogController::home()`
+agrega una segunda consulta de solo lectura, mismo patrón que la que ya arma `$destacados`.
