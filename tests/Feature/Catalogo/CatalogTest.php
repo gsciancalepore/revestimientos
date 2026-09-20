@@ -58,6 +58,19 @@ test('la ficha se accede por slug y muestra nombre, marca, specs, precio y stock
         ->assertSee('Quedan 12 cajas');
 });
 
+test('la ficha de producto usa layout site y muestra la barra de categorías (identidad visual pública, regla 4)', function () {
+    $categoriaDelProducto = Category::factory()->create(['name' => 'Porcelanatos', 'slug' => 'porcelanatos', 'sort_order' => 1]);
+    Category::factory()->create(['name' => 'Cerámicas', 'slug' => 'ceramicas', 'sort_order' => 2]);
+    $product = Product::factory()->create(['category_id' => $categoriaDelProducto->id]);
+
+    // "Cerámicas" no tiene relación con el producto: solo puede aparecer si el
+    // layout recibe :categorias y renderiza la barra de navegación completa,
+    // no el breadcrumb (que solo muestra la categoría propia del producto).
+    $this->get('/productos/'.$product->slug)
+        ->assertOk()
+        ->assertSee('Cerámicas');
+});
+
 test('la ficha muestra el precio de oferta con descuento', function () {
     $product = Product::factory()->conOferta()->create(['name' => 'En oferta']);
 
