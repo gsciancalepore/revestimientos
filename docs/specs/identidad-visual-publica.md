@@ -1,6 +1,10 @@
 # Spec — Identidad visual de la tienda pública
 
-- **Estado**: borrador, pendiente de `revisor-spec` y de aprobación del dueño.
+- **Estado**: **aprobada (2026-09-20)** por el dueño, tras revisión de
+  `revisor-spec` (aprobable con correcciones menores, ya aplicadas: contrato
+  de `cart-line` en la regla 5, criterio de aceptación de la regla 11, caso
+  borde de accesibilidad para componentes interactivos). Pendiente de
+  implementación por fases (Fase A primero).
 - **Fuentes**: decisión del dueño (2026-09-20) de encarar el rediseño visual
   "público primero" y "mismo stack, solo mejorar diseño"; `docs/roadmap.md`
   §Cómo se escribe una spec nueva; `.ai/rules/views.md` (patrón
