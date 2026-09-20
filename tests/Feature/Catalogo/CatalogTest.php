@@ -12,14 +12,39 @@ test('la home muestra las categorías en orden de sort_order y los destacados co
     // Desde la regla 167 (Spec 04, sincronía 2026-09-20) "Sin Oferta" sí
     // aparece en la home, en la sección "Productos" (productos recientes sin
     // exigir oferta) — antes de esa regla no se veía en ningún lado de la
-    // home. La cobertura de que la sección de destacados exige oferta activa
-    // vive en las secciones de "Productos" (regla 167) y en las specs de
-    // dominio (07.2/07.3), no acá.
+    // home. Que "Destacados" siga exigiendo oferta activa (regla 72) se
+    // prueba aparte, en el test siguiente, sin depender de la sección nueva.
     $this->get('/')
         ->assertOk()
         ->assertSeeInOrder(['Porcelanatos', 'Cerámicas'])
         ->assertSee('Destacado Gris')
         ->assertSee('Sin Oferta');
+});
+
+test('la sección de destacados sigue exigiendo oferta activa, independiente de la sección de productos (regla 72, no la toca la regla 167)', function () {
+    // Con oferta pero fuera de los 8 más recientes: si aparece en la home,
+    // solo puede ser porque "Destacados" lo muestra por mérito propio, no
+    // porque la sección "Productos" (regla 167, limit 8) lo alcance.
+    Product::factory()->conOferta()->create([
+        'name' => 'Con Oferta Vieja',
+        'created_at' => now()->subDays(30),
+    ]);
+
+    // Sin oferta y también fuera de los 8 más recientes: si esto aparece en
+    // algún lado, "Destacados" dejó de exigir oferta activa.
+    Product::factory()->create([
+        'name' => 'Sin Oferta Vieja',
+        'created_at' => now()->subDays(31),
+    ]);
+
+    // Ocho productos recientes que desplazan a los dos de arriba fuera del
+    // límite de "Productos" (regla 167).
+    Product::factory()->count(8)->create(['created_at' => now()]);
+
+    $this->get('/')
+        ->assertOk()
+        ->assertSee('Con Oferta Vieja')
+        ->assertDontSee('Sin Oferta Vieja');
 });
 
 test('la home muestra productos activos recientes aunque no tengan oferta (regla 167)', function () {
