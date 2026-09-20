@@ -120,15 +120,24 @@ pura.
    `danger`) en `resources/css/app.css`, tipografía `Instrument Sans` + `Fraunces` (corrige un
    mismatch previo con `Figtree`), `layouts/site.blade.php` rediseñado, y la regla 4 (
    `producto.blade.php` ahora pasa `:categorias`, antes era la única vista pública sin la barra de
-   categorías). 500 tests, Pint/PHPStan limpios. `revisor-entrega` corriendo — ver resultado antes
-   de mergear.
+   categorías). 500 tests, Pint/PHPStan limpios. **`revisor-entrega`: apto** — mutó las dos mitades
+   de la regla 4 (controller y vista), ambas rompen el test como corresponde; confirmó que no tocó
+   nada fuera de alcance (admin/auth/botones de Breeze) y anotó un hallazgo menor no bloqueante (el
+   mismatch de fuente `Figtree`/`Instrument Sans`) ya resuelto como regla durable en
+   `.ai/rules/views.md`.
 2. `feat/catalogo-04-regla-167-home` → `main`
    (`https://github.com/gsciancalepore/revestimientos/pull/new/feat/catalogo-04-regla-167-home`):
    nueva regla 167 en Spec 04 (sincronía, no reabre la spec, no toca la regla 72) — la home suma una
    sección "Productos" con los activos más recientes, sin exigir oferta, porque con pocos productos
    cargados y ninguno en oferta la home no mostraba nada. De paso, `APP_NAME` en `.env.example` pasó
-   de un placeholder (`"Casa de Ceramicas"`) al nombre real del local, `"Jireh Revestimientos"`. 501
-   tests, Pint/PHPStan limpios. `revisor-entrega` corriendo — ver resultado antes de mergear.
+   de un placeholder (`"Casa de Ceramicas"`) al nombre real del local, `"Jireh Revestimientos"`.
+   **`revisor-entrega` bloqueó la primera versión**: al ajustar la aserción de un test preexistente
+   para reflejar la regla 167, quedó sin cobertura que "Destacados" siga exigiendo oferta activa
+   (regla 72) — se podía borrar `->conOferta()` de esa query con la suite de Catalogo en verde.
+   Corregido con un test que sí lo cubre (verificado mutando esa línea) y con la sincronía
+   documental que también había señalado (`arquitectura.md`, `ubiquitous-language.md`). Re-auditoría
+   en curso al escribir este punto de retome — confirmar el veredicto final antes de mergear. 502
+   tests, Pint/PHPStan limpios.
 
 **Por qué son dos ramas y no una**: `identidad-visual-publica` es presentación pura y su propia Nota
 de handoff dice explícitamente que no autoriza tocar dominio ni controladores salvo la regla 4. La
