@@ -9,11 +9,33 @@ test('la home muestra las categorías en orden de sort_order y los destacados co
     Product::factory()->conOferta()->create(['name' => 'Destacado Gris']);
     Product::factory()->create(['name' => 'Sin Oferta']);
 
+    // Desde la regla 167 (Spec 04, sincronía 2026-09-20) "Sin Oferta" sí
+    // aparece en la home, en la sección "Productos" (productos recientes sin
+    // exigir oferta) — antes de esa regla no se veía en ningún lado de la
+    // home. La cobertura de que la sección de destacados exige oferta activa
+    // vive en las secciones de "Productos" (regla 167) y en las specs de
+    // dominio (07.2/07.3), no acá.
     $this->get('/')
         ->assertOk()
         ->assertSeeInOrder(['Porcelanatos', 'Cerámicas'])
         ->assertSee('Destacado Gris')
-        ->assertDontSee('Sin Oferta');
+        ->assertSee('Sin Oferta');
+});
+
+test('la home muestra productos activos recientes aunque no tengan oferta (regla 167)', function () {
+    Product::factory()->create(['name' => 'Único Cargado']);
+
+    $this->get('/')
+        ->assertOk()
+        ->assertSee('Único Cargado');
+});
+
+test('la home no muestra productos inactivos en la sección de productos recientes (regla 167)', function () {
+    Product::factory()->inactive()->create(['name' => 'Inactivo No Debe Verse']);
+
+    $this->get('/')
+        ->assertOk()
+        ->assertDontSee('Inactivo No Debe Verse');
 });
 
 test('el catálogo solo publica productos activos', function () {
