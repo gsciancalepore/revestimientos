@@ -104,6 +104,58 @@ no vuelva a pasar.
 
 ## Cómo continuar
 
+### Punto de retome — 2026-09-20: identidad visual pública en curso (Fase A) + regla 167, dos PRs sin mergear
+
+**Leer esto primero.** Sesión de hoy: se aprobó la spec `docs/specs/identidad-visual-publica.md`
+(rediseño visual del sitio público, "público primero", mismo stack Blade+Tailwind+Alpine) y se
+implementó su **Fase A**; en paralelo, el dueño pidió dos ajustes puntuales que se resolvieron como
+trabajo aparte, con su propia spec/sincronía, porque tocaban una regla de negocio y no presentación
+pura.
+
+**Dos PRs abiertos, ninguno mergeado todavía**:
+
+1. `feat/identidad-visual-publica-a` → `main`
+   (`https://github.com/gsciancalepore/revestimientos/pull/new/feat/identidad-visual-publica-a`):
+   Fase A de `identidad-visual-publica` — tokens de marca (`brand`/`neutral`/`success`/`warning`/
+   `danger`) en `resources/css/app.css`, tipografía `Instrument Sans` + `Fraunces` (corrige un
+   mismatch previo con `Figtree`), `layouts/site.blade.php` rediseñado, y la regla 4 (
+   `producto.blade.php` ahora pasa `:categorias`, antes era la única vista pública sin la barra de
+   categorías). 500 tests, Pint/PHPStan limpios. `revisor-entrega` corriendo — ver resultado antes
+   de mergear.
+2. `feat/catalogo-04-regla-167-home` → `main`
+   (`https://github.com/gsciancalepore/revestimientos/pull/new/feat/catalogo-04-regla-167-home`):
+   nueva regla 167 en Spec 04 (sincronía, no reabre la spec, no toca la regla 72) — la home suma una
+   sección "Productos" con los activos más recientes, sin exigir oferta, porque con pocos productos
+   cargados y ninguno en oferta la home no mostraba nada. De paso, `APP_NAME` en `.env.example` pasó
+   de un placeholder (`"Casa de Ceramicas"`) al nombre real del local, `"Jireh Revestimientos"`. 501
+   tests, Pint/PHPStan limpios. `revisor-entrega` corriendo — ver resultado antes de mergear.
+
+**Por qué son dos ramas y no una**: `identidad-visual-publica` es presentación pura y su propia Nota
+de handoff dice explícitamente que no autoriza tocar dominio ni controladores salvo la regla 4. La
+sección "Productos" en la home cambia qué productos se muestran — eso es una regla de negocio de la
+Spec 04, no un cambio visual, así que se documentó y ramificó aparte aunque las dos toquen
+`home.blade.php`/`CatalogController` en fechas cercanas.
+
+**Pendiente, no automatizable**: el dueño todavía no hizo el recorrido visual en el navegador de
+ninguna de las dos ramas (criterio de aceptación explícito de `identidad-visual-publica`: "verde en
+la suite no es lo mismo que verificado", mismo criterio que ya se usó para el webhook de
+MercadoPago). Docker está levantado, `http://localhost:8080`.
+
+**Lo próximo, en orden**:
+
+1. Mirar el resultado de `revisor-entrega` en ambas ramas (lanzado el 2026-09-20, sin veredicto
+   todavía al escribir este punto de retome).
+2. Recorrido visual del dueño en `http://localhost:8080` (desktop y mobile) de ambas ramas.
+3. Mergear los dos PRs (sin conflicto esperado entre ellos: tocan `home.blade.php` en secciones
+   distintas del archivo).
+4. Retomar `identidad-visual-publica` con la **Fase B** (home + catálogo: `public/home.blade.php`,
+   `public/catalogo.blade.php`, `components/product-card.blade.php`) — ahí es donde corresponde
+   decidir si se crea un componente de botón/CTA reutilizable (regla 6), diferido en la Fase A por
+   YAGNI (un solo CTA no lo justificaba).
+5. Sigue pendiente, sin relación con lo de hoy: la verificación del webhook de MercadoPago contra
+   una compra real (único pendiente del MVP funcional, requiere acceso del dueño al panel de
+   MercadoPago — ver el punto de retome del 2026-09-18 más abajo).
+
 ### Punto de retome — 2026-09-18: Higiene 03 mergeada, faltan PRs docs:/chore: y webhook real
 
 **Leer esto primero.** La Spec Higiene 03 está **completa y mergeada** (03.a PR #30, 03.b PR #32 el
