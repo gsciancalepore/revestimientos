@@ -59,6 +59,7 @@ sentido, es un bug de lenguaje.
 | **Catálogo público** | La web abierta del negocio (sin login) donde se navegan categorías y productos; fuera del panel. | Home, listados, ficha |
 | **Ficha de producto** | Página pública de un producto con specs de la familia, precio según unidad de venta, oferta, stock y calculadora (solo modo m²). | URL `/productos/{slug}` |
 | **Destacados** | Productos activos con oferta activa mostrados en la home. | "Destacados con oferta" |
+| **Productos (sección de home)** | Productos activos más recientes mostrados en la home sin exigir oferta activa; convive con "Destacados" (regla 167, Spec 04). | Home con un solo producto cargado y sin ofertas |
 | **Slug** | Identificador legible y único de una categoría o producto, usado en las URLs públicas. Se auto-genera del nombre y es editable por el admin. | `/productos/porcelanato-gris` |
 | **Carrito** | Contenedor anónimo en sesión del cliente: conjunto de líneas con productos y cantidades a comprar. No reserva stock; vive en sesión del navegador. | `/carrito` — subtotal sí, total no (sin envío en Spec 05) |
 | **Línea del carrito** | Entrada del carrito: referencia a un producto + cantidad comercial entera (cajas si `m2`, unidades si `unidad`). Derivada de m²→cajas con `ceil` y 10 % desperdicio opcional antes de `ceil`. | 3 cajas de porcelanato; 2 bolsas de pastina |

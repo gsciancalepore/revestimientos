@@ -188,8 +188,9 @@ Implementado en la **Spec 04** (cliente web anónimo, Spec 00 regla 27):
 
 - **Layout público** `layouts/site` (Blade + Tailwind 4 + Alpine) con header de
   navegación por categorías, buscador y enlace a ofertas; no usa el layout del
-  panel. Vistas: `public/home` (categorías en orden `sort_order` + destacados con
-  oferta), `public/catalogo` (grilla con filtros combinables y paginación de 12)
+  panel. Vistas: `public/home` (categorías en orden `sort_order`, destacados con
+  oferta activa, y sección "Productos" con los activos más recientes sin exigir
+  oferta — regla 167, Spec 04), `public/catalogo` (grilla con filtros combinables y paginación de 12)
   y `public/producto` (ficha con calculadora m²→cajas). Componente reusable
   `product-card`.
 - **Rutas públicas** en `routes/web.php` (sin middleware de auth): `/`,
