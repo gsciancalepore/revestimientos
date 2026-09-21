@@ -244,7 +244,7 @@ negocio continúa en las specs de dominio)
 Se entrega por fases, como las Specs 07/08/Higiene 03: un PR por fase, cada
 una deja la suite en verde y dejar algo verificable por sí solo.
 
-- [ ] **Fase A — Sistema base**: paleta y tipografía (reglas 1, 2),
+- [x] **Fase A — Sistema base**: paleta y tipografía (reglas 1, 2),
       `layouts/site.blade.php` rediseñado (regla 3), corrección de
       `producto.blade.php` (regla 4), tratamiento de botones/CTA (regla 6).
       Rama `feat/identidad-visual-publica-a`.
@@ -268,3 +268,54 @@ alcance que requiere volver a este documento y no se asume en silencio
 (`PROJECT_PRINCIPLES.md` regla 2: nunca asumir reglas de negocio). El
 contrato de datos de `product-card` y `cart-line` documentado en el Contexto
 es el límite: si no alcanza, se pregunta antes de programar.
+
+## Sincronía 2026-09-20 — Fase A (sistema base) implementada
+
+- **Tokens de marca**: `resources/css/app.css` define `--color-brand-*`
+  (terracota, ladder 50-900, reemplaza `orange-*`), `--color-neutral-*`
+  (alias de `stone-*` con nombre propio, mismo valor), `--color-success-*`/
+  `--color-warning-*`/`--color-danger-*` (alias de `emerald-*`/`amber-*`/
+  `red-*`, mismo criterio). Los alias reusan el valor de la paleta default
+  de Tailwind vía `var(--color-stone-500)` etc. — la regla 1 pide reemplazar
+  el **uso sin nombrar**, no inventar un nuevo valor de gris o de semáforo
+  desde cero; el rol de cada color (neutro/éxito/advertencia/error) se
+  conserva.
+- **Tipografía**: `Instrument Sans` (cuerpo) + `Fraunces` (titulares, token
+  `--font-display`), cargadas desde Bunny Fonts en `layouts/site.blade.php`.
+  Corrige un defecto preexistente: el `<link>` cargaba `Figtree`, pero
+  `--font-sans` en `@theme` ya nombraba `'Instrument Sans'` — la fuente
+  cargada nunca coincidía con la declarada, así que el sitio nunca renderizó
+  ninguna de las dos por nombre (caía al `sans-serif` del sistema).
+- **`layouts/site.blade.php` rediseñado**: mismo contrato
+  (`<x-layouts.site :categorias="...">`, `<x-slot:title>`), header con
+  fondo translúcido + blur, logo en `font-display`/`brand-800`, foco visible
+  en el buscador (regla 9) y su `<label for>` asociado (antes solo tenía
+  `placeholder`). Footer restilizado, mismo texto.
+- **Regla 4**: `CatalogController::producto()` ahora pasa `categorias` a la
+  vista (mismo query que usan `home()`/`catalogo()`:
+  `Category::query()->orderBy('sort_order')->get()`); `producto.blade.php`
+  la reenvía al layout. Es el único cambio en `app/Http/Controllers/` de esta
+  fase — autorizado explícitamente por la regla 4, no es la ampliación de
+  alcance que la Nota de handoff prohíbe (no hay lógica de negocio nueva, es
+  el mismo dato que ya usan las demás vistas públicas).
+- **TDD**: test nuevo (rojo→verde)
+  `tests/Feature/Catalogo/CatalogTest.php` — "la ficha de producto usa
+  layout site y muestra la barra de categorías" — crea una categoría sin
+  relación con el producto para que solo pueda aparecer vía la barra de
+  navegación (no vía el breadcrumb, que muestra la categoría propia).
+- **No tocado, según el alcance de la regla 7**: `layouts/app.blade.php`,
+  `layouts/navigation.blade.php`, `layouts/guest.blade.php`,
+  `resources/views/admin/**`, `resources/views/auth/**`,
+  `primary-button`/`secondary-button`/`danger-button`/`nav-link`.
+- **Botones/CTA (regla 6)**: en esta fase el único CTA del layout compartido
+  es el botón "Buscar" del header, ya restilizado con los tokens nuevos. No
+  se crea un componente de botón reutilizable todavía: hoy sería una
+  abstracción sin un segundo caso de uso real (`PROJECT_PRINCIPLES.md` regla
+  8). La decisión se retoma en la Fase B, donde el hero de `home.blade.php`
+  y "Ver catálogo" dan el primer caso concreto de dos CTA compartiendo
+  tratamiento.
+- **Verificado**: 500 tests en verde (499 + 1 nuevo), Pint limpio, PHPStan
+  nivel 8 sin errores, `npm run build` compila los tokens sin error,
+  `GET /` y `GET /catalogo` responden 200 con las clases/fuentes nuevas
+  presentes en el HTML servido. **Pendiente**: recorrido visual del dueño en
+  desktop y mobile (criterio no automatizable de esta spec).

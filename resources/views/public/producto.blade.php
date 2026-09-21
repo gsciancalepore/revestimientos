@@ -5,7 +5,7 @@
     $descuento = $producto->descuentoPorcentaje();
 @endphp
 
-<x-layouts.site>
+<x-layouts.site :categorias="$categorias">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <nav class="text-sm text-stone-500">
             <a href="{{ route('catalogo.home') }}" class="hover:text-orange-700">Inicio</a>
