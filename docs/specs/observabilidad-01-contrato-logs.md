@@ -1,6 +1,6 @@
 # Spec — Observabilidad 01: contrato de logs v1
 
-- **Estado**: **implementada (2026-09-24)**, rama `feat/observabilidad-01-contrato-logs`, pendiente de `revisor-entrega` y PR. Fue **aprobada (2026-09-24)** por el dueño, tras tres pasadas de `revisor-spec`. La tercera fue "aprobable con correcciones menores" y las correcciones ya están aplicadas.
+- **Estado**: **cerrada (2026-09-24)**: implementada y mergeada a `main` (PR #39, `b8c2ba0`). Fue **aprobada (2026-09-24)** por el dueño, tras tres pasadas de `revisor-spec`. La tercera fue "aprobable con correcciones menores" y las correcciones ya están aplicadas.
 - **Historia del borrador**:
   - **v1**: incluía un agente investigador dentro de este repo. `revisor-spec` la marcó "necesita
     otra vuelta".
@@ -570,3 +570,13 @@ La primera auditoría **bloqueó** la entrega. El código estaba sano; fallaba l
 Suite: **554 tests**. **Corrección** a la sincronía anterior: la imagen `app` local ya está
 reconstruida. De la tarea 10 quedan solo `LOG_CHANNEL=app` en el `.env` local y borrar
 `storage/logs/laravel.log`.
+
+## Sincronía 2026-09-24 — cierre
+
+Mergeada a `main` en el PR #39 (`b8c2ba0`), con CI en verde (559 tests, incluido el paso que
+verifica que la suite no escribe en `storage/logs/`) y `revisor-entrega` apto en la segunda pasada.
+La tarea 10 quedó hecha en la máquina del dueño: `LOG_CHANNEL=app` en `.env`, `laravel.log` borrado
+e imagen `app` reconstruida.
+
+El schema se copió en `incident-investigator` (`contracts/revestimientos/log-schema.v1.json`), con
+este commit como origen. La siguiente etapa de ADR-013 (staging) necesita spec propia.
