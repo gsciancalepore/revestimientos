@@ -1,12 +1,8 @@
 <?php
 
-use App\Contracts\PaymentStatusQuery;
 use App\Enums\OrderStatus;
 use App\Models\AuditLog;
-use App\Models\Order;
-use App\Models\Product;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
-use Illuminate\Testing\TestResponse;
 
 /**
  * Spec 08 fase 08.b — webhook de MercadoPago (reglas 153 a 158).
@@ -14,89 +10,9 @@ use Illuminate\Testing\TestResponse;
  * Ningún test alcanza la red: la consulta a la API se resuelve con un doble
  * bindeado en el contenedor, nunca dependiendo de que falte el token.
  */
-const SECRETO_WEBHOOK = 'secreto-de-prueba';
-
 beforeEach(function () {
     config(['services.mercadopago.webhook_secret' => SECRETO_WEBHOOK]);
 });
-
-/**
- * Doble de la consulta a la API (regla 155).
- */
-class FakePaymentStatusQuery implements PaymentStatusQuery
-{
-    public int $consultas = 0;
-
-    /**
-     * @param  array{status: string, external_reference: ?string, amount_cents: int}|null  $pago
-     */
-    public function __construct(private ?array $pago, private bool $falla = false) {}
-
-    /**
-     * @return array{status: string, external_reference: ?string, amount_cents: int}|null
-     */
-    public function findPayment(string $paymentId): ?array
-    {
-        $this->consultas++;
-
-        if ($this->falla) {
-            throw new RuntimeException('MercadoPago no responde.');
-        }
-
-        return $this->pago;
-    }
-}
-
-/**
- * @param  array{status: string, external_reference: ?string, amount_cents: int}|null  $pago
- */
-function bindearConsulta(?array $pago, bool $falla = false): FakePaymentStatusQuery
-{
-    $doble = new FakePaymentStatusQuery($pago, $falla);
-
-    app()->instance(PaymentStatusQuery::class, $doble);
-
-    return $doble;
-}
-
-/**
- * Firma como la manda MercadoPago: `ts=<ts>,v1=<hmac>` sobre el manifiesto
- * `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`.
- */
-function firmaValida(string $dataId, string $requestId, string $ts = '1700000000', string $secreto = SECRETO_WEBHOOK): string
-{
-    $hmac = hash_hmac('sha256', "id:{$dataId};request-id:{$requestId};ts:{$ts};", $secreto);
-
-    return "ts={$ts},v1={$hmac}";
-}
-
-/**
- * @param  array<string, mixed>|null  $body
- */
-function notificar(string $dataId, ?string $firma = null, string $requestId = 'req-1', ?array $body = null): TestResponse
-{
-    $headers = ['x-request-id' => $requestId];
-
-    if ($firma !== null) {
-        $headers['x-signature'] = $firma;
-    }
-
-    return test()->postJson(
-        route('webhook.mercadopago'),
-        $body ?? ['type' => 'payment', 'data' => ['id' => $dataId]],
-        $headers
-    );
-}
-
-function pedidoPagable(int $stock = 10, int $cantidad = 3, int $totalCents = 30000): Order
-{
-    $product = Product::factory()->create(['stock' => $stock]);
-
-    $order = pedidoConLinea($product, $cantidad);
-    $order->update(['total_cents' => $totalCents]);
-
-    return $order->fresh();
-}
 
 // --- Regla 154: validación de firma -----------------------------------------
 

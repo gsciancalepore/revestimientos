@@ -1,9 +1,13 @@
 <?php
 
+use App\Contracts\PaymentStatusQuery;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\Cart;
+use App\Services\MercadoPagoGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use MercadoPago\MercadoPagoConfig;
 use Tests\RedProhibida;
 use Tests\TestCase;
@@ -62,6 +66,159 @@ function pedidoDePanel(OrderStatus $status = OrderStatus::PendingPayment, string
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 2, $status);
     $order->update(['payment_method' => $medioDePago]);
+
+    return $order->fresh();
+}
+
+/*
+ * Dobles y helpers de MercadoPago (checkout 07.4 y webhook 08.b). Viven acá
+ * porque los usan también los tests del contrato de logs (spec
+ * observabilidad-01): declarados en su archivo original, los otros no podían
+ * correr solos (`.ai/rules/tests.md`).
+ */
+
+function putCartMp(Product $product, int $cantidad): void
+{
+    app(Cart::class)->putItems([$product->id => $cantidad]);
+}
+
+class FakeMercadoPagoGatewaySuccess extends MercadoPagoGateway
+{
+    public static int $calls = 0;
+
+    public function __construct()
+    {
+        // Sin SDK: no llama al padre para no exigir token.
+    }
+
+    public function paymentUrl(Order $order): string
+    {
+        self::$calls++;
+
+        $order->update([
+            'mp_preference_id' => 'pref-'.$order->id,
+            'mp_init_point' => 'https://mercadopago.test/checkout/pref-'.$order->id,
+        ]);
+
+        return 'https://mercadopago.test/checkout/pref-'.$order->id;
+    }
+}
+
+class PayloadInspectorGateway extends MercadoPagoGateway
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function payloadFor(Order $order): array
+    {
+        return $this->preferencePayload($order);
+    }
+}
+
+class FakeMercadoPagoGatewayFailure extends MercadoPagoGateway
+{
+    public static int $calls = 0;
+
+    public function __construct()
+    {
+        // Sin SDK: no llama al padre para no exigir token.
+    }
+
+    public function paymentUrl(Order $order): string
+    {
+        self::$calls++;
+
+        throw new RuntimeException('Error de MercadoPago');
+    }
+}
+
+function checkoutPayload(array $overrides = []): array
+{
+    return array_merge([
+        'customer_name' => 'Ana MP',
+        'customer_email' => 'anamp@test.com',
+        'customer_phone' => '1122334455',
+        'shipping_cp' => '1407',
+        'payment_method' => 'mercadopago',
+    ], $overrides);
+}
+
+const SECRETO_WEBHOOK = 'secreto-de-prueba';
+
+/**
+ * Doble de la consulta a la API (regla 155).
+ */
+class FakePaymentStatusQuery implements PaymentStatusQuery
+{
+    public int $consultas = 0;
+
+    /**
+     * @param  array{status: string, external_reference: ?string, amount_cents: int}|null  $pago
+     */
+    public function __construct(private ?array $pago, private bool $falla = false) {}
+
+    /**
+     * @return array{status: string, external_reference: ?string, amount_cents: int}|null
+     */
+    public function findPayment(string $paymentId): ?array
+    {
+        $this->consultas++;
+
+        if ($this->falla) {
+            throw new RuntimeException('MercadoPago no responde.');
+        }
+
+        return $this->pago;
+    }
+}
+
+/**
+ * @param  array{status: string, external_reference: ?string, amount_cents: int}|null  $pago
+ */
+function bindearConsulta(?array $pago, bool $falla = false): FakePaymentStatusQuery
+{
+    $doble = new FakePaymentStatusQuery($pago, $falla);
+
+    app()->instance(PaymentStatusQuery::class, $doble);
+
+    return $doble;
+}
+
+/**
+ * Firma como la manda MercadoPago: `ts=<ts>,v1=<hmac>` sobre el manifiesto
+ * `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`.
+ */
+function firmaValida(string $dataId, string $requestId, string $ts = '1700000000', string $secreto = SECRETO_WEBHOOK): string
+{
+    $hmac = hash_hmac('sha256', "id:{$dataId};request-id:{$requestId};ts:{$ts};", $secreto);
+
+    return "ts={$ts},v1={$hmac}";
+}
+
+/**
+ * @param  array<string, mixed>|null  $body
+ */
+function notificar(string $dataId, ?string $firma = null, string $requestId = 'req-1', ?array $body = null): TestResponse
+{
+    $headers = ['x-request-id' => $requestId];
+
+    if ($firma !== null) {
+        $headers['x-signature'] = $firma;
+    }
+
+    return test()->postJson(
+        route('webhook.mercadopago'),
+        $body ?? ['type' => 'payment', 'data' => ['id' => $dataId]],
+        $headers
+    );
+}
+
+function pedidoPagable(int $stock = 10, int $cantidad = 3, int $totalCents = 30000): Order
+{
+    $product = Product::factory()->create(['stock' => $stock]);
+
+    $order = pedidoConLinea($product, $cantidad);
+    $order->update(['total_cents' => $totalCents]);
 
     return $order->fresh();
 }
