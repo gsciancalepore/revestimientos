@@ -2,6 +2,11 @@
 
 > Borrador v0.1 — pendiente de revisión y aprobación del dueño.
 > Fecha: 2026-08-05
+>
+> **Nombre comercial (decisión del dueño, 2026-09-24)**: la tienda se llama
+> **Jireh Revestimientos**; es el valor de `APP_NAME` y el que ve el cliente en
+> el header, el `<title>` y el footer. "Casa de Cerámicas" era el nombre de
+> trabajo del proyecto y queda en el título de este documento y en el README.
 
 ## Objetivos
 
