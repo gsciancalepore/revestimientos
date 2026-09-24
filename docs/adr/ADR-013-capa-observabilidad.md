@@ -2,13 +2,13 @@
 
 - **Estado**: **propuesta (2026-09-24)**, pendiente de aprobación del dueño.
 - **Enmienda** a [ADR-004](ADR-004-observabilidad-estructura-reservada.md), sin reemplazarla. ADR-004
-  sigue vigente en lo que decidió: la auditoría en `audit_logs` y no implementar métricas ni
-  dashboards en el MVP. Esta ADR cambia estos puntos:
+  sigue vigente en lo que decidió: la auditoría en `audit_logs` y ni métricas ni dashboards en el
+  MVP. Esta ADR cambia estos puntos:
   - **Punto 1 (logs)**: pasan a ser un contrato JSON versionado.
   - **Punto 2 (eventos de dominio como base del trazado)**: se descarta. La consecuencia de ADR-004
     "las Actions disparan eventos de dominio desde el día uno" **no se cumplió**: `app/Events/` no
     existe.
-  - **Punto 4 (métricas)**: se concreta.
+  - **Punto 4 (métricas)**: sigue sin implementarse y se posterga a la etapa 4.
   - **Nuevo**: un consumidor externo que ADR-004 no preveía.
 - **Origen**: decisiones del dueño del 2026-09-24:
   - Construir un investigador de incidentes con IA como **proyecto independiente**
@@ -62,8 +62,21 @@ una versión nueva. El investigador depende del contrato, nunca del código de R
 mismo criterio de puerto y adaptador de ADR-006, llevado al borde entre dos sistemas.
 
 **La frontera de datos también la fija el contrato**: los datos personales se eliminan antes de
-escribir la línea. Lo que recibe el investigador, y por lo tanto el modelo de lenguaje que use, ya
-viene limpio. No depende de cómo se porte el agente.
+escribir la línea, así que lo que el investigador lee de esos archivos ya viene limpio.
+
+**Hasta dónde llega esa garantía**: Revestimientos garantiza solo lo que escribe en
+`app-*.jsonl`. Que el investigador lea únicamente ese directorio, y no `.env` ni la base, es una
+propiedad de **su** código, que corre con el usuario del dueño. Está documentada en su
+repositorio, y Revestimientos no puede garantizarla.
+
+**El modelo del investigador es de un tercero.** Por defecto usa el plan gratuito de Gemini, donde
+Google puede usar los prompts para mejorar sus productos. Por eso el dueño decidió (2026-09-24)
+cerrar el texto libre en el origen:
+- El `message` de una excepción se conserva solo si la excepción es propia de la app. En las demás
+  va `null`.
+- Las líneas ajenas al catálogo se truncan y se redactan.
+
+Queda como riesgo residual el texto de `app.log`, que es el de las líneas del framework.
 
 ### 2. La capa ideal (destino, no compromiso de fecha)
 
@@ -79,7 +92,8 @@ viene limpio. No depende de cómo se porte el agente.
 Principios:
 
 1. **Un identificador de correlación atraviesa todo**: `request_id` en cada línea y en la cabecera
-   `X-Request-Id`, y además los identificadores de negocio (`order_id`, `payment_id`).
+   `X-Request-Id`. Además, toda entrada referida a un pedido o a un pago lleva `order_id` o
+   `payment_id` con ese mismo nombre, sea cual sea el evento.
 2. **El contrato es propio y versionado. OpenTelemetry es el rumbo, no la promesa de la v1.** El
    schema v1 usa nombres propios. Su forma (`event`, `attributes`, `level`, `timestamp`) se puede
    traducir de manera directa al modelo de logs de OpenTelemetry. Si en la etapa 4 se adopta OTel,
@@ -149,8 +163,9 @@ Los límites de los planes gratuitos cambian seguido, así que **se verifican el
   - Todo flujo nuevo que mueva dinero o stock tiene que pasar por el criterio del catálogo y
     declararse en el schema. Es disciplina en cada spec.
   - Mientras no llegue la etapa 2, solo se investigan incidentes reproducidos en local.
-- **Riesgo**: texto libre con datos personales dentro del mensaje de una excepción de una librería.
-  Está acotado por OBS-07 y declarado como riesgo residual en la spec.
+- **Riesgo**: texto libre con datos personales en una línea del framework (`app.log`). Está acotado
+  por el truncado y la redacción, y declarado en la spec. Los mensajes de excepciones de librerías
+  ya no se escriben.
 
 ## Condición de revisión
 
