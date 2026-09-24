@@ -26,6 +26,15 @@ class CatalogController extends Controller
                 ->latest()
                 ->limit(8)
                 ->get(),
+            // Regla 167 (Spec 04, sincronía 2026-09-20): productos activos
+            // recientes, sin exigir oferta, para que la home no quede vacía
+            // de productos mientras el catálogo recién se está cargando.
+            'productos' => Product::query()
+                ->with('category')
+                ->activo()
+                ->latest()
+                ->limit(8)
+                ->get(),
         ]);
     }
 

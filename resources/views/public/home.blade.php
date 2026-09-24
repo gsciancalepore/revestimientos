@@ -38,4 +38,19 @@
             </div>
         </section>
     @endif
+
+    @if ($productos->isNotEmpty())
+        <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-bold text-stone-900">Productos</h2>
+                <a href="{{ route('catalogo.index') }}" class="text-sm font-medium text-orange-700 hover:text-orange-800">Ver catálogo completo</a>
+            </div>
+
+            <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                @foreach ($productos as $producto)
+                    <x-product-card :producto="$producto" />
+                @endforeach
+            </div>
+        </section>
+    @endif
 </x-layouts.site>
