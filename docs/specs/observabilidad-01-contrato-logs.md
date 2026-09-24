@@ -457,7 +457,7 @@ código**, documentada en su repositorio. Revestimientos no puede garantizarla.
    - `app.exception` vía `withExceptions` en `bootstrap/app.php`, con un callback que **detiene** el
      reporte por defecto;
    - `zend.exception_ignore_args = On` en `docker/php/php.ini` y en CI.
-8. **Validación en tests**: dependencia de desarrollo que valide JSON Schema (§Decisiones abiertas).
+8. **Validación en tests**: `opis/json-schema` en `require-dev` (aprobada por el dueño).
 9. **Sincronías**:
    - Spec 07.4 (regla 124) y Spec 08 (reglas 150 y 151).
    - ADR-004 anota que ADR-013 la enmienda.
@@ -470,11 +470,10 @@ código**, documentada en su repositorio. Revestimientos no puede garantizarla.
    - Roadmap y runbook del README.
 10. **Borrar el log viejo**: `storage/logs/laravel.log` local.
 
-## Decisiones abiertas para el dueño
+## Decisiones del dueño sobre la implementación (2026-09-24)
 
-- **Dependencia de desarrollo para validar el schema** (tarea 8), por ejemplo `opis/json-schema`,
-  solo en `require-dev`. Sin ella, el schema queda como documentación y los tests verifican la forma
-  a mano.
-- **Carpeta nueva `app/Logging/`** para el formateador, el procesador de redacción y el mapa de
-  niveles. El middleware va en `app/Http/Middleware/`. AGENTS.md pide aprobación para carpetas base
-  nuevas.
+- **`opis/json-schema` en `require-dev`: aprobada.** Los tests validan formalmente cada línea contra
+  el contrato (tarea 8).
+- **Carpeta nueva `app/Logging/`: aprobada**, para el formateador, el procesador de redacción y el
+  mapa de niveles. Es una responsabilidad nueva y acotada. El middleware va en
+  `app/Http/Middleware/`.
