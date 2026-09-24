@@ -1,9 +1,11 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Logging\ApplyRedaction;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -15,10 +17,11 @@ use Illuminate\Support\Str;
 
 // --- OBS-01, OBS-02, OBS-03: forma, archivo y correlación ------------------
 
-it('escribe líneas que validan contra el contrato, en el archivo del día UTC y con el request_id de la respuesta', function () {
+it('escribe líneas que validan contra el contrato, en el archivo del día UTC y todas con el request_id de la respuesta', function () {
     $dir = canalDeContrato();
+    putCartMp(Product::factory()->create(['stock' => 10]), 1);
 
-    $respuesta = $this->get('/catalogo')->assertOk();
+    $respuesta = $this->post(route('checkout.store'), checkoutPayload(['payment_method' => 'transferencia']));
 
     $requestId = $respuesta->headers->get('X-Request-Id');
     expect(Str::isUuid($requestId))->toBeTrue();
@@ -26,7 +29,10 @@ it('escribe líneas que validan contra el contrato, en el archivo del día UTC y
     expect(glob($dir.'/app-*.jsonl'))->toBe([$dir.'/app-'.now('UTC')->format('Y-m-d').'.jsonl']);
 
     $lineas = lineasDelContrato($dir);
-    expect($lineas)->not->toBeEmpty();
+
+    // Un checkout escribe varias líneas en el mismo request: el test tiene que
+    // ver más que el `http.request`, o no prueba que el id llegue a todas.
+    expect(array_column($lineas, 'event'))->toContain('order.created', 'checkout.payment_started', 'http.request');
 
     foreach ($lineas as $linea) {
         expect($linea['request_id'])->toBe($requestId)
@@ -106,6 +112,40 @@ it('redacta los datos personales por clave exacta en el canal app, a cualquier p
         ->and($linea['level'])->toBe('info');
 });
 
+it('redacta sin distinguir mayúsculas', function () {
+    $dir = canalDeContrato();
+
+    Log::info('x', ['Customer_Email' => 'centinela@ejemplo.test', 'Authorization' => 'Bearer centinela']);
+
+    expect(eventosDelContrato($dir, 'app.log')[0]['attributes']['context'])->toBe([
+        'Customer_Email' => '[redactado]',
+        'Authorization' => '[redactado]',
+    ]);
+});
+
+it('redacta también lo que llega por el Context (extra)', function () {
+    $dir = sys_get_temp_dir().'/contrato-logs-'.Str::uuid();
+    mkdir($dir);
+    config(['logging.channels.single.path' => $dir.'/laravel.log']);
+    app('log')->forgetChannel('single');
+    Context::add('email', 'centinela@ejemplo.test');
+
+    Log::channel('single')->info('x');
+
+    expect(textoDelDirectorio($dir))->toContain('[redactado]')
+        ->not->toContain('centinela@ejemplo.test');
+});
+
+it('todos los canales que escriben registran la redacción', function () {
+    $sinRedaccion = collect(config('logging.channels'))
+        ->reject(fn (array $canal, string $nombre): bool => in_array($canal['driver'] ?? null, ['stack', null], true) || $nombre === 'null')
+        ->reject(fn (array $canal): bool => in_array(ApplyRedaction::class, $canal['tap'] ?? [], true))
+        ->keys()
+        ->all();
+
+    expect($sinRedaccion)->toBe([]);
+});
+
 it('redacta también en el canal single que usa staging', function () {
     $dir = sys_get_temp_dir().'/contrato-logs-'.Str::uuid();
     mkdir($dir);
@@ -129,6 +169,14 @@ it('trunca el texto de una línea ajena al catálogo', function () {
     Log::warning(str_repeat('a', 400));
 
     expect(mb_strlen(eventosDelContrato($dir, 'app.log')[0]['attributes']['message']))->toBe(256);
+});
+
+it('trunca los textos del contexto de una línea ajena al catálogo', function () {
+    $dir = canalDeContrato();
+
+    Log::info('x', ['detalle' => str_repeat('b', 400)]);
+
+    expect(mb_strlen(eventosDelContrato($dir, 'app.log')[0]['attributes']['context']['detalle']))->toBe(256);
 });
 
 it('traduce los niveles de Monolog a los cinco del contrato', function () {

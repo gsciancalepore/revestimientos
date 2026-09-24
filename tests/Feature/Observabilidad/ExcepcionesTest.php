@@ -116,6 +116,36 @@ it('conserva el mensaje solo de las excepciones propias de la app', function () 
         ->and($errores[1])->toMatchArray(['class' => DomainException::class, 'message' => 'El origen de la confirmación no es válido.']);
 });
 
+it('una DomainException que no se lanzó desde app/ no conserva su mensaje', function () {
+    $dir = canalDeContrato();
+    Route::get('/_obs/dominio-ajeno', fn () => throw new DomainException('texto libre de una librería'));
+
+    $this->get('/_obs/dominio-ajeno')->assertStatus(500);
+
+    expect(eventosDelContrato($dir, 'app.exception')[0]['error'])->toMatchArray(['class' => DomainException::class, 'message' => null]);
+});
+
+it('una PDOException suelta tampoco conserva su mensaje y deja el sqlstate', function () {
+    $dir = canalDeContrato();
+    Route::get('/_obs/pdo', fn () => throw new PDOException('insert con centinela@ejemplo.test'));
+
+    $this->get('/_obs/pdo')->assertStatus(500);
+
+    $error = eventosDelContrato($dir, 'app.exception')[0]['error'];
+    expect($error['message'])->toBeNull()
+        ->and($error['sqlstate'])->not->toBeNull()
+        ->and(textoDelDirectorio($dir))->not->toContain('centinela@ejemplo.test');
+});
+
+it('app.exception lleva el request_id del request que falló', function () {
+    $dir = canalDeContrato();
+    Route::get('/_obs/falla', fn () => throw new RuntimeException('x'));
+
+    $requestId = $this->get('/_obs/falla')->headers->get('X-Request-Id');
+
+    expect(eventosDelContrato($dir, 'app.exception')[0]['request_id'])->toBe($requestId);
+});
+
 it('un 404 y un 403 no generan app.exception', function () {
     $dir = canalDeContrato();
     Route::get('/_obs/prohibido', fn () => abort(403));
@@ -129,4 +159,12 @@ it('un 404 y un 403 no generan app.exception', function () {
 
 it('las trazas no llevan argumentos porque zend.exception_ignore_args está activo', function () {
     expect(ini_get('zend.exception_ignore_args'))->toBe('1');
+});
+
+it('el php.ini que usan las imágenes local y de staging fija zend.exception_ignore_args', function () {
+    // CI no carga este archivo (usa `ini-values`), así que el test de arriba no
+    // protege a staging: `docker/koyeb/Dockerfile` copia exactamente este php.ini.
+    $ini = parse_ini_file(base_path('docker/php/php.ini'));
+
+    expect($ini['zend.exception_ignore_args'] ?? null)->toBe('1');
 });
