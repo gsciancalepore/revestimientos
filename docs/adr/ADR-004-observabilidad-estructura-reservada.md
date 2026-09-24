@@ -50,3 +50,16 @@ el MVP salvo lo que surja naturalmente:
   hay criterios de diseño (principio 7: no optimizar sin medir).
 - **No pensar en observabilidad**: descartado — forzaría cambios estructurales
   (cambio de tabla, logging, eventos) sobre código ya estable.
+
+## Enmienda 2026-09-24 — ADR-013
+
+[ADR-013](ADR-013-capa-observabilidad.md) enmienda esta decisión sin reemplazarla:
+
+- **Punto 1**: los logs pasan a ser un contrato JSON versionado para consumidores externos.
+- **Punto 2**: se descarta. Los eventos de dominio como base del trazado nunca se crearon (no existe
+  `app/Events/`), y la consecuencia "las Actions disparan eventos de dominio desde el día uno" no se
+  cumplió. El log espeja la auditoría.
+- **Punto 4**: las métricas se postergan a la etapa 4 de ADR-013.
+
+La auditoría en `audit_logs` y la decisión de no tener métricas ni dashboards en el MVP siguen
+vigentes. El texto de arriba se conserva tal como se aprobó.

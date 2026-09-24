@@ -158,3 +158,20 @@ el pedido #10 (pago aprobado en sandbox, `status = pending_payment`, stock sin t
 
 07.4 es solo Preferencia y redirección; no tocar `PlaceOrderAction` (ya `bcmath`/`lock`/`audit`), no `ConfirmPaymentAction`, no `Policies`, no `DTOs`. TDD: red `MercadoPagoTest` fake → `MercadoPagoGateway` → `CheckoutController` (store + retry). Rama `feat/checkout-07-fase4-mercadopago` desde `main` (post 07.3 merge). Seguir `AGENTS.md`, `.ai/rules`, `PROJECT_PRINCIPLES.md`, `make` Docker.
 
+
+## Sincronía 2026-09-24 — enmienda a la regla 124 (spec observabilidad-01)
+
+El texto original de la regla 124 se conserva arriba. El `Log::error('mp preference failed', …)` que
+prescribía pasa a ser el evento `checkout.mp_preference_failed` del contrato de logs v1, con
+`order_id` y el objeto `error`. Cubre también el reintento de la regla 126, que no prescribía ningún
+log.
+
+- **Lo que cambia**: el nombre y la forma del registro.
+- **Lo que se pierde**: el mensaje de la excepción. La regla guardaba `$e->getMessage()`; con OBS-07,
+  el mensaje de una excepción del SDK de MercadoPago pasa a `null` y quedan la clase, el código y la
+  traza. Es una decisión del dueño del 2026-09-24: ese texto libre no debe llegar al modelo de
+  terceros que usa el investigador de incidentes.
+- **Lo que se agrega**: cuando la preferencia se genera bien, se registra
+  `checkout.payment_started`, en `store` y en el reintento.
+
+El comportamiento hacia el cliente no cambia: el aviso y el reintento siguen iguales.

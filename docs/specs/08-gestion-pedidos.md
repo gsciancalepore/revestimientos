@@ -620,3 +620,30 @@ ruta y responder 200 a todo lo que no sea `payment`.
 ## Sincronía 2026-09-17 — Higiene 03 fase 03.a: GET al webhook responde 200 (enmienda a la regla 153, HIG-18)
 
 El texto original de la regla 153 se conserva arriba. La ruta pasa a aceptar `GET` además de `POST`: por GET nunca se procesa nada —un pago genuino entregado por GET se ignora por diseño, porque el proveedor entrega los pagos por POST— y se responde 200 siempre. Se audita `webhook.ignored` únicamente cuando trae parámetros de notificación; un GET pelado (bots, health checks) responde 200 sin ensuciar `audit_logs`. La firma sigue siendo obligatoria solo para lo que sí se procesa (regla 154). Con esto queda cerrado el hallazgo abierto de arriba. Decisión del dueño del 2026-09-16; matriz de permisos con la fila GET agregada.
+
+## Sincronía 2026-09-24 — enmienda a las reglas 150 y 151 (spec observabilidad-01)
+
+El texto original de las reglas 150 y 151 se conserva arriba. Decisión del dueño del 2026-09-24,
+para que un pago de MercadoPago se pueda atar a su pedido:
+
+- **Regla 150**: la firma pasa a ser
+  `ConfirmPaymentAction::execute(Order $order, string $origen, ?string $paymentId = null)`. La acción
+  lo valida junto con el origen, antes de abrir la transacción:
+  - con origen `mercadopago`, un `payment_id` nulo o vacío lanza `DomainException`;
+  - con origen `manual`, un `payment_id` no nulo lanza `DomainException`.
+
+  `order.paid` guarda `payment_id` en su payload de auditoría (`null` en la confirmación manual).
+  `ProcessMercadoPagoNotificationAction` pasa el id del pago consultado. La confirmación manual del
+  panel no cambia.
+- **Regla 151**: `order.paid_after_cancel` también guarda `payment_id`. Es el dato que hace falta
+  para devolver el pago en MercadoPago, y la regla dice que ese caso se resuelve fuera del sistema.
+  El panel lo muestra sin cambios en la vista, porque el detalle ya imprime el payload de auditoría
+  (solo para admin, regla 162).
+
+Además, el contrato de logs agrega en el webhook `webhook.payment_not_approved` (regla 158: el pago
+no aprobado ya no sale en silencio del log) y `webhook.processing_failed` (el 503 de la regla 153).
+Las respuestas HTTP del webhook no cambian.
+
+**Límite declarado**: un segundo pago aprobado sobre un pedido ya pagado sigue siendo un no-op
+silencioso (regla 152) y no deja evento. Taparlo sería un incidente de pago nuevo, o sea una decisión
+de negocio.

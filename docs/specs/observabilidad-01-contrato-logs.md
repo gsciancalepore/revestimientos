@@ -1,6 +1,6 @@
 # Spec — Observabilidad 01: contrato de logs v1
 
-- **Estado**: **aprobada (2026-09-24)** por el dueño, tras tres pasadas de `revisor-spec`. La tercera fue "aprobable con correcciones menores" y las correcciones ya están aplicadas.
+- **Estado**: **implementada (2026-09-24)**, rama `feat/observabilidad-01-contrato-logs`, pendiente de `revisor-entrega` y PR. Fue **aprobada (2026-09-24)** por el dueño, tras tres pasadas de `revisor-spec`. La tercera fue "aprobable con correcciones menores" y las correcciones ya están aplicadas.
 - **Historia del borrador**:
   - **v1**: incluía un agente investigador dentro de este repo. `revisor-spec` la marcó "necesita
     otra vuelta".
@@ -503,3 +503,48 @@ código**, documentada en su repositorio. Revestimientos no puede garantizarla.
 - **Carpeta nueva `app/Logging/`: aprobada**, para el formateador, el procesador de redacción y el
   mapa de niveles. Es una responsabilidad nueva y acotada. El middleware va en
   `app/Http/Middleware/`.
+
+## Sincronía 2026-09-24 — implementación
+
+Implementada en la rama `feat/observabilidad-01-contrato-logs`, en TDD. Suite: **546 tests en verde**
+(500 de base más 46 del contrato en `tests/Feature/Observabilidad/`), con Pint y PHPStan nivel 8
+limpios. Se aplicaron **31 mutaciones** a la implementación, una o más por regla OBS y por enmienda,
+y todas pusieron algún test en rojo.
+
+**Cómo quedó** (detalle en `docs/arquitectura.md` §Observabilidad y `.ai/rules/observabilidad.md`):
+- `app/Logging/`: `EventLog`, `ContractFormatter`, `RedactPersonalData`, `ApplyRedaction` y
+  `ErrorSerializer`.
+- `app/Http/Middleware/AssignRequestId`.
+- El contrato en `docs/observabilidad/`.
+
+**Decisiones de implementación que la spec dejaba abiertas**:
+- **`app.log` lleva también `context`**, redactado y con los textos truncados a 256 caracteres. OBS-05.8
+  nombraba solo `attributes.message`, pero el criterio 11 exige ver el contexto redactado de una línea
+  suelta, y sin él no se podía cumplir. Queda declarado en el schema. Es riesgo residual, igual que el
+  mensaje.
+- **La redacción se registra con un `tap` en cada canal.** Laravel solo lee `processors` en el driver
+  `monolog`, mientras que el `tap` funciona en todos. El procesador del `Context` corre antes, así que
+  la redacción ve también el `extra`.
+- **Mensaje de `ConfirmPaymentAction` para el `payment_id`**: son dos `DomainException` con texto
+  fijo, "La confirmación de MercadoPago requiere el id del pago." y "La confirmación manual no lleva
+  id de pago.".
+- **Criterio 2**: el paso de CI compara los hashes de `storage/logs/` antes y después de la suite.
+  Localmente se verificó igual: la suite no agregó ninguna entrada `testing.*`.
+
+**Hallazgos**:
+- **`storage/logs/browser.log`** lo escribe Laravel Boost (paquete de desarrollo, `require-dev`)
+  desde el navegador del desarrollador, en un canal que Boost arma en tiempo de ejecución, sin el
+  `tap` de redacción. Guarda el user agent **del propio desarrollador**, no el de un cliente, y no
+  existe en staging (`composer install --no-dev`). No se toca. Queda declarado como excepción de
+  OBS-06 limitada a desarrollo.
+- **`opis/json-schema` se instaló con `--ignore-platform-req=ext-sockets`.** El contenedor local no
+  tiene esa extensión, que solo exige RoadRunner (staging). Es un problema previo del entorno local,
+  ajeno a esta spec.
+- **`composer audit`** reporta 4 advisories de `league/commonmark`. Ya existían antes de esta rama y
+  no los trae la dependencia nueva.
+
+**Pendiente fuera de la suite** (tarea 10 y runbook, en la máquina del dueño):
+- borrar `storage/logs/laravel.log`;
+- poner `LOG_CHANNEL=app` en el `.env` local;
+- reconstruir la imagen `app` (`docker compose build app`) para que tome
+  `zend.exception_ignore_args`.
