@@ -1,5 +1,7 @@
 <?php
 
+use App\Logging\ApplyRedaction;
+use App\Logging\ContractFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -58,7 +60,27 @@ return [
             'ignore_exceptions' => false,
         ],
 
+        // Contrato de logs v1 (spec observabilidad-01): JSON por línea en
+        // storage/logs/app-AAAA-MM-DD.jsonl. Es un stack con ignore_exceptions
+        // porque Laravel solo lee esa opción en ese driver, y un log que no se
+        // puede escribir nunca debe romper el request (OBS-08).
+        'app' => [
+            'driver' => 'stack',
+            'channels' => ['app_file'],
+            'ignore_exceptions' => true,
+        ],
+
+        'app_file' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/app.jsonl'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'formatter' => ContractFormatter::class,
+            'tap' => [ApplyRedaction::class],
+        ],
+
         'single' => [
+            'tap' => [ApplyRedaction::class],
             'driver' => 'single',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
@@ -66,6 +88,7 @@ return [
         ],
 
         'daily' => [
+            'tap' => [ApplyRedaction::class],
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
@@ -74,6 +97,7 @@ return [
         ],
 
         'slack' => [
+            'tap' => [ApplyRedaction::class],
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),
             'username' => env('LOG_SLACK_USERNAME', env('APP_NAME', 'Laravel')),
@@ -83,6 +107,7 @@ return [
         ],
 
         'papertrail' => [
+            'tap' => [ApplyRedaction::class],
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
             'handler' => env('LOG_PAPERTRAIL_HANDLER', SyslogUdpHandler::class),
@@ -95,6 +120,7 @@ return [
         ],
 
         'stderr' => [
+            'tap' => [ApplyRedaction::class],
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
             'handler' => StreamHandler::class,
@@ -106,6 +132,7 @@ return [
         ],
 
         'syslog' => [
+            'tap' => [ApplyRedaction::class],
             'driver' => 'syslog',
             'level' => env('LOG_LEVEL', 'debug'),
             'facility' => env('LOG_SYSLOG_FACILITY', LOG_USER),
@@ -113,6 +140,7 @@ return [
         ],
 
         'errorlog' => [
+            'tap' => [ApplyRedaction::class],
             'driver' => 'errorlog',
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,

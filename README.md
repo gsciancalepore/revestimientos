@@ -76,6 +76,7 @@ no necesita PHP ni Node. El Makefile lo resume:
 | `make setup` | Primer arranque completo (instala, migra y siembra) |
 | `make up` / `make down` | Levantar / detener los servicios |
 | `make logs` | Logs del contenedor PHP |
+| `tail -f storage/logs/app-$(date -u +%F).jsonl` | Logs de la app en el formato del contrato (JSON por línea, [`docs/observabilidad/`](docs/observabilidad/README.md)) |
 | `make shell` | Terminal dentro del contenedor PHP |
 | `make artisan cmd="route:list"` | Cualquier comando Artisan (ej: `migrate`, `tinker`) |
 | `make migrate` | Aplica migraciones |
@@ -99,6 +100,7 @@ no necesita PHP ni Node. El Makefile lo resume:
 | `ERR_EMPTY_RESPONSE` o *connection reset* en `localhost:8080`, con los contenedores `healthy` | Se reinició WSL (`wsl --shutdown`) y los puertos publicados quedaron rotos | `docker compose up -d --force-recreate web assets mailpit` (regla en `.ai/rules/general.md`) |
 | `ERR_CONNECTION_CLOSED` al abrir el sitio | Se entró por `https://` o por `localhost` sin puerto | Usar **`http://localhost:8080`**; si el navegador fuerza HTTPS, desactivar "Usar siempre conexiones seguras" (regla en `.ai/rules/general.md`) |
 | Entre 7 y 22 tests en rojo de golpe, con `deadlock detected` o `relation "roles" does not exist` | Dos suites de Pest corriendo a la vez se pisan el `migrate:fresh` y dejan la base de tests a medio migrar | Correr **una sola suite por vez**; sanear con `docker compose exec -e DB_DATABASE=ceramica_test app php artisan migrate:fresh --force` (regla en `.ai/rules/tests.md`). El rojo es ambiental, no del código |
+| No aparece `storage/logs/app-*.jsonl` y la app sigue escribiendo en `laravel.log` | El `.env` es anterior al contrato de logs: `make setup` no pisa un `.env` existente | Poner `LOG_CHANNEL=app` en `.env` a mano (regla en `.ai/rules/observabilidad.md`) |
 | Se vació la base de **desarrollo** al querer sanear la de tests | `--env=testing` **no** apunta a `ceramica_test`: no existe `.env.testing`, así que Artisan carga el `.env` normal | Nunca usar `--env=testing`; tocar la base de tests solo con `-e DB_DATABASE=ceramica_test`. Verificar con `make artisan cmd="db:show"` antes de cualquier comando destructivo (regla en `.ai/rules/tests.md`) |
 
 ## Calidad

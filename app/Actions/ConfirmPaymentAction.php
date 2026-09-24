@@ -29,9 +29,10 @@ class ConfirmPaymentAction
      *
      * @throws DomainException
      */
-    public function execute(Order $order, string $origen): Order
+    public function execute(Order $order, string $origen, ?string $paymentId = null): Order
     {
         $origen = trim($origen);
+        $paymentId = $paymentId === null ? null : trim($paymentId);
 
         if (! in_array($origen, self::ORIGENES, true)) {
             throw new DomainException('El origen de la confirmación no es válido.');
@@ -46,14 +47,24 @@ class ConfirmPaymentAction
             throw new DomainException('La confirmación manual solo vale para pedidos de transferencia.');
         }
 
-        return DB::transaction(function () use ($order, $origen): Order {
+        // Regla 150 enmendada (spec observabilidad-01): el `payment_id` ata el
+        // pago de MercadoPago al pedido, y una transferencia no tiene ninguno.
+        if ($origen === 'mercadopago' && ($paymentId === null || $paymentId === '')) {
+            throw new DomainException('La confirmación de MercadoPago requiere el id del pago.');
+        }
+
+        if ($origen === 'manual' && $paymentId !== null) {
+            throw new DomainException('La confirmación manual no lleva id de pago.');
+        }
+
+        return DB::transaction(function () use ($order, $origen, $paymentId): Order {
             /** @var Order $pedido */
             $pedido = Order::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
 
             // Regla 151: plata cobrada sobre un pedido dado de baja. Queda trabado
             // a propósito: no hay forma de forzarlo a `paid`.
             if ($pedido->status === OrderStatus::Cancelled) {
-                $this->recorder->record('order.paid_after_cancel', $pedido, ['origen' => $origen]);
+                $this->recorder->record('order.paid_after_cancel', $pedido, ['origen' => $origen, 'payment_id' => $paymentId]);
 
                 return $pedido;
             }
@@ -68,7 +79,7 @@ class ConfirmPaymentAction
 
             $this->transition->execute($pedido, OrderStatus::Paid);
 
-            $this->recorder->record('order.paid', $pedido, ['origen' => $origen]);
+            $this->recorder->record('order.paid', $pedido, ['origen' => $origen, 'payment_id' => $paymentId]);
 
             return $pedido;
         });

@@ -17,7 +17,7 @@ test('confirmar el pago pasa el pedido a pagado y descuenta el stock', function 
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 3);
 
-    $resultado = app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    $resultado = app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
 
     expect($resultado->status)->toBe(OrderStatus::Paid);
     expect($order->fresh()->status)->toBe(OrderStatus::Paid);
@@ -39,26 +39,28 @@ test('el descuento respeta la cantidad congelada de cada linea', function () {
         'subtotal_cents' => 10000,
     ]);
 
-    app(ConfirmPaymentAction::class)->execute($order->fresh(), 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order->fresh(), 'mercadopago', 'pago-test');
 
     expect($porcelanato->fresh()->stock)->toBe(16);
     expect($pastina->fresh()->stock)->toBe(3);
 });
 
-test('la confirmacion queda auditada con el origen', function (string $origen, string $medioDePago) {
+test('la confirmacion queda auditada con el origen y el id del pago', function (string $origen, string $medioDePago, ?string $paymentId) {
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 1);
     $order->update(['payment_method' => $medioDePago]);
 
-    app(ConfirmPaymentAction::class)->execute($order->fresh(), $origen);
+    app(ConfirmPaymentAction::class)->execute($order->fresh(), $origen, $paymentId);
 
     $audit = AuditLog::where('action', 'order.paid')->where('subject_id', $order->id)->firstOrFail();
 
-    expect($audit->payload['origen'])->toBe($origen);
+    expect($audit->payload['origen'])->toBe($origen)
+        ->and($audit->payload['payment_id'])->toBe($paymentId);
 })->with([
-    'automatica' => ['mercadopago', 'mercadopago'],
-    // La manual solo vale sobre una transferencia (regla 159).
-    'manual' => ['manual', 'transferencia'],
+    'automatica' => ['mercadopago', 'mercadopago', 'pago-test'],
+    // La manual solo vale sobre una transferencia (regla 159) y no lleva id de
+    // pago (regla 150 enmendada, spec observabilidad-01).
+    'manual' => ['manual', 'transferencia', null],
 ]);
 
 test('la confirmacion manual solo vale para pedidos de transferencia', function () {
@@ -105,8 +107,8 @@ test('confirmar dos veces descuenta el stock una sola vez', function () {
     $order = pedidoConLinea($product, 3);
 
     $action = app(ConfirmPaymentAction::class);
-    $action->execute($order, 'mercadopago');
-    $segunda = $action->execute($order->fresh(), 'mercadopago');
+    $action->execute($order, 'mercadopago', 'pago-test');
+    $segunda = $action->execute($order->fresh(), 'mercadopago', 'pago-test');
 
     expect($segunda->status)->toBe(OrderStatus::Paid);
     expect($product->fresh()->stock)->toBe(7);
@@ -120,7 +122,7 @@ test('un pago cobrado sin stock suficiente igual pasa a pagado y deja el stock n
     $product = Product::factory()->create(['stock' => 1]);
     $order = pedidoConLinea($product, 4);
 
-    $resultado = app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    $resultado = app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
 
     expect($resultado->status)->toBe(OrderStatus::Paid);
     expect($product->fresh()->stock)->toBe(-3);
@@ -130,7 +132,7 @@ test('el stock negativo queda registrado como reposicion pendiente en la auditor
     $product = Product::factory()->create(['stock' => 1]);
     $order = pedidoConLinea($product, 4);
 
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
 
     $audit = AuditLog::where('action', 'order.stock_negative')->where('subject_id', $order->id)->firstOrFail();
 
@@ -143,7 +145,7 @@ test('con stock suficiente no se registra reposicion pendiente', function () {
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 4);
 
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
 
     expect(AuditLog::where('action', 'order.stock_negative')->count())->toBe(0);
 });
@@ -155,7 +157,7 @@ test('un pago sobre un pedido cancelado no lo pasa a pagado y registra el incide
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 3, OrderStatus::Cancelled);
 
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
 
     expect($order->fresh()->status)->toBe(OrderStatus::Cancelled);
     expect($product->fresh()->stock)->toBe(10);
@@ -168,7 +170,7 @@ test('un pedido despachado o entregado no vuelve a confirmarse', function (Order
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 3, $status);
 
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
 
     expect($order->fresh()->status)->toBe($status);
     expect($product->fresh()->stock)->toBe(10);
@@ -198,7 +200,7 @@ test('si algo falla despues del descuento, ni el estado ni el stock se mueven', 
         }
     });
 
-    expect(fn () => app(ConfirmPaymentAction::class)->execute($order, 'mercadopago'))
+    expect(fn () => app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test'))
         ->toThrow(RuntimeException::class);
 
     expect($order->fresh()->status)->toBe(OrderStatus::PendingPayment);
@@ -220,8 +222,8 @@ test('dos notificaciones con el pedido leido de antemano descuentan stock una so
     $notificacionB = Order::findOrFail($order->id);
 
     $action = app(ConfirmPaymentAction::class);
-    $action->execute($notificacionA, 'mercadopago');
-    $action->execute($notificacionB, 'mercadopago');
+    $action->execute($notificacionA, 'mercadopago', 'pago-test');
+    $action->execute($notificacionB, 'mercadopago', 'pago-test');
 
     expect($product->fresh()->stock)->toBe(7);
     expect(AuditLog::where('action', 'order.paid')->where('subject_id', $order->id)->count())->toBe(1);
@@ -235,7 +237,7 @@ test('una notificacion con el pedido leido antes de cancelarlo no lo pasa a paga
     $notificacion = Order::findOrFail($order->id);
     $order->update(['status' => OrderStatus::Cancelled]);
 
-    app(ConfirmPaymentAction::class)->execute($notificacion, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($notificacion, 'mercadopago', 'pago-test');
 
     expect($order->fresh()->status)->toBe(OrderStatus::Cancelled);
     expect($product->fresh()->stock)->toBe(10);
@@ -264,7 +266,7 @@ test('el bloqueo de productos pide las filas ordenadas por id', function () {
         $queries[] = $query->sql;
     });
 
-    app(ConfirmPaymentAction::class)->execute($order->fresh(), 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order->fresh(), 'mercadopago', 'pago-test');
 
     $lock = collect($queries)->first(fn (string $sql): bool => str_contains($sql, 'from "products"') && str_contains($sql, 'for update'));
 
@@ -287,7 +289,7 @@ test('dos lineas del mismo producto descuentan la suma de las cantidades', funct
         'subtotal_cents' => 20000,
     ]);
 
-    app(ConfirmPaymentAction::class)->execute($order->fresh(), 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order->fresh(), 'mercadopago', 'pago-test');
 
     expect($product->fresh()->stock)->toBe(5);
 });
@@ -306,7 +308,7 @@ test('la query del pedido pide for update al confirmar', function () {
         $queries[] = $query->sql;
     });
 
-    app(ConfirmPaymentAction::class)->execute(Order::findOrFail($order->id), 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute(Order::findOrFail($order->id), 'mercadopago', 'pago-test');
 
     $lock = collect($queries)->first(fn (string $sql): bool => str_contains($sql, 'from "orders"') && str_contains($sql, 'for update'));
 
@@ -321,7 +323,7 @@ test('la confirmacion deja la transicion auditada', function () {
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 1);
 
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
 
     $audit = AuditLog::where('action', 'order.status_changed')->where('subject_id', $order->id)->firstOrFail();
 
@@ -336,7 +338,7 @@ test('agotar el stock exacto no se registra como reposicion pendiente', function
     $product = Product::factory()->create(['stock' => 4]);
     $order = pedidoConLinea($product, 4);
 
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
 
     expect($product->fresh()->stock)->toBe(0);
     expect(AuditLog::where('action', 'order.stock_negative')->count())->toBe(0);

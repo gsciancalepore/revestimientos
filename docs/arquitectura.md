@@ -252,7 +252,7 @@ Implementado en `docs/specs/07-checkout-fase3-http.md:1` (cerrada, sin `ConfirmP
 - **Rutas públicas anónimas** (sin `auth`, sin `Policy`): `GET /checkout` (`checkout.show`), `POST /checkout` (`checkout.store`), `GET /checkout/exito` (`checkout.success`) en `routes/web.php` (sin `Route::resource`, coherente con carrito).
 - **`StoreCheckoutRequest`** (`app/Http/Requests/Checkout/StoreCheckoutRequest.php`): `customer_name/email/phone` required, `shipping_cp` `regex:/^[0-9]{4}$/` con `trim`, `shipping_address` nullable, `payment_method` `Rule::in(['transferencia','mercadopago'])` mensajes ES; no valida `cart` (lo hace `PlaceOrderAction` regla 108/109).
 - **`CheckoutController` delgado** (`app/Http/Controllers/CheckoutController.php`): `show` (si `isEmpty` o `hasUnpurchasable` → redirect `carrito.show`; sino `view('checkout.show', lines/subtotal/categorias)`); `store` (`validated()` → `PlaceOrderAction->execute(...)` → `session(['order_id' => $order->id])` → redirect `checkout.success`; `catch DomainException → back withErrors` carrito intacto); `success` (lee `session('order_id')` sin `{order}` en URL, si null → redirect `carrito.show`; `Order::with('lines')->findOrFail` snapshot, `view('checkout.success')`).
-- **MercadoPago (Spec 07.4)**: `store` con `payment_method mercadopago` → `try MercadoPagoGateway->paymentUrl($order) → redirect()->away($url)`, `catch Throwable → Log::error + redirect success with payment_error` (`Order PendingPayment`, `Cart` ya vacío post-commit); `POST /checkout/mercadopago/reintentar` (`checkout.mercadopago.retry`, sin `auth`, `session order_id`, valida `mercadopago` + `PendingPayment` sino `403`) crea nueva `Preference` y sobrescribe `mp_*`; `GET /checkout/exito` solo lectura (con `mp_init_point` → botón continuar a MP; con `payment_error` sin `init_point` → form `POST` reintentar).
+- **MercadoPago (Spec 07.4)**: `store` con `payment_method mercadopago` → `try MercadoPagoGateway->paymentUrl($order) → redirect()->away($url)`, `catch Throwable → EventLog checkout.mp_preference_failed + redirect success with payment_error` (éxito → `checkout.payment_started`; regla 124 enmendada por observabilidad-01) (`Order PendingPayment`, `Cart` ya vacío post-commit); `POST /checkout/mercadopago/reintentar` (`checkout.mercadopago.retry`, sin `auth`, `session order_id`, valida `mercadopago` + `PendingPayment` sino `403`) crea nueva `Preference` y sobrescribe `mp_*`; `GET /checkout/exito` solo lectura (con `mp_init_point` → botón continuar a MP; con `payment_error` sin `init_point` → form `POST` reintentar).
 - **Vistas** `checkout/show.blade.php` (form `@csrf` + `old()` + `number_format` centavos) y `success.blade.php` (snapshot `Order`/`lines`, `status->label()`, `payment_method` instrucciones) con ` <x-layouts.site :categorias="$categorias">` (`.ai/rules/views.md`).
 - **Shipping**: `store` reutiliza `PlaceOrderAction` (regla 110) `quote !disponible → shipping_cost=0` (permitido, sin bloqueo UI).
 
@@ -323,20 +323,35 @@ Implementado en `docs/specs/06-envio-fase2-importador.md:1` (cerrada, reglas 129
 - **Dos modos de venta** (`unidad_venta`): precio/stock en cajas (modo `m2`) o en
   unidades (modo `unidad`); `precio_caja` se deriva solo en modo `m2` (Spec 03). `OrderLine.cantidad` entera positiva (`M2→cajas`, `Unidad→unidades`), `m2_por_caja` `decimal(8,2) → string` nunca float.
 
-## Observabilidad (estructura reservada — no implementar en MVP)
+## Observabilidad (contrato de logs v1 — ADR-013, spec observabilidad-01)
 
-Para no rediseñar después, se reservan estos espacios (ADR-004):
+Revestimientos es un **sistema observado**: publica un contrato de logs versionado que consume un
+sistema externo (`incident-investigator`) sin conocer este código. Estructura original reservada por
+ADR-004, enmendada por ADR-013.
 
-- **Logs**: canal `stack` con `daily`; logging estructurado con contexto (order_id,
-  user_id, product_id). Nada sensible (sin datos de tarjeta).
-- **Eventos de dominio**: ya forman parte del diseño (Events/).
-- **Auditoría**: tabla `audit_logs` para acciones críticas (cambios de precio,
-  ajustes de stock, confirmaciones de pago, roles) con `actor`, `action`,
-  `subject_type/id`, `payload`, `created_at`. Implementada en la **Spec 01** para
-  usuarios y roles (crear/editar/desactivar/reactivar usuario y cambios de rol);
-  se extiende a precios, stock y pagos en sus specs.
-- **Métricas**: placeholder en la fase de despliegue (health check `/up`,
-  latencia, colas). Sin dashboards en el MVP.
+- **Contrato**: `docs/observabilidad/log-schema.v1.json` (JSON Schema, fuente de verdad del catálogo
+  de eventos) y su README. Canal `app` (`config/logging.php`): un `stack` con `ignore_exceptions`
+  sobre `app_file` (daily), que escribe `storage/logs/app-AAAA-MM-DD.jsonl` (fecha UTC), un objeto
+  JSON por línea.
+- **`app/Logging/`**:
+  - `EventLog::record()`: único punto de emisión de eventos, que trunca los valores externos.
+  - `ContractFormatter`: forma de la línea. Lo que no es un evento sale como `app.log`.
+  - `RedactPersonalData`: redacción de datos personales, registrada con el `tap` `ApplyRedaction`
+    en **todos** los canales.
+  - `ErrorSerializer`: objeto `error` sin argumentos, y sin mensaje salvo en las excepciones propias.
+- **Correlación**: `App\Http\Middleware\AssignRequestId` (el primero de la pila global) genera el
+  `request_id`, lo pone en `Context`, lo devuelve en `X-Request-Id` y escribe `http.request` en
+  `terminate`.
+- **Espejo de la auditoría**: `AuditRecorder` escribe la fila en `audit_logs` y emite el mismo evento
+  con `DB::afterCommit`, agregando `order_id` cuando el sujeto es un pedido.
+- **Excepciones**: `bootstrap/app.php` reporta `app.exception` y detiene el reporte por defecto
+  (`->stop()`). `zend.exception_ignore_args = On` en `docker/php/php.ini` y en CI.
+- **Auditoría**: tabla `audit_logs` para acciones críticas (ADR-004). Implementada desde la Spec 01 y
+  extendida a precios, stock y pagos. `order.paid` y `order.paid_after_cancel` guardan `payment_id`
+  (reglas 150 y 151 enmendadas).
+- **Eventos de dominio**: no existen (`app/Events/` nunca se creó). ADR-013 descarta el punto 2 de
+  ADR-004.
+- **Métricas, trazas, errores agrupados y uptime**: etapas 2 a 5 de ADR-013, sin implementar.
 
 ## Testing
 

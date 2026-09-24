@@ -72,6 +72,10 @@ sentido, es un bug de lenguaje.
 | **Preferencia de MercadoPago** | Objeto creado en MercadoPago que define el cobro: items (título, cantidad entera, precio), `external_reference` (id de la orden), `back_urls` y retorno automático. Su creación devuelve `mp_preference_id` e `init_point`, que se persisten en la orden. | Se crea al confirmar un checkout con MercadoPago |
 | **init_point** | URL de MercadoPago a la que se redirige al comprador para completar el pago de una preferencia. | "Continuar al pago en MercadoPago" |
 | **Reintento de pago** | Nueva creación de preferencia para una orden `mercadopago` en `pending_payment`, vía `POST /checkout/mercadopago/reintentar`; sobrescribe `mp_preference_id/mp_init_point`. El `GET /checkout/exito` nunca crea preferencias (solo lectura). | Botón "Reintentar pago" ante `payment_error` |
+| **Contrato de logs** | Término técnico. Acuerdo versionado sobre la forma y el significado de cada línea de log que Revestimientos publica para sistemas externos: JSON Schema, catálogo de eventos y archivos `.jsonl`. | `docs/observabilidad/log-schema.v1.json`, spec observabilidad-01 |
+| **Evento de log** | Término técnico. Una línea del contrato de logs con un nombre estable (`order.paid`, `checkout.rejected`). El conjunto de eventos es el **catálogo de eventos (de log)**, que no tiene nada que ver con el **Catálogo público**. | ADR-013 |
+| **`request_id`** | Término técnico. Identificador que la tienda asigna a cada request HTTP: aparece en todas sus líneas de log y en la cabecera `X-Request-Id`. No es el `x-request-id` de MercadoPago, que en el log se llama `mp_request_id`. | OBS-03 |
+| **Incidente operativo** | Término técnico. Algo que salió mal y hay que investigar (un pago que no llegó, un checkout que falló). No es un **Incidente de pago**: ese es un estado de negocio de un pedido. | ADR-013 |
 
 ## Sinónimos prohibidos
 

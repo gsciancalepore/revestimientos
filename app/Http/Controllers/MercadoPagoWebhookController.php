@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Actions\ProcessMercadoPagoNotificationAction;
+use App\Logging\EventLog;
 use App\Services\AuditRecorder;
 use App\Services\MercadoPagoSignatureVerifier;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class MercadoPagoWebhookController extends Controller
@@ -71,7 +71,7 @@ class MercadoPagoWebhookController extends Controller
         try {
             $action->execute($paymentId);
         } catch (Throwable $e) {
-            Log::error('mp webhook failed', ['payment_id' => $paymentId, 'error' => $e->getMessage()]);
+            EventLog::record('webhook.processing_failed', ['payment_id' => $paymentId], 'error', $e);
 
             return response('', 503);
         }

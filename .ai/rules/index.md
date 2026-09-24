@@ -11,6 +11,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Services/*Gateway*.php, app/Contracts/PaymentGateway.php | .ai/rules/contracts.md |
 | app/Http/Controllers/CheckoutController.php, app/Http/Controllers/CartController.php, app/Http/Requests/Checkout/**, app/Http/Requests/Cart/** | .ai/rules/cart.md |
 | app/Http/Controllers/ShippingRateImportController.php, app/Http/Requests/ShippingRates/**, app/Services/ShippingRatesCsvParser.php, app/Actions/ImportShippingRatesAction.php | .ai/rules/importador-tarifas.md |
+| app/Logging/**, app/Http/Middleware/AssignRequestId.php, app/Services/AuditRecorder.php, config/logging.php, docs/observabilidad/** | .ai/rules/observabilidad.md |
 | app/** | .ai/rules/app.md |
 | app/Http/Requests/Categorias/** | .ai/rules/categorias.md |
 | app/Http/Controllers/OrderController.php, app/Http/Controllers/DispatchController.php, app/Policies/OrderPolicy.php, resources/views/admin/pedidos/**, resources/views/admin/despacho/** | .ai/rules/panel-pedidos.md |

@@ -25,6 +25,7 @@
         "laravel/telescope": "^5.22",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
+        "opis/json-schema": "^2.6",
         "pestphp/pest": "^3.8",
         "pestphp/pest-plugin-laravel": "^3.2",
         "phpstan/phpstan": "^2.1"
