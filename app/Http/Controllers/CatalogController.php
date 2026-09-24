@@ -103,6 +103,7 @@ class CatalogController extends Controller
 
         return view('public.producto', [
             'producto' => $producto,
+            'categorias' => Category::query()->orderBy('sort_order')->get(),
             'estimacion' => $this->estimarCajas($request, $producto, $calculator),
         ]);
     }

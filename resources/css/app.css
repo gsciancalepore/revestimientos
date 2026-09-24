@@ -9,4 +9,55 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-display: 'Fraunces', ui-serif, Georgia, 'Times New Roman', serif;
+
+    /* Identidad visual pública (docs/specs/identidad-visual-publica.md, regla 1):
+       terracota como acento/CTA, en lugar de la paleta default de Tailwind
+       sin nombrar. Reemplaza el uso de `orange-*` en las vistas públicas. */
+    --color-brand-50: #fbf3ee;
+    --color-brand-100: #f6e3d6;
+    --color-brand-200: #eac5ae;
+    --color-brand-300: #dda37f;
+    --color-brand-400: #cc7f55;
+    --color-brand-500: #b96438;
+    --color-brand-600: #9c4c28;
+    --color-brand-700: #7d3c21;
+    --color-brand-800: #602f1c;
+    --color-brand-900: #492516;
+
+    /* Neutro cálido propio (reemplaza `stone-*` sin nombrar). Mismos valores
+       que `stone`: el rol (fondo/texto neutro) no cambia, solo pasa a tener
+       nombre de proyecto en vez de depender del default de Tailwind. */
+    --color-neutral-50: var(--color-stone-50);
+    --color-neutral-100: var(--color-stone-100);
+    --color-neutral-200: var(--color-stone-200);
+    --color-neutral-300: var(--color-stone-300);
+    --color-neutral-400: var(--color-stone-400);
+    --color-neutral-500: var(--color-stone-500);
+    --color-neutral-600: var(--color-stone-600);
+    --color-neutral-700: var(--color-stone-700);
+    --color-neutral-800: var(--color-stone-800);
+    --color-neutral-900: var(--color-stone-900);
+
+    /* Semántica (éxito/advertencia/error): mismo color que ya se usaba
+       (emerald/amber/red), solo con nombre de rol en vez de nombre de
+       paleta — igual criterio que `neutral` arriba. */
+    --color-success-50: var(--color-emerald-50);
+    --color-success-100: var(--color-emerald-100);
+    --color-success-200: var(--color-emerald-200);
+    --color-success-700: var(--color-emerald-700);
+    --color-success-800: var(--color-emerald-800);
+    --color-success-900: var(--color-emerald-900);
+
+    --color-warning-50: var(--color-amber-50);
+    --color-warning-200: var(--color-amber-200);
+    --color-warning-300: var(--color-amber-300);
+    --color-warning-700: var(--color-amber-700);
+    --color-warning-800: var(--color-amber-800);
+
+    --color-danger-50: var(--color-red-50);
+    --color-danger-200: var(--color-red-200);
+    --color-danger-600: var(--color-red-600);
+    --color-danger-700: var(--color-red-700);
+    --color-danger-800: var(--color-red-800);
 }
