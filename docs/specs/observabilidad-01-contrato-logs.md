@@ -548,3 +548,25 @@ y todas pusieron algún test en rojo.
 - poner `LOG_CHANNEL=app` en el `.env` local;
 - reconstruir la imagen `app` (`docker compose build app`) para que tome
   `zend.exception_ignore_args`.
+
+## Sincronía 2026-09-24 — revisión de `revisor-entrega`
+
+La primera auditoría **bloqueó** la entrega. El código estaba sano; fallaba la cobertura:
+
+- **Bloqueante**: el test del criterio 1 hacía un `GET /catalogo`, que escribe una sola línea
+  (`http.request`). Con un formateador que anulaba el `request_id` de cualquier otro evento, la
+  suite seguía verde. Ahora el test usa un checkout, que escribe `order.created`,
+  `checkout.payment_started` y `http.request`, y afirma el id en cada línea. Un test aparte afirma
+  el `request_id` de `app.exception`.
+- **8 mutaciones que sobrevivían**, ahora en rojo:
+  - la redacción sin distinguir mayúsculas y la del `extra` (`Context`);
+  - el `tap` en `stderr` y en `daily`: un test recorre `config('logging.channels')` y exige
+    `ApplyRedaction` en todo canal que escribe;
+  - `DomainException` lanzada fuera de `app/` y `PDOException` suelta, que no conservan su mensaje;
+  - el truncado del `context` de `app.log`.
+- **Criterio 13**: además del `ini_get`, un test lee `docker/php/php.ini` —el que copia la imagen de
+  staging— porque CI no lo carga.
+
+Suite: **554 tests**. **Corrección** a la sincronía anterior: la imagen `app` local ya está
+reconstruida. De la tarea 10 quedan solo `LOG_CHANNEL=app` en el `.env` local y borrar
+`storage/logs/laravel.log`.

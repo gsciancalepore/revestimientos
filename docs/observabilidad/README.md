@@ -40,8 +40,9 @@ conocer el código de la tienda. Decisiones: [ADR-013](../adr/ADR-013-capa-obser
 - `order_id` (entero) y `payment_id` (string) aparecen con ese nombre en todo evento que se refiere a
   un pedido o a un pago, **cuando el dato se conoce en el punto de emisión**. Son las claves para
   correlacionar entre requests.
-- `error` solo está presente en `app.exception`, `checkout.mp_preference_failed` y
-  `webhook.processing_failed`. Tiene esta forma:
+- `error` está presente en `app.exception`, `checkout.mp_preference_failed` y
+  `webhook.processing_failed`, y en un `app.log` cuando la línea original traía una excepción. En los
+  demás eventos es `null`. Tiene esta forma:
   - `class` y `code`;
   - `message`: solo en las excepciones propias de la app; en las demás, `null`;
   - `sqlstate`: en las excepciones de base de datos;
