@@ -55,6 +55,30 @@ test('la home muestra productos activos recientes aunque no tengan oferta (regla
         ->assertSee('Único Cargado');
 });
 
+test('la sección de productos muestra los 8 activos más recientes y deja afuera el noveno (regla 167)', function () {
+    Product::factory()->create(['name' => 'Noveno Más Viejo', 'created_at' => now()->subDays(9)]);
+    foreach (range(1, 8) as $dias) {
+        Product::factory()->create(['name' => "Reciente {$dias}", 'created_at' => now()->subDays($dias)]);
+    }
+
+    $this->get('/')
+        ->assertOk()
+        ->assertSeeInOrder(['Reciente 1', 'Reciente 8'])
+        ->assertDontSee('Noveno Más Viejo');
+});
+
+test('la sección de productos se muestra con su título y desaparece si no hay activos (regla 167)', function () {
+    $this->get('/')
+        ->assertOk()
+        ->assertDontSee('Ver catálogo completo');
+
+    Product::factory()->create();
+
+    $this->get('/')
+        ->assertOk()
+        ->assertSeeInOrder(['Productos', 'Ver catálogo completo']);
+});
+
 test('la home no muestra productos inactivos en la sección de productos recientes (regla 167)', function () {
     Product::factory()->inactive()->create(['name' => 'Inactivo No Debe Verse']);
 
