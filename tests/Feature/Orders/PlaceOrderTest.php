@@ -50,27 +50,6 @@ test('carrito con linea no comprable (prevalidacion) lanza DomainException', fun
     expect(app(Cart::class)->items())->toBe([$product->id => 2]);
 });
 
-// HIG-07: la revalidación bajo `lockForUpdate` (regla 109) no tenía cobertura.
-// La prevalidación `hasUnpurchasable()` intercepta cualquier escenario armado
-// desde el carrito, así que hay que simular la carrera real: el carrito leyó el
-// stock antes de que otro pedido lo consumiera y su prevalidación quedó vieja.
-// Este doble reproduce esa ventana; sin él no se llega nunca al lock.
-function cartConPrevalidacionVieja(Product $product, int $cantidad): Cart
-{
-    $cart = new class extends Cart
-    {
-        public function hasUnpurchasable(): bool
-        {
-            return false;
-        }
-    };
-
-    $cart->putItems([$product->id => $cantidad]);
-    app()->instance(Cart::class, $cart);
-
-    return $cart;
-}
-
 test('stock agotado despues de la prevalidacion lanza DomainException bajo lock', function () {
     $product = Product::factory()->create(['activo' => true, 'stock' => 5, 'precio_cents' => 10000]);
     cartConPrevalidacionVieja($product, 3);

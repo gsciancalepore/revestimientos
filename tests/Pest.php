@@ -7,8 +7,11 @@ use App\Models\Product;
 use App\Services\Cart;
 use App\Services\MercadoPagoGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use MercadoPago\MercadoPagoConfig;
+use Opis\JsonSchema\Errors\ErrorFormatter;
+use Opis\JsonSchema\Validator;
 use Tests\RedProhibida;
 use Tests\TestCase;
 
@@ -221,4 +224,98 @@ function pedidoPagable(int $stock = 10, int $cantidad = 3, int $totalCents = 300
     $order->update(['total_cents' => $totalCents]);
 
     return $order->fresh();
+}
+
+// HIG-07: la revalidación bajo `lockForUpdate` (regla 109) no tenía cobertura.
+// La prevalidación `hasUnpurchasable()` intercepta cualquier escenario armado
+// desde el carrito, así que hay que simular la carrera real: el carrito leyó el
+// stock antes de que otro pedido lo consumiera y su prevalidación quedó vieja.
+// Este doble reproduce esa ventana; sin él no se llega nunca al lock.
+function cartConPrevalidacionVieja(Product $product, int $cantidad): Cart
+{
+    $cart = new class extends Cart
+    {
+        public function hasUnpurchasable(): bool
+        {
+            return false;
+        }
+    };
+
+    $cart->putItems([$product->id => $cantidad]);
+    app()->instance(Cart::class, $cart);
+
+    return $cart;
+}
+
+/*
+ * Contrato de logs v1 (spec observabilidad-01). Los tests del contrato
+ * construyen el canal `app` desde `config/logging.php` real y solo cambian la
+ * ruta a un directorio temporal (criterio 1): así un canal mal configurado
+ * rompe estos tests en lugar de caer en silencio al logger de emergencia.
+ */
+function canalDeContrato(?string $ruta = null): string
+{
+    $dir = $ruta ?? sys_get_temp_dir().'/contrato-logs-'.Str::uuid();
+
+    if ($ruta === null) {
+        mkdir($dir);
+    }
+
+    config([
+        'logging.default' => 'app',
+        'logging.channels.app_file.path' => $dir.'/app.jsonl',
+    ]);
+
+    app('log')->forgetChannel('app');
+    app('log')->forgetChannel('app_file');
+
+    return $dir;
+}
+
+/**
+ * Lee todas las líneas del canal `app` y valida cada una contra
+ * `docs/observabilidad/log-schema.v1.json`: una línea fuera de contrato hace
+ * fallar el test que la produjo.
+ *
+ * @return list<array<string, mixed>>
+ */
+function lineasDelContrato(string $dir): array
+{
+    $validator = new Validator;
+    $validator->resolver()->registerFile(
+        'https://revestimientos/observabilidad/log-schema.v1.json',
+        base_path('docs/observabilidad/log-schema.v1.json'),
+    );
+
+    $lineas = [];
+
+    foreach (glob($dir.'/app-*.jsonl') ?: [] as $archivo) {
+        foreach (file($archivo, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $linea) {
+            $resultado = $validator->validate(json_decode($linea), 'https://revestimientos/observabilidad/log-schema.v1.json');
+
+            if (! $resultado->isValid()) {
+                throw new RuntimeException("Línea fuera del contrato: {$linea}\n".json_encode((new ErrorFormatter)->format($resultado->error()), JSON_UNESCAPED_UNICODE));
+            }
+
+            $lineas[] = json_decode($linea, true);
+        }
+    }
+
+    return $lineas;
+}
+
+/**
+ * @return list<array<string, mixed>>
+ */
+function eventosDelContrato(string $dir, string $event): array
+{
+    return array_values(array_filter(lineasDelContrato($dir), fn (array $linea): bool => $linea['event'] === $event));
+}
+
+/**
+ * Todo el texto escrito en el directorio, para buscar centinelas de datos personales.
+ */
+function textoDelDirectorio(string $dir): string
+{
+    return implode("\n", array_map(fn (string $archivo): string => (string) file_get_contents($archivo), glob($dir.'/*') ?: []));
 }

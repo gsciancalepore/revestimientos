@@ -3,6 +3,7 @@
 namespace App\Actions;
 
 use App\Contracts\PaymentStatusQuery;
+use App\Logging\EventLog;
 use App\Models\Order;
 use App\Services\AuditRecorder;
 
@@ -35,6 +36,12 @@ class ProcessMercadoPagoNotificationAction
         // Regla 158: solo `approved` confirma. `pending`/`in_process` todavía no
         // acreditaron y `rejected`/`cancelled` dejan el pedido reintentable.
         if ($pago['status'] !== 'approved') {
+            EventLog::record('webhook.payment_not_approved', [
+                'payment_id' => $paymentId,
+                'status' => $pago['status'],
+                'order_id' => $this->pedidoReferido($pago['external_reference']),
+            ]);
+
             return;
         }
 
@@ -63,7 +70,16 @@ class ProcessMercadoPagoNotificationAction
             return;
         }
 
-        $this->confirm->execute($order, 'mercadopago');
+        $this->confirm->execute($order, 'mercadopago', $paymentId);
+    }
+
+    /**
+     * El `order_id` que dice el `external_reference`, sin verificar que exista:
+     * alcanza para correlacionar un pago no aprobado (OBS-05.5).
+     */
+    private function pedidoReferido(?string $externalReference): ?int
+    {
+        return $externalReference !== null && ctype_digit($externalReference) ? (int) $externalReference : null;
     }
 
     /**

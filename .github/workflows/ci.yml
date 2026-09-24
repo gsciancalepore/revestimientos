@@ -32,6 +32,8 @@ jobs:
           php-version: "8.4"
           extensions: pdo_pgsql, redis, bcmath, intl, zip
           coverage: none
+          # Igual que docker/php/php.ini: trazas sin argumentos (spec observabilidad-01, OBS-07).
+          ini-values: zend.exception_ignore_args=On
 
       - name: Cache Composer dependencies
         uses: actions/cache@v5
@@ -67,6 +69,9 @@ jobs:
       - name: PHPStan
         run: ./vendor/bin/phpstan analyse --no-progress
 
+      - name: Snapshot de storage/logs antes de la suite
+        run: find storage/logs -type f -exec sha256sum {} + | sort > "$RUNNER_TEMP/logs-antes.txt"
+
       - name: Tests (Pest)
         env:
           DB_CONNECTION: pgsql
@@ -76,3 +81,10 @@ jobs:
           DB_USERNAME: ceramica
           DB_PASSWORD: ceramica
         run: php artisan test
+
+      # La suite no puede crear ni modificar nada en storage/logs/ (spec
+      # observabilidad-01, OBS-09, criterio 2).
+      - name: Los tests no escribieron en storage/logs
+        run: |
+          find storage/logs -type f -exec sha256sum {} + | sort > "$RUNNER_TEMP/logs-despues.txt"
+          diff "$RUNNER_TEMP/logs-antes.txt" "$RUNNER_TEMP/logs-despues.txt"

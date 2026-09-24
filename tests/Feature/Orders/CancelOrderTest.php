@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
 test('cancelar un pedido pagado restituye el stock', function () {
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 3);
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
     expect($product->fresh()->stock)->toBe(7);
 
     $resultado = app(CancelOrderAction::class)->execute($order->fresh());
@@ -28,7 +28,7 @@ test('cancelar un pedido pagado restituye el stock', function () {
 test('cancelar un pedido despachado restituye el stock', function () {
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 4);
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
     $order->update(['status' => OrderStatus::Shipped]);
 
     app(CancelOrderAction::class)->execute($order->fresh());
@@ -52,7 +52,7 @@ test('cancelar un pedido pendiente de pago no toca el stock', function () {
 test('la restitucion queda auditada con las cantidades devueltas', function () {
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 3);
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
 
     app(CancelOrderAction::class)->execute($order->fresh());
 
@@ -66,7 +66,7 @@ test('la restitucion queda auditada con las cantidades devueltas', function () {
 test('cancelar dos veces no restituye dos veces', function () {
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 3);
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
 
     $action = app(CancelOrderAction::class);
     $action->execute($order->fresh());
@@ -79,7 +79,7 @@ test('cancelar dos veces no restituye dos veces', function () {
 test('un pedido entregado no se cancela', function () {
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 3);
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
     $order->update(['status' => OrderStatus::Delivered]);
 
     expect(fn () => app(CancelOrderAction::class)->execute($order->fresh()))
@@ -92,7 +92,7 @@ test('un pedido entregado no se cancela', function () {
 test('la restitucion devuelve la cantidad congelada aunque el producto haya cambiado', function () {
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 3);
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
 
     // el admin repuso mercadería y cambió el precio entre el pago y la cancelación
     $product->update(['stock' => 20, 'precio_cents' => 999999]);
@@ -105,7 +105,7 @@ test('la restitucion devuelve la cantidad congelada aunque el producto haya camb
 test('un pedido pagado con stock negativo vuelve a su valor al cancelarse', function () {
     $product = Product::factory()->create(['stock' => 1]);
     $order = pedidoConLinea($product, 4);
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
     expect($product->fresh()->stock)->toBe(-3);
 
     app(CancelOrderAction::class)->execute($order->fresh());
@@ -126,7 +126,7 @@ test('cancelar con un pedido leido antes del pago igual restituye el stock', fun
     $pedidoEnPantalla = Order::findOrFail($order->id);
 
     // entre medio entró el webhook: pagó y descontó
-    app(ConfirmPaymentAction::class)->execute($order->fresh(), 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order->fresh(), 'mercadopago', 'pago-test');
     expect($product->fresh()->stock)->toBe(7);
 
     app(CancelOrderAction::class)->execute($pedidoEnPantalla);
@@ -141,7 +141,7 @@ test('cancelar con un pedido leido antes del pago igual restituye el stock', fun
 test('si falla la auditoria de la restitucion, ni el estado ni el stock se mueven', function () {
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 3);
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
 
     $this->app->bind(AuditRecorder::class, fn () => new class extends AuditRecorder
     {
@@ -176,7 +176,7 @@ test('la restitucion pide las filas de productos ordenadas por id', function () 
         'precio_unitario_cents' => 5000,
         'subtotal_cents' => 5000,
     ]);
-    app(ConfirmPaymentAction::class)->execute($order->fresh(), 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order->fresh(), 'mercadopago', 'pago-test');
 
     $queries = [];
     DB::listen(function ($query) use (&$queries) {
@@ -213,7 +213,7 @@ test('la query del pedido pide for update al cancelar', function () {
 test('la cancelacion deja la transicion auditada', function () {
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 2);
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
 
     app(CancelOrderAction::class)->execute($order->fresh());
 

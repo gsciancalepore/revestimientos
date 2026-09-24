@@ -60,7 +60,7 @@ test('un pedido pagado con stock negativo aparece como reposicion pendiente, y d
     $product = Product::factory()->create(['stock' => 1]);
     $order = pedidoConLinea($product, 3);
 
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
 
     expect($product->fresh()->stock)->toBe(-2);
 
@@ -177,7 +177,7 @@ test('cancelar un pedido impago no toca stock', function () {
 test('cancelar un pedido pagado restituye el stock', function () {
     $product = Product::factory()->create(['stock' => 10]);
     $order = pedidoConLinea($product, 3);
-    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago');
+    app(ConfirmPaymentAction::class)->execute($order, 'mercadopago', 'pago-test');
 
     expect($product->fresh()->stock)->toBe(7);
 

@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Checkout;
 
+use App\Logging\EventLog;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -10,6 +12,20 @@ class StoreCheckoutRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    /**
+     * `checkout.rejected` con los nombres de los campos que fallaron, nunca sus
+     * valores (spec observabilidad-01, OBS-05.2).
+     */
+    protected function failedValidation(Validator $validator): void
+    {
+        EventLog::record('checkout.rejected', [
+            'motivo' => 'validacion',
+            'campos' => array_keys($validator->errors()->messages()),
+        ]);
+
+        parent::failedValidation($validator);
     }
 
     /**

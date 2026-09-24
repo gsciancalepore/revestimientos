@@ -1,0 +1,1513 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://revestimientos/observabilidad/log-schema.v1.json",
+  "title": "Revestimientos — contrato de logs v1",
+  "description": "Una línea de log de Revestimientos (spec observabilidad-01-contrato-logs). Compatibilidad: agregar eventos o atributos opcionales es compatible; quitar, renombrar o cambiar tipo o significado exige v2. La ausencia de un evento no prueba que el hecho no ocurrió.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "timestamp",
+    "level",
+    "event",
+    "service",
+    "environment",
+    "request_id",
+    "attributes",
+    "error"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+    },
+    "level": {
+      "enum": [
+        "debug",
+        "info",
+        "warning",
+        "error",
+        "critical"
+      ]
+    },
+    "event": {
+      "type": "string",
+      "pattern": "^[a-z]+(\\.[a-z_]+)+$",
+      "enum": [
+        "app.exception",
+        "app.log",
+        "checkout.mp_preference_failed",
+        "checkout.payment_started",
+        "checkout.rejected",
+        "http.request",
+        "order.created",
+        "order.paid",
+        "order.paid_after_cancel",
+        "order.payment_amount_mismatch",
+        "order.status_changed",
+        "order.stock_negative",
+        "order.stock_restored",
+        "product.created",
+        "product.deactivated",
+        "product.price_changed",
+        "product.stock_changed",
+        "user.created",
+        "user.deactivated",
+        "user.reactivated",
+        "user.role_changed",
+        "user.updated",
+        "webhook.ignored",
+        "webhook.order_not_found",
+        "webhook.payment_not_approved",
+        "webhook.payment_not_found",
+        "webhook.processing_failed",
+        "webhook.signature_invalid"
+      ]
+    },
+    "service": {
+      "const": "revestimientos"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "request_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "attributes": {
+      "type": "object"
+    },
+    "error": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "class": {
+          "type": "string"
+        },
+        "code": {
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sqlstate": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "trace": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^()]*:[0-9]+$"
+          }
+        }
+      },
+      "required": [
+        "class",
+        "code",
+        "message",
+        "sqlstate",
+        "trace"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "http.request"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "method": {
+                "type": "string"
+              },
+              "route": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "status": {
+                "type": "integer"
+              },
+              "duration_ms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "user_id": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "method",
+              "route",
+              "status",
+              "duration_ms"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "app.exception"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "app.log"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string",
+                "maxLength": 256
+              },
+              "context": {
+                "type": "object",
+                "description": "Contexto de la línea original, pasado por la redacción de datos personales. Los textos van truncados a 256 caracteres."
+              }
+            },
+            "required": [
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "checkout.rejected"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "motivo": {
+                "enum": [
+                  "carrito_vacio",
+                  "no_comprable",
+                  "validacion",
+                  "dominio"
+                ]
+              },
+              "campos": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "detalle": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "motivo"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "checkout.payment_started"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "order_id": {
+                "type": "integer"
+              },
+              "payment_method": {
+                "enum": [
+                  "mercadopago",
+                  "transferencia"
+                ]
+              },
+              "total_cents": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "order_id",
+              "payment_method",
+              "total_cents"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "checkout.mp_preference_failed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "order_id": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "order_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "webhook.payment_not_approved"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "payment_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              },
+              "status": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              },
+              "order_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "payment_id",
+              "status",
+              "order_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "webhook.processing_failed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "payment_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              }
+            },
+            "required": [
+              "payment_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "order.created"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "subtotal_cents": {
+                "type": "integer"
+              },
+              "shipping_cost_cents": {
+                "type": "integer"
+              },
+              "total_cents": {
+                "type": "integer"
+              },
+              "lines": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "product_id": {
+                      "type": "integer"
+                    },
+                    "cantidad": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "product_id",
+                    "cantidad"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              "order_id": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id",
+              "order_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "order.paid"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "origen": {
+                "enum": [
+                  "mercadopago",
+                  "manual"
+                ]
+              },
+              "payment_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              },
+              "order_id": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id",
+              "origen",
+              "payment_id",
+              "order_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "order.paid_after_cancel"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "origen": {
+                "enum": [
+                  "mercadopago",
+                  "manual"
+                ]
+              },
+              "payment_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              },
+              "order_id": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id",
+              "origen",
+              "payment_id",
+              "order_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "order.payment_amount_mismatch"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "payment_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              },
+              "cobrado_cents": {
+                "type": "integer"
+              },
+              "total_cents": {
+                "type": "integer"
+              },
+              "order_id": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id",
+              "payment_id",
+              "order_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "order.status_changed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "previous": {
+                "type": "string"
+              },
+              "new": {
+                "type": "string"
+              },
+              "order_id": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id",
+              "previous",
+              "new",
+              "order_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "order.stock_negative"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "product_id": {
+                "type": "integer"
+              },
+              "cantidad": {
+                "type": "integer"
+              },
+              "stock_resultante": {
+                "type": "integer"
+              },
+              "order_id": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id",
+              "product_id",
+              "cantidad",
+              "stock_resultante",
+              "order_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "order.stock_restored"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "lines": {
+                "type": "array"
+              },
+              "order_id": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id",
+              "lines",
+              "order_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "webhook.ignored"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "tipo": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              },
+              "payment_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "webhook.signature_invalid"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "payment_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              },
+              "mp_request_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "webhook.payment_not_found"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "payment_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id",
+              "payment_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "webhook.order_not_found"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "payment_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              },
+              "external_reference": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id",
+              "payment_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "product.created"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "unidad_venta": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "product.price_changed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "previous_precio_cents": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "new_precio_cents": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "previous_oferta_cents": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "new_oferta_cents": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "product.stock_changed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "previous": {
+                "type": "integer"
+              },
+              "new": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "product.deactivated"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "user.created"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "role": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "user.updated"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "changes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "user.role_changed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              },
+              "previous_role": {
+                "type": "string"
+              },
+              "new_role": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "user.deactivated"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "user.reactivated"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "subject_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "subject_id": {
+                "type": [
+                  "integer",
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "subject_type",
+              "subject_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "app.exception"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "error": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "checkout.mp_preference_failed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "error": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "webhook.processing_failed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "error": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      }
+    }
+  ],
+  "x-events": {
+    "app.exception": {
+      "description": "Excepción reportada por Laravel. El detalle va en `error`. `message` solo se conserva si la excepción es propia de la app; en las de base de datos queda `sqlstate`. No se registran 404, 403, 419, validación ni autenticación: su estado está en `http.request`.",
+      "level": "error"
+    },
+    "app.log": {
+      "description": "Línea que no es un evento del catálogo (framework, librerías, un Log:: suelto). `message` truncado a 256 caracteres y `context` pasado por la redacción de datos personales, con sus textos truncados. Riesgo residual: el texto no es fijo.",
+      "level": "any"
+    },
+    "checkout.mp_preference_failed": {
+      "description": "No se pudo generar la preferencia de pago de MercadoPago; el cliente ve un aviso y puede reintentar. El detalle va en `error` (el mensaje del SDK no se conserva).",
+      "level": "error"
+    },
+    "checkout.payment_started": {
+      "description": "El pedido quedó creado y el cliente fue derivado a pagar (preferencia de MercadoPago generada, o instrucciones de transferencia). Si después no hay confirmación, los logs NO distinguen si el cliente abandonó en MercadoPago o si el webhook nunca llegó.",
+      "level": "info"
+    },
+    "checkout.rejected": {
+      "description": "El cliente intentó avanzar hacia el pago y no pudo. `motivo`: `carrito_vacio`, `no_comprable` (GET /checkout), `validacion` (con `campos`, nunca valores) o `dominio` (con `detalle`, texto fijo de la app). Un carrito que deja de ser comprable entre el GET y el POST aparece como `no_comprable` y después como `dominio`.",
+      "level": "info"
+    },
+    "http.request": {
+      "description": "Resumen de un request HTTP al terminar. Nunca lleva la URL, el query string, el cuerpo, las cookies ni las cabeceras.",
+      "level": "info"
+    },
+    "order.created": {
+      "description": "Espejo de la auditoría (`audit_logs`). Se creó un pedido en `pending_payment`. Todavía no descuenta stock.",
+      "level": "info"
+    },
+    "order.paid": {
+      "description": "Espejo de la auditoría (`audit_logs`). Pago confirmado: el pedido pasó a `paid` y se descontó stock. `origen` es `mercadopago` (webhook, con `payment_id`) o `manual` (transferencia, `payment_id` null).",
+      "level": "info"
+    },
+    "order.paid_after_cancel": {
+      "description": "Espejo de la auditoría (`audit_logs`). Incidente de pago: llegó una confirmación sobre un pedido cancelado. El pedido NO pasa a `paid` y queda trabado a propósito; se resuelve fuera del sistema (devolución con el `payment_id`).",
+      "level": "warning"
+    },
+    "order.payment_amount_mismatch": {
+      "description": "Espejo de la auditoría (`audit_logs`). Incidente de pago: MercadoPago cobró un monto distinto del total del pedido. El pedido no se confirma.",
+      "level": "warning"
+    },
+    "order.status_changed": {
+      "description": "Espejo de la auditoría (`audit_logs`). Transición de estado del pedido.",
+      "level": "info"
+    },
+    "order.stock_negative": {
+      "description": "Espejo de la auditoría (`audit_logs`). COMPORTAMIENTO PREVISTO, no una falla: un pago ya cobrado nunca se rechaza por falta de stock (regla 145, el comercio se abastece directo del fabricante). El stock quedó negativo y hay reposición pendiente.",
+      "level": "warning"
+    },
+    "order.stock_restored": {
+      "description": "Espejo de la auditoría (`audit_logs`). Se devolvió al stock lo de un pedido pagado que se canceló.",
+      "level": "info"
+    },
+    "product.created": {
+      "description": "Espejo de la auditoría (`audit_logs`). Alta de producto.",
+      "level": "info"
+    },
+    "product.deactivated": {
+      "description": "Espejo de la auditoría (`audit_logs`). Producto desactivado.",
+      "level": "info"
+    },
+    "product.price_changed": {
+      "description": "Espejo de la auditoría (`audit_logs`). Cambio de precio u oferta.",
+      "level": "info"
+    },
+    "product.stock_changed": {
+      "description": "Espejo de la auditoría (`audit_logs`). Ajuste manual de stock desde el panel.",
+      "level": "info"
+    },
+    "user.created": {
+      "description": "Espejo de la auditoría (`audit_logs`). Alta de usuario interno.",
+      "level": "info"
+    },
+    "user.deactivated": {
+      "description": "Espejo de la auditoría (`audit_logs`). Usuario interno desactivado.",
+      "level": "info"
+    },
+    "user.reactivated": {
+      "description": "Espejo de la auditoría (`audit_logs`). Usuario interno reactivado.",
+      "level": "info"
+    },
+    "user.role_changed": {
+      "description": "Espejo de la auditoría (`audit_logs`). Cambio de rol de un usuario interno.",
+      "level": "info"
+    },
+    "user.updated": {
+      "description": "Espejo de la auditoría (`audit_logs`). Edición de usuario interno (solo nombres de campos).",
+      "level": "info"
+    },
+    "webhook.ignored": {
+      "description": "Espejo de la auditoría (`audit_logs`). Notificación de MercadoPago ignorada por diseño (otro tipo, o llegada por GET). No es una falla.",
+      "level": "info"
+    },
+    "webhook.order_not_found": {
+      "description": "Espejo de la auditoría (`audit_logs`). Pago aprobado cuyo `external_reference` no corresponde a ningún pedido (otra aplicación o una prueba). Se responde 200.",
+      "level": "info"
+    },
+    "webhook.payment_not_approved": {
+      "description": "MercadoPago informó un pago cuyo estado no es `approved` (`pending`, `in_process`, `rejected`, `cancelled`). No es una falla: el pedido sigue pendiente y el cliente puede reintentar. `order_id` sale de `external_reference` si es numérico; no se verifica que exista.",
+      "level": "info"
+    },
+    "webhook.payment_not_found": {
+      "description": "Espejo de la auditoría (`audit_logs`). MercadoPago no conoce el pago notificado (por ejemplo, mezcla de sandbox y producción). Se responde 200: no hay nada que hacer.",
+      "level": "info"
+    },
+    "webhook.processing_failed": {
+      "description": "Falló el procesamiento de una notificación de MercadoPago (consulta del pago, deadlock o excepción de la confirmación) y se respondió 503 para que MercadoPago reintente. Reintentos posteriores del mismo `payment_id` pueden tener éxito. El detalle va en `error`.",
+      "level": "error"
+    },
+    "webhook.signature_invalid": {
+      "description": "Espejo de la auditoría (`audit_logs`). Notificación rechazada con 401 por firma inválida o secreto ausente. `mp_request_id` es la cabecera `x-request-id` de MercadoPago (no confiable).",
+      "level": "warning"
+    }
+  }
+}
