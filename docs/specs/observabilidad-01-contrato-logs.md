@@ -1,13 +1,15 @@
 # Spec — Observabilidad 01: contrato de logs v1
 
-- **Estado**: **borrador v3 (2026-09-24)**, pendiente de la aprobación del dueño.
+- **Estado**: **aprobada (2026-09-24)** por el dueño, tras tres pasadas de `revisor-spec`. La tercera fue "aprobable con correcciones menores" y las correcciones ya están aplicadas.
 - **Historia del borrador**:
   - **v1**: incluía un agente investigador dentro de este repo. `revisor-spec` la marcó "necesita
     otra vuelta".
   - **v2**: el dueño sacó el agente a un proyecto propio (§Por qué un contrato). `revisor-spec`
     volvió a marcarla "necesita otra vuelta, corta", con el bloqueante del vínculo pago↔pedido y los
     hallazgos I1–I10 y M1–M10.
-  - **v3**: esta versión. Aplica esos hallazgos y las decisiones del dueño del mismo día.
+  - **v3**: aplica esos hallazgos y las decisiones del dueño del mismo día. La tercera pasada la
+    dio aprobable con correcciones menores (I1 firma de `ConfirmPaymentAction`, I2 segundo pago
+    como límite declarado, M1–M6), que se aplicaron antes de aprobarla.
 - **Fuentes**:
   - Decisiones del dueño del 2026-09-24:
     1. Revestimientos es el **sistema observado**, y el investigador de incidentes es un **sistema
@@ -162,7 +164,9 @@ exactamente estos campos de primer nivel:
 
 **Identificadores transversales**: toda entrada que se refiere a un pedido lleva
 `attributes.order_id` (entero), y toda entrada que se refiere a un pago de MercadoPago lleva
-`attributes.payment_id` (string). Van además de `subject_type` y `subject_id` cuando la entrada es
+`attributes.payment_id` (string), **siempre que el dato se conozca en el punto de emisión**. Cuando
+no se conoce, la clave va en `null` o se omite, según declare el schema para ese evento. Por
+ejemplo, `webhook.processing_failed` no lleva `order_id` (OBS-05.6). Van además de `subject_type` y `subject_id` cuando la entrada es
 un espejo de la auditoría. El consumidor filtra siempre por esas dos claves.
 
 **Valores externos**: todo valor que llega del request o de MercadoPago se trunca a **64
@@ -289,7 +293,10 @@ investigar un incidente concreto.
   - `trace`: lista de `"archivo:línea"`, **sin argumentos**.
 - **Qué pasa con `message`** (decisión del dueño):
   - Se conserva **solo si la excepción es propia**: una clase del namespace `App\` o una
-    `DomainException` lanzada desde `app/`. Son textos fijos.
+    `DomainException` lanzada desde `app/`. No son todos textos fijos: algunos interpolan ids o
+    estados (`ConfirmPaymentAction`, `CancelOrderAction`, `TransitionOrderStatusAction`). Lo que
+    garantiza la regla es que **no llevan datos personales**, y la regla durable de la tarea 9 lo
+    exige para todo mensaje nuevo.
   - Para toda otra excepción, `message` es `null`.
   - En las de base de datos (`QueryException`, `PDOException` y sus subclases), `message` también
     es `null`, pero se conserva `sqlstate`.
@@ -306,12 +313,20 @@ y **validan cada línea contra `log-schema.v1.json`**.
 ## Enmiendas a specs cerradas
 
 - **Regla 124 (Spec 07.4)**: `Log::error('mp preference failed', …)` pasa a ser el evento
-  `checkout.mp_preference_failed` (OBS-05.4). El hecho registrado es el mismo; cambian el nombre y la
-  forma. Alcanza también al reintento de la regla 126.
-- **Regla 150 (Spec 08)**: `ConfirmPaymentAction` recibe, además del pedido y el origen, un
-  **`?string $paymentId`**:
-  - obligatorio cuando el origen es `mercadopago`;
-  - `null` cuando el origen es `manual`.
+  `checkout.mp_preference_failed` (OBS-05.4). El hecho registrado es el mismo, pero cambian el
+  nombre y la forma, y **se pierde contenido**: la regla guardaba `$e->getMessage()`, y con OBS-07
+  el mensaje de una excepción del SDK de MercadoPago pasa a `null`. Quedan la clase, el código y
+  la traza. Es una decisión del dueño: ese texto no debe llegar a un modelo de terceros. Alcanza
+  también al reintento de la regla 126.
+- **Regla 150 (Spec 08)**: la firma pasa a ser
+  `execute(Order $order, string $origen, ?string $paymentId = null)`. La acción lo valida junto con
+  el origen, antes de abrir la transacción:
+  - con origen `mercadopago`, un `payment_id` nulo o vacío (tras `trim`) lanza `DomainException`;
+  - con origen `manual`, un `payment_id` no nulo lanza `DomainException`.
+
+  El valor por defecto `null` deja válida la llamada manual tal como está
+  (`OrderController:75`). Las llamadas con `mercadopago` y sin id, hoy unas 25 en
+  `ConfirmPaymentTest` y `OrderPanelTest`, pasan a fallar a propósito y se adaptan (tarea 6).
 
   `order.paid` guarda `payment_id` en su payload de auditoría. Lo decidió el dueño: el dato queda en
   `audit_logs` y en el panel, no solo en el log.
@@ -355,18 +370,23 @@ código**, documentada en su repositorio. Revestimientos no puede garantizarla.
 - **El log anterior**: `storage/logs/laravel.log` tiene datos personales, así que **se borra** como
   parte de la entrega.
 - **Canal que no se puede construir**: si el canal `app` está mal configurado, Laravel cae al logger
-  de emergencia y **recrea `laravel.log` en texto plano sin redactar**. Lo previene un test que
-  construye el canal `app` (criterio 1). Si igual pasa, ese archivo no es parte del contrato y el
+  de emergencia y **recrea `laravel.log` en texto plano sin redactar**. Lo previene el criterio 1,
+  que construye el canal `app` a partir de la configuración real y solo cambia la ruta. Si igual pasa, ese archivo no es parte del contrato y el
   consumidor no lo lee.
 - **`.env` existente**: `make setup` no pisa un `.env` que ya existe (`cp -n`). El runbook indica
   poner `LOG_CHANNEL=app` a mano.
+- **Segundo pago aprobado sobre un pedido ya pagado** (límite declarado): si el cliente paga dos
+  veces, por ejemplo tras un reintento de la regla 126, la regla 152 hace de la segunda
+  confirmación un no-op silencioso. Ese segundo `payment_id` no queda ni en `audit_logs` ni en el
+  log; solo queda un `http.request`. Taparlo sería un incidente de pago nuevo, o sea una decisión
+  de negocio fuera de esta spec.
 - **Una fila de auditoría sin su espejo**: puede pasar si falla la escritura (OBS-08). Es aceptado y
   está declarado en el README del contrato (OBS-02).
 
 ## Criterios de aceptación
 
 1. **Forma y correlación** (OBS-01, OBS-02, OBS-03): un request de prueba, con el canal `app`
-   apuntando a una ruta temporal:
+   construido desde `config/logging.php` real y solo la ruta cambiada a un directorio temporal:
    - produce líneas que **validan contra el schema**;
    - las escribe en un archivo `app-AAAA-MM-DD.jsonl` con la fecha UTC;
    - todas llevan el mismo `request_id`, que coincide con la cabecera `X-Request-Id`.
@@ -401,7 +421,9 @@ código**, documentada en su repositorio. Revestimientos no puede garantizarla.
    - una excepción dentro de `ConfirmPaymentAction` también deja `webhook.processing_failed`;
    - `order.paid` por webhook lleva `payment_id` y `order_id`, en el log y en `audit_logs`;
    - `order.paid_after_cancel` también los lleva;
-   - una confirmación manual deja `payment_id: null`.
+   - una confirmación manual deja `payment_id: null`;
+   - `mercadopago` sin `payment_id` y `manual` con `payment_id` lanzan `DomainException`, sin tocar
+     el pedido ni el stock.
 9. **`mp_request_id`** (OBS-05.1): `webhook.signature_invalid` lleva `mp_request_id` en el log, y la
    fila de auditoría conserva su clave `request_id`.
 10. **Valores externos truncados** (OBS-01):
@@ -410,10 +432,11 @@ código**, documentada en su repositorio. Revestimientos no puede garantizarla.
     - una cabecera `x-request-id` de 300 caracteres en un webhook con firma inválida queda truncada
       a 64.
 11. **Redacción** (OBS-06, OBS-05.8): un
-    `Log::info('x', ['customer_email' => 'a@b.c', 'datos' => ['phone' => '11'], 'product_name' => 'P'])`:
+    `Log::info('x', ['customer_email' => 'centinela@ejemplo.test', 'datos' => ['phone' => '5491100000000'], 'product_name' => 'P'])`:
     - en el canal `app` sale como `app.log`, con los dos primeros valores en `"[redactado]"` y
       `product_name` intacto, y valida contra el schema;
-    - en un canal `single` (el de staging), el texto escrito no contiene `a@b.c` ni `11`.
+    - en un canal `single` (el de staging), el texto escrito no contiene `centinela@ejemplo.test` ni
+      `5491100000000`.
 12. **Excepciones sin datos personales** (OBS-06, OBS-07):
     - un checkout completo con nombre, email, teléfono, CP y dirección de prueba no deja ninguno de
       esos valores;
@@ -451,12 +474,15 @@ código**, documentada en su repositorio. Revestimientos no puede garantizarla.
    - `checkout.payment_started`, `checkout.mp_preference_failed`, `webhook.payment_not_approved` y
      `webhook.processing_failed`.
    - Quitar los tres `Log::error` actuales.
-6. **`payment_id` en la confirmación**: `ConfirmPaymentAction` recibe `?string $paymentId`, y
-   `ProcessMercadoPagoNotificationAction` y la confirmación manual lo pasan (Enmiendas).
+6. **`payment_id` en la confirmación**: la firma y la validación de §Enmiendas.
+   `ProcessMercadoPagoNotificationAction` pasa el id y la confirmación manual no cambia. Los tests
+   existentes que confirman con `mercadopago` se adaptan para pasar un id.
 7. **Excepciones**:
    - `app.exception` vía `withExceptions` en `bootstrap/app.php`, con un callback que **detiene** el
      reporte por defecto;
-   - `zend.exception_ignore_args = On` en `docker/php/php.ini` y en CI.
+   - `zend.exception_ignore_args = On` en `docker/php/php.ini` y en los `ini-values` de CI.
+   - En `.github/workflows/ci.yml`, un paso que compara el listado y los hashes de `storage/logs/`
+     antes y después de la suite (criterio 2).
 8. **Validación en tests**: `opis/json-schema` en `require-dev` (aprobada por el dueño).
 9. **Sincronías**:
    - Spec 07.4 (regla 124) y Spec 08 (reglas 150 y 151).

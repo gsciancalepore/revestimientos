@@ -1,6 +1,6 @@
 # ADR-013 — Capa de observabilidad y contrato con un investigador de incidentes externo
 
-- **Estado**: **propuesta (2026-09-24)**, pendiente de aprobación del dueño.
+- **Estado**: **aceptada (2026-09-24)** por el dueño.
 - **Enmienda** a [ADR-004](ADR-004-observabilidad-estructura-reservada.md), sin reemplazarla. ADR-004
   sigue vigente en lo que decidió: la auditoría en `audit_logs` y ni métricas ni dashboards en el
   MVP. Esta ADR cambia estos puntos:
@@ -93,7 +93,8 @@ Principios:
 
 1. **Un identificador de correlación atraviesa todo**: `request_id` en cada línea y en la cabecera
    `X-Request-Id`. Además, toda entrada referida a un pedido o a un pago lleva `order_id` o
-   `payment_id` con ese mismo nombre, sea cual sea el evento.
+   `payment_id` con ese mismo nombre, sea cual sea el evento, siempre que el dato se conozca donde se
+   emite.
 2. **El contrato es propio y versionado. OpenTelemetry es el rumbo, no la promesa de la v1.** El
    schema v1 usa nombres propios. Su forma (`event`, `attributes`, `level`, `timestamp`) se puede
    traducir de manera directa al modelo de logs de OpenTelemetry. Si en la etapa 4 se adopta OTel,
