@@ -28,10 +28,11 @@ flowchart TB
     personal["<b>Personal del comercio</b><br/>[Persona]<br/>Admin, vendedor y depósito"]
 
     subgraph rev["Revestimientos [Sistema]"]
-        web["<b>Servidor web</b><br/>[Contenedor: nginx]<br/>Sirve los assets y reenvía a PHP"]
+        web["<b>Servidor web</b><br/>[Contenedor: nginx]<br/>Sirve public/ y reenvía a PHP"]
+        assets["<b>Assets</b><br/>[Contenedor: Node 22, Vite]<br/>CSS y JS en desarrollo, con recarga"]
         app["<b>Aplicación</b><br/>[Contenedor: Laravel 12, PHP 8.4, php-fpm]<br/>Vistas Blade, casos de uso en Actions,<br/>autorización por Policies"]
         db[("<b>Base de datos</b><br/>[Contenedor: PostgreSQL 17]<br/>Catálogo, pedidos, stock,<br/>tarifas y audit_logs")]
-        redis[("<b>Redis</b><br/>[Contenedor: Redis 7]<br/>Sesión y caché")]
+        redis[("<b>Redis</b><br/>[Contenedor: Redis 7]<br/>Sesión, caché y cola<br/>(todavía sin jobs)")]
         logs[("<b>Logs</b><br/>[Archivos JSONL]<br/>Contrato de logs v1")]
     end
 
@@ -41,9 +42,10 @@ flowchart TB
 
     comprador -->|"HTTP"| web
     personal -->|"HTTP"| web
+    comprador -->|"CSS y JS (solo en desarrollo)"| assets
     web -->|"FastCGI"| app
     app -->|"SQL, transacciones con lockForUpdate"| db
-    app -->|"Sesión y caché"| redis
+    app -->|"Sesión, caché y cola"| redis
     app -->|"Una línea JSON por evento"| logs
     app -->|"API REST: preferencias y consulta de pagos"| mp
     mp -->|"Webhook firmado (HMAC)"| web
@@ -54,7 +56,7 @@ flowchart TB
     classDef contenedor fill:#438dd5,stroke:#2e6295,color:#fff
     classDef externo fill:#8a8a8a,stroke:#6b6b6b,color:#fff
     class comprador,personal persona
-    class web,app,db,redis,logs contenedor
+    class web,assets,app,db,redis,logs contenedor
     class mp,mail,investigador externo
 ```
 
@@ -65,7 +67,11 @@ flowchart TB
 - **PostgreSQL 18 en Neon** en lugar del contenedor (ADR-010).
 - **Sin Redis**: sesión y caché en la base (`SESSION_DRIVER=database`, `CACHE_STORE=database`) y
   colas síncronas (ADR-009).
-- **Sin servidor de mail**: `MAIL_MAILER=log`, los mails se escriben en el log.
+- **Sin servidor de mail**: `MAIL_MAILER=log`, los mails se escriben en el log (ADR-009).
+- **Sin assets en vivo**: los CSS y JS se compilan al construir la imagen (`npm run build`).
+- **Logs sin consumidor externo**: el `LOG_CHANNEL` de Render no está documentado y el contrato no
+  se expone fuera del contenedor. El investigador de incidentes solo lee logs locales hasta la
+  etapa 2 de ADR-013.
 
 ## Organización por dominios
 

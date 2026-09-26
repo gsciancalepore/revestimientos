@@ -13,8 +13,6 @@ casa que vende cerámicas y revestimientos) es el escenario; el objetivo es
 resolver bien los problemas de backend que aparecen cuando hay plata y stock en
 juego.
 
-<!-- TODO: 2-3 capturas o un GIF (catálogo con calculadora m² → cajas, checkout, panel de pedidos) -->
-
 ## Stack
 
 PHP 8.4 · Laravel 12 · PostgreSQL 17 · Redis · Docker Compose · Blade + Tailwind 4 + Alpine ·
@@ -29,10 +27,12 @@ el caso esperado. La confirmación abre la transacción bloqueando el pedido
 Sin eso, el stock se descontaría dos veces.
 
 **No confiar en el contenido de la notificación.** Del webhook se toma solo el
-ID del pago, después de verificar la firma. Estado, monto y referencia se
-consultan a la API de Mercado Pago. El código de respuesta es deliberado: `200`
-cuando no hay nada que hacer, `503` cuando la consulta falla por causa
-transitoria, para que Mercado Pago reintente en vez de perder el pago.
+ID del pago, después de verificar la firma HMAC. Estado, monto y referencia se
+consultan a la API de Mercado Pago, y un pago cuyo monto no coincide con el
+total del pedido no lo confirma. El código de respuesta es deliberado: `401` si
+la firma no valida, `200` cuando se procesó o no había nada que hacer, y `503`
+si el procesamiento falla, para que Mercado Pago reintente en vez de perder el
+pago.
 
 **Stock concurrente sin deadlocks.** El stock baja al confirmarse el pago
 ([ADR-005](docs/adr/ADR-005-gestion-stock.md)). Los productos se bloquean
@@ -50,8 +50,9 @@ infraestructura que exigía; el análisis está en
 **Dinero sin floats.** Montos en centavos (`int`/`BIGINT`) y `bcmath` para las
 conversiones m² → cajas → precio ([ADR-003](docs/adr/ADR-003-unidades-m2-cajas-dinero.md)).
 
-**Máquina de estados del pedido.** Las transiciones viven en un enum y hay un
-único caso de uso que escribe el estado y lo audita.
+**Máquina de estados del pedido.** Las transiciones permitidas viven en un enum
+y hay un único camino para cambiar de estado, que valida y audita cada
+transición.
 
 ## Contexto del sistema
 
@@ -74,7 +75,7 @@ flowchart TB
     sistema -->|"Crea la preferencia y consulta el pago por API"| mp
     mp -->|"Notifica el pago por webhook firmado"| sistema
     sistema -->|"Envía el recupero de contraseña del panel"| mail
-    investigador -->|"Lee los logs del contrato v1"| sistema
+    investigador -->|"Lee los logs del contrato v1 (hoy, solo en local)"| sistema
 
     classDef persona fill:#08427b,stroke:#052e56,color:#fff
     classDef interno fill:#1168bd,stroke:#0b4884,color:#fff
@@ -88,18 +89,19 @@ flowchart TB
 
 ```mermaid
 sequenceDiagram
-    participant C as Cliente
+    participant C as Comprador
     participant App as Revestimientos
     participant MP as Mercado Pago
     C->>App: Checkout (carrito anónimo)
     App->>App: Crea pedido pending_payment (valida stock con lock)
-    App->>MP: Crea preferencia
+    App->>MP: Crea preferencia (productos y envío)
     C->>MP: Paga con tarjeta
     MP-->>App: Webhook (firmado, puede repetirse)
-    App->>App: Verifica firma, toma solo el ID del pago
+    App->>App: Verifica firma (401 si no valida), toma solo el ID del pago
     App->>MP: Consulta el pago por API
-    App->>App: Lock del pedido, relee estado, pasa a paid, descuenta stock y audita
-    App-->>MP: 200 (o 503 si la consulta falló, para que reintente)
+    App->>App: Verifica que el monto coincida con el total del pedido
+    App->>App: Lock del pedido, relee estado, descuenta stock, pasa a paid y audita
+    App-->>MP: 200 (o 503 si algo falló, para que reintente)
 ```
 
 ## Cómo trabajo
@@ -110,11 +112,16 @@ sequenceDiagram
   descartadas.
 - **TDD** (red → green → refactor), más de 550 tests en Pest contra PostgreSQL
   real, y CI con Pint → PHPStan nivel 8 → Pest en cada Pull Request.
-- **Los gates no alcanzan.** Una regla estuvo seis días cobrando el subtotal en
-  lugar del total con CI en verde: los tests pasaban, pero ninguno se ponía rojo
-  si la regla estaba mal. Desde entonces, antes de cada push, un agente de
-  revisión ([`.claude/agents/`](.claude/agents/)) **muta la implementación de
-  cada regla y comprueba que algún test falle**.
+- **Los gates no alcanzan.** La revalidación de stock bajo lock tenía tres
+  tests y ninguno fallaba si se la borraba. Desde entonces, antes de cada push,
+  un agente de revisión ([`.claude/agents/`](.claude/agents/)) **muta la
+  implementación de las reglas críticas** (plata, stock y permisos) y comprueba
+  que algún test se ponga rojo.
+- **Probar contra el servicio real.** Una regla de la spec del checkout armaba
+  la preferencia de Mercado Pago sin el costo de envío: el código la cumplía y
+  los tests pasaban, pero se cobraba solo el subtotal. Apareció al probar de
+  punta a punta contra el sandbox de Mercado Pago. Se corrigió la spec, y el
+  webhook ahora rechaza cualquier pago cuyo monto no coincida con el total.
 
 ## Observabilidad
 
@@ -124,8 +131,8 @@ request y sin datos personales
 [`docs/observabilidad/`](docs/observabilidad/README.md)). El contrato está
 pensado para que un sistema externo lo consuma sin conocer el código: lo uso en
 un proyecto aparte, un agente de IA que investiga incidentes a partir de estos
-logs.
-<!-- TODO: link al repo del investigador de incidentes cuando sea público -->
+logs. Por ahora el contrato rige en local; llevarlo a staging es la etapa
+siguiente.
 
 ## Estado del proyecto
 
@@ -141,6 +148,7 @@ aplicado; faltan la home, el catálogo, la ficha, el carrito y el checkout.
 
 **Pendiente**:
 - Probar el webhook contra Mercado Pago real (hoy está cubierto por tests con dobles).
+- Contrato de logs en staging: hoy solo rige en local (etapa 2 de ADR-013).
 - Métricas, trazas y alertas: la observabilidad arranca solo por logs (ADR-013).
 - Vencimiento automático de pedidos impagos: no hay scheduler en ningún entorno (ADR-012).
 - Fuera del MVP: descuentos y ventas por WhatsApp desde el panel.
