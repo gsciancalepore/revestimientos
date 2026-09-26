@@ -1,6 +1,6 @@
 # Arquitectura
 
-Última actualización: 2026-09-20 (**regla 167, Spec 04**: `CatalogController::home()` suma una segunda consulta de solo lectura —productos activos más recientes, sin exigir oferta, límite 8— para la sección "Productos" de la home, que reutiliza `<x-product-card>`; sin rutas, Actions ni Form Requests nuevos). Historial: 2026-09-12 (**Spec 08 completa — fase 08.c**: panel de pedidos con destacados derivados del estado y sin columna nueva, vista depósito sin importes, confirmación manual restringida a transferencias **en la Action**, cancelaciones y stock negativo visible solo en el panel; autorización por Policy y no por middleware de rol; **436 tests**. El cuerpo de este documento ya describía 08.c desde el 2026-09-12, pero este encabezado se había quedado anunciando la sincronía *previa* — detectado por la auditoría documental del 2026-09-12. Sincronía previa a 08.c: `ConfirmPaymentAction` y compañía dejan de figurar como *previstos*, `PaymentStatusQuery` se incorpora al árbol de `Contracts/`, `RegisterWhatsAppSaleAction` queda marcada post-MVP y la sección de Pagos deja de decir que el webhook pertenece al futuro. **Spec 08 fase 08.b**: `POST /webhook/mercadopago` sin sesión y excluido de CSRF, autenticado por firma HMAC con `hash_equals`; filtro por tipo antes de consultar; el estado real se consulta contra la API por el puerto `PaymentStatusQuery` —`PaymentClient` es `final` y no se puede mockear—; verificación de monto contra `total_cents` antes de confirmar; 503 deliberado ante fallo transitorio para que MercadoPago reintente; 378 tests, quince mutaciones verificadas; el adaptador real del puerto se cubre aparte, porque probar el puerto no prueba el adaptador. **Spec 08 fase 08.a**: máquina de estados en `OrderStatus` + `TransitionOrderStatusAction` único camino a `order.status`; `ConfirmPaymentAction` descuenta stock al confirmarse el pago (ADR-005) con lock del pedido y relectura adentro por la idempotencia que exigen los reintentos de MercadoPago; `CancelOrderAction` restituye lo congelado en `order_lines`; stock negativo permitido y auditado como reposición pendiente; 340 tests. **Spec Higiene 02 cerrada**: la auditoría de precio y stock guarda el valor anterior real —`UpdateProductAction` leía `getOriginal()` después del `save()`, cuando `syncOriginal()` ya lo había pisado—; `PlaceOrderAction` valida nombre, teléfono, email y CP como exige la regla 108, sin quitarle nada al Form Request; la revalidación bajo `lockForUpdate` tiene cobertura que falla si se borra, y la promesa de cobertura de concurrencia real quedó retirada de la Spec 07.2 por no ser reproducible con `RefreshDatabase`; guard del reintento MP sobre pedido pagado cubierto; regla 117 enmendada a `find` + redirect. 274 tests. Spec 07.4 verificada de punta a punta contra la API real de MercadoPago: `auto_return` condicionado a back_url pública y costo de envío en `shipments.cost` —dos enmiendas a la regla 123, ver `docs/specs/07-checkout-fase4-mercadopago.md` §Sincronía 2026-09-10—, credenciales externas neutralizadas en `phpunit.xml`, botón "Finalizar compra" en el carrito; 261 tests. Sincronía SDD previa a Spec 08: reglas del importador renumeradas `101–114 → 129–142` para no colisionar con Spec 07; regla 118 ratificada como vigente sobre la regla 100 —el checkout **no** se bloquea sin cotización de envío—; regla 67 activada `Product::tienePedidos()`; testsuite `Unit` incorporado a `phpunit.xml`; 253 tests. Spec 06 fase 2 cerrada: importador administrativo de tarifas por CP — `ShippingRatesCsvParser` + `ImportShippingRatesAction` fila-por-fila en transacción + flujo 422/preview/confirmar/cancelar, ADR-011 aceptada; Fase 0 + Spec 01-06 cerradas + Spec 07.1/07.2/07.3/07.4 cerradas — 07.4 `MercadoPagoGateway`/`mp_*`/retry `POST` mergeada PR #8 — + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto; Spec 06 Envío por CP con `ShippingCalculator` + `ManualShippingCalculator`; Spec 07.1 Fase 1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway` `name()` solo; Spec 07.2 `PlaceOrderAction` con `lockForUpdate` + `bcmath` + `Cart::clear` post-commit; Spec 07.3 HTTP `CheckoutController` + `StoreCheckoutRequest` + `session order_id`). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
+Última actualización: 2026-09-26 (**diagramas C4**: sección nueva con el nivel 2 —contenedores en local y qué cambia en staging—; el nivel 1 vive en el README; sin cambios de código). Historial: 2026-09-20 (**regla 167, Spec 04**: `CatalogController::home()` suma una segunda consulta de solo lectura —productos activos más recientes, sin exigir oferta, límite 8— para la sección "Productos" de la home, que reutiliza `<x-product-card>`; sin rutas, Actions ni Form Requests nuevos). Historial: 2026-09-12 (**Spec 08 completa — fase 08.c**: panel de pedidos con destacados derivados del estado y sin columna nueva, vista depósito sin importes, confirmación manual restringida a transferencias **en la Action**, cancelaciones y stock negativo visible solo en el panel; autorización por Policy y no por middleware de rol; **436 tests**. El cuerpo de este documento ya describía 08.c desde el 2026-09-12, pero este encabezado se había quedado anunciando la sincronía *previa* — detectado por la auditoría documental del 2026-09-12. Sincronía previa a 08.c: `ConfirmPaymentAction` y compañía dejan de figurar como *previstos*, `PaymentStatusQuery` se incorpora al árbol de `Contracts/`, `RegisterWhatsAppSaleAction` queda marcada post-MVP y la sección de Pagos deja de decir que el webhook pertenece al futuro. **Spec 08 fase 08.b**: `POST /webhook/mercadopago` sin sesión y excluido de CSRF, autenticado por firma HMAC con `hash_equals`; filtro por tipo antes de consultar; el estado real se consulta contra la API por el puerto `PaymentStatusQuery` —`PaymentClient` es `final` y no se puede mockear—; verificación de monto contra `total_cents` antes de confirmar; 503 deliberado ante fallo transitorio para que MercadoPago reintente; 378 tests, quince mutaciones verificadas; el adaptador real del puerto se cubre aparte, porque probar el puerto no prueba el adaptador. **Spec 08 fase 08.a**: máquina de estados en `OrderStatus` + `TransitionOrderStatusAction` único camino a `order.status`; `ConfirmPaymentAction` descuenta stock al confirmarse el pago (ADR-005) con lock del pedido y relectura adentro por la idempotencia que exigen los reintentos de MercadoPago; `CancelOrderAction` restituye lo congelado en `order_lines`; stock negativo permitido y auditado como reposición pendiente; 340 tests. **Spec Higiene 02 cerrada**: la auditoría de precio y stock guarda el valor anterior real —`UpdateProductAction` leía `getOriginal()` después del `save()`, cuando `syncOriginal()` ya lo había pisado—; `PlaceOrderAction` valida nombre, teléfono, email y CP como exige la regla 108, sin quitarle nada al Form Request; la revalidación bajo `lockForUpdate` tiene cobertura que falla si se borra, y la promesa de cobertura de concurrencia real quedó retirada de la Spec 07.2 por no ser reproducible con `RefreshDatabase`; guard del reintento MP sobre pedido pagado cubierto; regla 117 enmendada a `find` + redirect. 274 tests. Spec 07.4 verificada de punta a punta contra la API real de MercadoPago: `auto_return` condicionado a back_url pública y costo de envío en `shipments.cost` —dos enmiendas a la regla 123, ver `docs/specs/07-checkout-fase4-mercadopago.md` §Sincronía 2026-09-10—, credenciales externas neutralizadas en `phpunit.xml`, botón "Finalizar compra" en el carrito; 261 tests. Sincronía SDD previa a Spec 08: reglas del importador renumeradas `101–114 → 129–142` para no colisionar con Spec 07; regla 118 ratificada como vigente sobre la regla 100 —el checkout **no** se bloquea sin cotización de envío—; regla 67 activada `Product::tienePedidos()`; testsuite `Unit` incorporado a `phpunit.xml`; 253 tests. Spec 06 fase 2 cerrada: importador administrativo de tarifas por CP — `ShippingRatesCsvParser` + `ImportShippingRatesAction` fila-por-fila en transacción + flujo 422/preview/confirmar/cancelar, ADR-011 aceptada; Fase 0 + Spec 01-06 cerradas + Spec 07.1/07.2/07.3/07.4 cerradas — 07.4 `MercadoPagoGateway`/`mp_*`/retry `POST` mergeada PR #8 — + Staging docs: `ADR-008`/`ADR-009`/`ADR-010`, `docs/deployment/staging.md` `Render Oregon + RoadRunner` + `Neon Oregon PG18 (us-west-2, 18.6)` co-localizado, fixes `cb1002b`/`10b19a5`/`e56e62c`/`73d2945`/`6b477bb`/`bbfd1fd` + `ADR-010` Oregon, `Neon` 14 migraciones + seed `users=1`/`roles=3`/`categories=4`/`products=1` + `shipping_rates` + `orders`/`order_lines`, deploy `https://revestimientos.onrender.com` `~0.3-0.7s` despierto; Spec 06 Envío por CP con `ShippingCalculator` + `ManualShippingCalculator`; Spec 07.1 Fase 1 estructura `orders`/`order_lines` + `OrderStatus` + `PaymentGateway` `name()` solo; Spec 07.2 `PlaceOrderAction` con `lockForUpdate` + `bcmath` + `Cart::clear` post-commit; Spec 07.3 HTTP `CheckoutController` + `StoreCheckoutRequest` + `session order_id`). Se actualiza con cada fase aprobada según el Definition of Done del roadmap.
 
 ## Visión general
 
@@ -13,6 +13,59 @@ Stack: PostgreSQL, Redis, Blade + TailwindCSS + AlpineJS (solo donde aporta),
 Vite (servicio `assets` con Node 22 en el compose), Docker Compose (dev, ver ADR-002),
 Render Free + RoadRunner + Octane 2 workers para Staging (ver ADR-009 y `docs/deployment/staging.md`),
 Spatie Permission para roles y permisos (ADR-007).
+
+## Diagramas C4
+
+Niveles 1 y 2 del [modelo C4](https://c4model.com/). El nivel 1 (contexto) está en el
+[README](../README.md#contexto-del-sistema). Se dibujan como `flowchart` de Mermaid con la convención
+de etiquetas de C4 porque GitHub no renderiza la sintaxis `C4Context`/`C4Container`.
+
+### Contenedores (nivel 2), entorno local
+
+```mermaid
+flowchart TB
+    comprador["<b>Comprador</b><br/>[Persona]"]
+    personal["<b>Personal del comercio</b><br/>[Persona]<br/>Admin, vendedor y depósito"]
+
+    subgraph rev["Revestimientos [Sistema]"]
+        web["<b>Servidor web</b><br/>[Contenedor: nginx]<br/>Sirve los assets y reenvía a PHP"]
+        app["<b>Aplicación</b><br/>[Contenedor: Laravel 12, PHP 8.4, php-fpm]<br/>Vistas Blade, casos de uso en Actions,<br/>autorización por Policies"]
+        db[("<b>Base de datos</b><br/>[Contenedor: PostgreSQL 17]<br/>Catálogo, pedidos, stock,<br/>tarifas y audit_logs")]
+        redis[("<b>Redis</b><br/>[Contenedor: Redis 7]<br/>Sesión y caché")]
+        logs[("<b>Logs</b><br/>[Archivos JSONL]<br/>Contrato de logs v1")]
+    end
+
+    mp["<b>Mercado Pago</b><br/>[Sistema externo]"]
+    mail["<b>Mailpit</b><br/>[Contenedor: servidor SMTP de desarrollo]"]
+    investigador["<b>Investigador de incidentes</b><br/>[Sistema externo, proyecto aparte]"]
+
+    comprador -->|"HTTP"| web
+    personal -->|"HTTP"| web
+    web -->|"FastCGI"| app
+    app -->|"SQL, transacciones con lockForUpdate"| db
+    app -->|"Sesión y caché"| redis
+    app -->|"Una línea JSON por evento"| logs
+    app -->|"API REST: preferencias y consulta de pagos"| mp
+    mp -->|"Webhook firmado (HMAC)"| web
+    app -->|"SMTP: recupero de contraseña"| mail
+    investigador -->|"Lee"| logs
+
+    classDef persona fill:#08427b,stroke:#052e56,color:#fff
+    classDef contenedor fill:#438dd5,stroke:#2e6295,color:#fff
+    classDef externo fill:#8a8a8a,stroke:#6b6b6b,color:#fff
+    class comprador,personal persona
+    class web,app,db,redis,logs contenedor
+    class mp,mail,investigador externo
+```
+
+### Qué cambia en staging
+
+- **Sin nginx ni php-fpm**: Laravel Octane con RoadRunner (2 workers) atiende HTTP directo, detrás
+  del proxy TLS de Render (ADR-009).
+- **PostgreSQL 18 en Neon** en lugar del contenedor (ADR-010).
+- **Sin Redis**: sesión y caché en la base (`SESSION_DRIVER=database`, `CACHE_STORE=database`) y
+  colas síncronas (ADR-009).
+- **Sin servidor de mail**: `MAIL_MAILER=log`, los mails se escriben en el log.
 
 ## Organización por dominios
 
@@ -395,7 +448,7 @@ ADR-004, enmendada por ADR-013.
 
 ```
 PROJECT_PRINCIPLES.md   → constitución (10 reglas + convención de commits)
-README.md               → guía rápida: arranque, comandos, docs
+README.md               → presentación, contexto C4, estado, arranque, comandos, docs
 docs/vision.md          → objetivos, alcance, éxito, riesgos
 docs/ubiquitous-language.md → vocabulario único
 docs/arquitectura.md    → este documento

@@ -7,7 +7,8 @@
 ![PHPStan nivel 8](https://img.shields.io/badge/PHPStan-nivel%208-brightgreen)
 
 Backend de e-commerce con pagos de Mercado Pago, stock concurrente y
-observabilidad por logs estructurados. **Proyecto personal**: el dominio (una
+observabilidad por logs estructurados. **Proyecto personal, en desarrollo**
+([estado](#estado-del-proyecto)): el dominio (una
 casa que vende cerámicas y revestimientos) es el escenario; el objetivo es
 resolver bien los problemas de backend que aparecen cuando hay plata y stock en
 juego.
@@ -52,6 +53,37 @@ conversiones m² → cajas → precio ([ADR-003](docs/adr/ADR-003-unidades-m2-ca
 **Máquina de estados del pedido.** Las transiciones viven en un enum y hay un
 único caso de uso que escribe el estado y lo audita.
 
+## Contexto del sistema
+
+Nivel 1 del [modelo C4](https://c4model.com/). Los contenedores (nivel 2) y sus
+diferencias entre local y staging están en
+[`docs/arquitectura.md`](docs/arquitectura.md#diagramas-c4).
+
+```mermaid
+flowchart TB
+    comprador["<b>Comprador</b><br/>[Persona]<br/>Compra sin registrarse,<br/>con tarjeta o transferencia"]
+    personal["<b>Personal del comercio</b><br/>[Persona]<br/>Admin, vendedor y depósito"]
+    sistema["<b>Revestimientos</b><br/>[Sistema]<br/>Catálogo, carrito, checkout y<br/>panel de productos, pedidos y stock"]
+    mp["<b>Mercado Pago</b><br/>[Sistema externo]<br/>Cobro con tarjeta"]
+    mail["<b>Servidor de mail</b><br/>[Sistema externo]<br/>SMTP"]
+    investigador["<b>Investigador de incidentes</b><br/>[Sistema externo, proyecto aparte]<br/>Agente de IA"]
+
+    comprador -->|"Navega el catálogo y compra"| sistema
+    comprador -->|"Paga con tarjeta"| mp
+    personal -->|"Opera productos, pedidos y despacho"| sistema
+    sistema -->|"Crea la preferencia y consulta el pago por API"| mp
+    mp -->|"Notifica el pago por webhook firmado"| sistema
+    sistema -->|"Envía el recupero de contraseña del panel"| mail
+    investigador -->|"Lee los logs del contrato v1"| sistema
+
+    classDef persona fill:#08427b,stroke:#052e56,color:#fff
+    classDef interno fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef externo fill:#8a8a8a,stroke:#6b6b6b,color:#fff
+    class comprador,personal persona
+    class sistema interno
+    class mp,mail,investigador externo
+```
+
 ## Flujo de pago
 
 ```mermaid
@@ -95,11 +127,24 @@ un proyecto aparte, un agente de IA que investiga incidentes a partir de estos
 logs.
 <!-- TODO: link al repo del investigador de incidentes cuando sea público -->
 
-## Limitaciones conocidas y próximos pasos
+## Estado del proyecto
 
-- Sin métricas ni dashboards todavía: la observabilidad arranca solo por logs (ADR-013).
-- Sin vencimiento automático de pedidos impagos (no hay scheduler en ningún entorno; ver ADR-012).
-- Pendiente: Spec Higiene 03.b. El resto, en el [roadmap](docs/roadmap.md).
+El proyecto sigue en desarrollo. Detalle fase por fase en el [roadmap](docs/roadmap.md).
+
+**Terminado**: catálogo con calculadora m² → cajas, carrito, envío por código
+postal con importador de tarifas, checkout con Mercado Pago y transferencia,
+gestión de pedidos (webhook, stock, panel y vista de depósito), roles del panel
+y contrato de logs v1.
+
+**En curso**: identidad visual del sitio público. El sistema base ya está
+aplicado; faltan la home, el catálogo, la ficha, el carrito y el checkout.
+
+**Pendiente**:
+- Probar el webhook contra Mercado Pago real (hoy está cubierto por tests con dobles).
+- Métricas, trazas y alertas: la observabilidad arranca solo por logs (ADR-013).
+- Vencimiento automático de pedidos impagos: no hay scheduler en ningún entorno (ADR-012).
+- Fuera del MVP: descuentos y ventas por WhatsApp desde el panel.
+- Producción: hoy solo existe staging.
 
 ## Levantarlo en local
 
@@ -129,7 +174,9 @@ Vite: <http://localhost:5173>
 - **Spec 06 — Envío por CP**: [`docs/specs/06-envio.md`](docs/specs/06-envio.md) (Fase 1 tarifa por CP), [`docs/specs/06-envio-fase2-importador.md`](docs/specs/06-envio-fase2-importador.md) (Fase 2 importador CSV de tarifas)
 - **Spec 07 — Checkout** (compra anónima y creación del pedido): [`docs/specs/07-checkout.md`](docs/specs/07-checkout.md) (Fase 1 estructura), [`docs/specs/07-checkout-fase2.md`](docs/specs/07-checkout-fase2.md) (`PlaceOrderAction`), [`docs/specs/07-checkout-fase3-http.md`](docs/specs/07-checkout-fase3-http.md) (HTTP + formulario), [`docs/specs/07-checkout-fase4-mercadopago.md`](docs/specs/07-checkout-fase4-mercadopago.md) (MercadoPago)
 - **Spec 08 — Gestión de pedidos** (implementada; 3 fases: 08.a dominio ✅, 08.b webhook ✅, 08.c panel y despacho ✅): [`docs/specs/08-gestion-pedidos.md`](docs/specs/08-gestion-pedidos.md)
-- **Spec Higiene 03 — oferta, calculadora y cobertura** (aprobada; 03.a mergeada, 03.b pendiente): [`docs/specs/higiene-03-oferta-calculadora-cobertura.md`](docs/specs/higiene-03-oferta-calculadora-cobertura.md)
+- **Spec Higiene 03 — oferta, calculadora y cobertura** (completa: 03.a y 03.b mergeadas): [`docs/specs/higiene-03-oferta-calculadora-cobertura.md`](docs/specs/higiene-03-oferta-calculadora-cobertura.md)
+- **Spec — Identidad visual pública** (en curso: fase A implementada, faltan B y C): [`docs/specs/identidad-visual-publica.md`](docs/specs/identidad-visual-publica.md)
+- **Spec Observabilidad 01 — contrato de logs** (cerrada): [`docs/specs/observabilidad-01-contrato-logs.md`](docs/specs/observabilidad-01-contrato-logs.md)
 - **Spec Higiene 02 — auditoría, validación y cobertura** (cerrada, precondición de la Spec 08): [`docs/specs/higiene-02-auditoria-validacion-cobertura.md`](docs/specs/higiene-02-auditoria-validacion-cobertura.md)
 - **Higiene ShippingRate/AllowedSpecs/UserRole**: [`docs/specs/higiene-01-shippingrate-allowedspecs-userrole.md`](docs/specs/higiene-01-shippingrate-allowedspecs-userrole.md)
 - **Spec — Calidad de análisis estático** (PHPStan↔Pest, gates): [`docs/specs/calidad-analisis-estatico.md`](docs/specs/calidad-analisis-estatico.md)
