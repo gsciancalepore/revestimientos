@@ -76,7 +76,7 @@ sequenceDiagram
   reglas numeradas y criterios de aceptación ([`docs/specs/`](docs/specs/)), y
   las decisiones importantes quedan en [ADRs](docs/adr/), incluidas las
   descartadas.
-- **TDD** (red → green → refactor), más de 450 tests en Pest contra PostgreSQL
+- **TDD** (red → green → refactor), más de 550 tests en Pest contra PostgreSQL
   real, y CI con Pint → PHPStan nivel 8 → Pest en cada Pull Request.
 - **Los gates no alcanzan.** Una regla estuvo seis días cobrando el subtotal en
   lugar del total con CI en verde: los tests pasaban, pero ninguno se ponía rojo
