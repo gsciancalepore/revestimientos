@@ -75,12 +75,21 @@ it('sin LOG_CONTRATO_DAYS el contrato conserva 90 días y laravel.log sigue en 1
 });
 
 it('LOG_CONTRATO_DAYS cambia solo la retención del contrato', function () {
+    $previos = [$_ENV['LOG_CONTRATO_DAYS'] ?? null, $_SERVER['LOG_CONTRATO_DAYS'] ?? null];
     $_ENV['LOG_CONTRATO_DAYS'] = $_SERVER['LOG_CONTRATO_DAYS'] = '30';
 
     try {
         $config = configDeLoggingSin(['LOG_DAILY_DAYS']);
     } finally {
+        // Se repone lo que había: un `.env` creado desde `.env.example` ya trae la variable.
+        [$env, $server] = $previos;
         unset($_ENV['LOG_CONTRATO_DAYS'], $_SERVER['LOG_CONTRATO_DAYS']);
+        if ($env !== null) {
+            $_ENV['LOG_CONTRATO_DAYS'] = $env;
+        }
+        if ($server !== null) {
+            $_SERVER['LOG_CONTRATO_DAYS'] = $server;
+        }
     }
 
     expect((int) $config['channels']['app_file']['days'])->toBe(30)
@@ -205,6 +214,24 @@ it('volver sin pagar normaliza el "null" literal y conserva el pedido', function
         'status' => null,
         'payment_id' => null,
         'external_reference' => (string) $order->id,
+    ]);
+});
+
+it('el "null" literal se normaliza en los tres parámetros, external_reference incluido', function () {
+    $dir = canalDeContrato();
+    $order = pedidoDePanel();
+
+    [, $retornos] = volverDeMercadoPago($dir, [
+        'collection_status' => 'null',
+        'payment_id' => 'null',
+        'external_reference' => 'null',
+    ], ['order_id' => $order->id]);
+
+    expect($retornos[0]['attributes'])->toBe([
+        'order_id' => null,
+        'status' => null,
+        'payment_id' => null,
+        'external_reference' => null,
     ]);
 });
 
