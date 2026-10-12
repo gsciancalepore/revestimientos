@@ -126,19 +126,20 @@ Argentina fue la noche del 2026-10-11):
     README del contrato y la restauración de `LOG_CONTRATO_DAYS` en el test.
 - **Gates** antes del push: Pint, PHPStan nivel 8 y **580 tests** en verde. La suite no escribe en
   `storage/logs/`.
-- **Push hecho y PR #44 abierto** contra `main`. Falta solo el merge del dueño.
+- **Push hecho y PR #44 abierto** contra `main`. El CI terminó en verde sobre `6eea310`. Falta solo
+  el merge del dueño. Si después se agregó algún commit, confirmar que su CI también esté en verde.
 
 **Lo próximo, en orden**:
 1. El dueño revisa el PR #44 y lo mergea con CI en verde (`main` despliega a staging). Si hay que
    cambiar algo, correr antes del push los gates completos: `make lint` → `make stan` →
    `make test`.
-3. **Pasos a mano del dueño después del merge** (tarea 9 de la spec):
+2. **Pasos a mano del dueño después del merge** (tarea 9 de la spec):
    - borrar los `storage/logs/app-*.jsonl` viejos de su máquina, porque el contrato ahora se escribe
      en `storage/logs/contrato/`;
    - en `~/incident-investigator`, volver a copiar `docs/observabilidad/log-schema.v1.json` en
      `contracts/revestimientos/` y actualizar ahí el commit de origen.
-4. Cerrar la spec con su sincronía de cierre: Estado `cerrada`, fila 1f en ✅ y este roadmap.
-5. **Verificaciones manuales pendientes**: un retorno real desde el sandbox de MercadoPago tiene que
+3. Cerrar la spec con su sincronía de cierre: Estado `cerrada`, fila 1f en ✅ y este roadmap.
+4. **Verificaciones manuales pendientes**: un retorno real desde el sandbox de MercadoPago tiene que
    dejar un `checkout.returned` (tarea 1 de la spec), junto con la verificación del webhook real que
    ya estaba pendiente.
 
