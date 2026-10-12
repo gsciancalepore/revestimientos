@@ -1,5 +1,10 @@
 <?php
 
+use App\Models\AuditLog;
+use App\Models\Order;
+use App\Models\Product;
+use App\Services\Cart;
+
 /**
  * Spec observabilidad-02 — ampliación del contrato de logs v1: directorio
  * propio (OBS-10), retención (OBS-11), `checkout.returned` (OBS-12),
@@ -85,4 +90,30 @@ it('.env.example declara LOG_CONTRATO_DAYS=90 y no declara LOG_DAILY_DAYS', func
 
     expect($ejemplo)->toMatch('/^LOG_CONTRATO_DAYS=90$/m')
         ->not->toMatch('/^LOG_DAILY_DAYS=/m');
+});
+
+// --- OBS-14: precio unitario en las líneas de order.created -----------------
+
+it('order.created lleva el precio congelado de cada línea, por caja en modo M2, en el log y en audit_logs', function () {
+    $dir = canalDeContrato();
+    $porUnidad = Product::factory()->unitMode()->create(['stock' => 10, 'precio_cents' => 12345]);
+    $porM2 = Product::factory()->m2Mode()->create(['stock' => 10, 'precio_cents' => 20000]);
+    app(Cart::class)->putItems([$porUnidad->id => 2, $porM2->id => 3]);
+
+    $this->post(route('checkout.store'), checkoutPayload(['payment_method' => 'transferencia']));
+
+    $order = Order::sole();
+    $esperadas = $order->lines->map(fn ($linea): array => [
+        'product_id' => $linea->product_id,
+        'cantidad' => $linea->cantidad,
+        'precio_unitario_cents' => $linea->precio_unitario_cents,
+    ])->all();
+
+    expect(collect($esperadas)->pluck('precio_unitario_cents', 'product_id')->all())
+        ->toBe([$porUnidad->id => 12345, $porM2->id => 23000]);
+
+    expect(eventosDelContrato($dir, 'order.created')[0]['attributes']['lines'])->toBe($esperadas);
+
+    $auditoria = AuditLog::where('action', 'order.created')->where('subject_id', $order->id)->sole();
+    expect($auditoria->payload['lines'])->toBe($esperadas);
 });

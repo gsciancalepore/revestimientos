@@ -35,7 +35,7 @@ it('crear un pedido deja una sola entrada order.created con order_id y subject_i
     expect($creados)->toHaveCount(1)
         ->and($creados[0]['attributes']['order_id'])->toBe($order->id)
         ->and($creados[0]['attributes']['subject_id'])->toBe($order->id)
-        ->and($creados[0]['attributes']['lines'])->toBe([['product_id' => $order->lines->first()->product_id, 'cantidad' => 2]]);
+        ->and($creados[0]['attributes']['lines'])->toBe([['product_id' => $order->lines->first()->product_id, 'cantidad' => 2, 'precio_unitario_cents' => $order->lines->first()->precio_unitario_cents]]);
 });
 
 it('un pedido que falla bajo lock no deja order.created y deja checkout.rejected con motivo dominio', function () {

@@ -440,6 +440,9 @@
                     },
                     "cantidad": {
                       "type": "integer"
+                    },
+                    "precio_unitario_cents": {
+                      "type": "integer"
                     }
                   },
                   "required": [
