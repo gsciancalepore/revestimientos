@@ -1,12 +1,10 @@
 # Spec — Observabilidad 02: ampliación del contrato de logs v1 para el investigador
 
-- **Estado**: **aprobada (2026-10-12)** por el dueño, tras dos pasadas de `revisor-spec`. La
-  segunda fue "aprobable con correcciones menores", y las correcciones ya están aplicadas en la v3.
-  **La aprobación confirma**:
-  - D1, con su alcance a staging;
-  - la enmienda de la regla 113.
-
-  Lista para implementar según la nota de handoff, una vez mergeada a `main`.
+- **Estado**: **implementada (2026-10-12)** en la rama `feat/observabilidad-02-ampliacion-contrato`,
+  pendiente de `revisor-entrega` y del PR a `main` (§Sincronía 2026-10-12 — implementación). Fue
+  **aprobada (2026-10-12)** por el dueño, tras dos pasadas de `revisor-spec`. La segunda fue
+  "aprobable con correcciones menores", y las correcciones ya estaban aplicadas en la v3. La
+  aprobación confirmó D1, con su alcance a staging, y la enmienda de la regla 113.
 - **Historia del borrador**:
   - **v1**: la primera pasada de `revisor-spec` la marcó "necesita otra vuelta, corta". Los
     hallazgos fueron:
@@ -512,3 +510,69 @@ No cambia ningún permiso de la aplicación.
   del criterio 7.
 - **Commits** en español, con Conventional Commits y **sin trailers de atribución a herramientas de
   IA**. Las sincronías de documentos (tarea 8) van en un commit `docs:` aparte.
+
+## Sincronía 2026-10-12 — implementación
+
+Implementada en la rama `feat/observabilidad-02-ampliacion-contrato`, con TDD y una regla por vez,
+cada una con su commit `feat(observabilidad)`. Suite: **579 tests en verde** (559 de base más 20 en
+`tests/Feature/Observabilidad/AmpliacionContratoTest.php`), con Pint y PHPStan nivel 8 limpios. La
+suite no escribe en `storage/logs/`.
+
+**Mutaciones** (aplicadas con una copia de respaldo y restauradas, una por vez):
+- OBS-12: 7. Seis murieron. La que sobrevivió fue quitar la comparación con `''`, y sobrevivía
+  porque esa rama nunca se ejecuta: `ConvertEmptyStringsToNull` ya convierte el parámetro vacío en
+  `null`. Se quitó del código y el test que cubre el vacío se conserva.
+- OBS-13: 5, todas muertas. Fueron hash sin clave, otra clave, id crudo, sin la guarda de sesión y
+  otro largo.
+- OBS-14: 1, muerta. Fue usar el precio de lista en lugar del precio congelado por caja.
+- OBS-10, OBS-11 y OBS-15 se verifican con tests directos sobre la configuración, los `.gitignore`,
+  `.env.example` y las descripciones del schema.
+
+**Cómo quedó**:
+- `config/logging.php`: `app_file` escribe en `storage/logs/contrato/app.jsonl` con
+  `days => env('LOG_CONTRATO_DAYS', 90)`.
+- `storage/logs/.gitignore` suma `!contrato/`, y se versiona `storage/logs/contrato/.gitignore`. En
+  CI, el paso "El directorio del contrato está versionado" corre
+  `git ls-files --error-unmatch storage/logs/contrato/.gitignore`. Se verificó que falla antes de
+  versionarlo.
+- `CheckoutController::success` recibe `Request` y llama a `registrarRetornoDeMercadoPago()`, con
+  `parametroDeRetorno()` para la lectura escalar.
+- `AssignRequestId::terminate()` suma `session_ref` si `$request->hasSession()`.
+- `PlaceOrderAction` suma `precio_unitario_cents` al `map` de `lines`.
+- El schema suma `checkout.returned` (enum, `allOf` y `x-events`), `session_ref` en `http.request`,
+  `precio_unitario_cents` en `lines` y las descripciones de OBS-15. Se editó como JSON con
+  `indent=2` y `ensure_ascii=False`, que reproduce el formato del archivo byte a byte.
+
+**Decisiones de implementación que la spec dejaba abiertas**:
+- **Tarea 1, los parámetros de retorno de MercadoPago**: verificados en parte contra la
+  documentación oficial de Checkout Pro ("Configure return URLs",
+  `mercadopago.com.ar/developers/en/docs/checkout-pro/configure-back-urls`, consultada el
+  2026-10-12).
+  - **Confirmado**: el retorno trae `collection_status`, `payment_id` y `external_reference`, entre
+    otros (`collection_id`, `status`, `payment_type`, `merchant_order_id` y `preference_id`).
+    `collection_status` toma, por ejemplo, `approved`, `pending` o `rejected`.
+  - **No documentado**: que el cliente que vuelve sin pagar reciba esos valores como `"null"`
+    literal. El ejemplo oficial muestra `"null"` solo en `merchant_account_id`. La normalización
+    del `"null"` es defensiva y no cambia nada si MercadoPago no lo manda.
+  - **Queda pendiente** verificar con un retorno real desde el sandbox, junto con la del webhook
+    real (roadmap): tiene que dejar un `checkout.returned` con esos valores.
+- **Tests de la misma sesión**: en la suite, cada request sin cookie abre una sesión nueva. La
+  "misma sesión" se arma reenviando la cookie con `withCookie(config('session.cookie'), $id)`.
+- **Tests de retención**: `configDeLoggingSin()` quita las variables de `$_ENV`, `$_SERVER` y
+  `putenv`, evalúa `config/logging.php` y las restaura, así el test no depende del `.env` local.
+- **Dos tests existentes cambiaron** por la enmienda de la regla 113, porque afirmaban el payload
+  exacto de `lines`: `PlaceOrderTest > audit order.created con payload` y
+  `EventosCatalogoTest > crear un pedido deja una sola entrada order.created`.
+
+**Sincronías hechas** (tarea 8):
+- observabilidad-01 (OBS-01, OBS-02 y OBS-04) y Spec 07.2 (regla 113);
+- `docs/observabilidad/README.md`, `docs/arquitectura.md`, glosario, `.ai/rules/observabilidad.md`
+  (ruta nueva, lectura escalar y `session_ref`);
+- `.ai/rules/tests.md`: el centinela del CP, por el #43;
+- roadmap y runbook del README.
+
+**Pendiente fuera de la suite** (tarea 9, en la máquina del dueño, después del merge):
+- borrar los `storage/logs/app-*.jsonl` viejos;
+- volver a copiar el schema en `incident-investigator/contracts/revestimientos/`, con el commit del
+  merge.
+
