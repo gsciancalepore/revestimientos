@@ -20,7 +20,7 @@ beforeEach(function () {
 
 function checkoutConCentinelas(): void
 {
-    putCartMp(Product::factory()->create(['stock' => 10]), 1);
+    putCartMp(Product::factory()->create(['stock' => 10, 'precio_cents' => 100000]), 1);
 
     test()->post(route('checkout.store'), checkoutPayload([
         'payment_method' => 'transferencia',
@@ -30,6 +30,25 @@ function checkoutConCentinelas(): void
         'shipping_cp' => '9999',
         'shipping_address' => 'Calle Centinela 123',
     ]));
+}
+
+/**
+ * Ningún centinela aparece en el texto. El CP es de cuatro dígitos (regla de
+ * `StoreCheckoutRequest`) y como subcadena aparece por azar dentro de un UUID
+ * o de un monto: se busca como valor suelto, que es como queda si se filtra
+ * (`"9999"` en JSON, `'9999'` en SQL o en una traza).
+ */
+function expectSinCentinelas(string $texto): void
+{
+    foreach (CENTINELAS as $centinela) {
+        if (ctype_digit($centinela)) {
+            expect(preg_match('/(?<![0-9a-f])'.$centinela.'(?![0-9a-f])/i', $texto))->toBe(0);
+
+            continue;
+        }
+
+        expect($texto)->not->toContain($centinela);
+    }
 }
 
 /**
@@ -54,9 +73,7 @@ it('un checkout completo no deja ningún dato personal en el log', function () {
 
     expect(Order::count())->toBe(1);
 
-    foreach (CENTINELAS as $centinela) {
-        expect(textoDelDirectorio($dir))->not->toContain($centinela);
-    }
+    expectSinCentinelas(textoDelDirectorio($dir));
 });
 
 it('una QueryException con datos personales deja una sola entrada app.exception con sqlstate, sin mensaje y sin argumentos', function () {
@@ -80,9 +97,7 @@ it('una QueryException con datos personales deja una sola entrada app.exception 
         expect($marco)->toMatch('/^[^()]*:\d+$/');
     }
 
-    foreach (CENTINELAS as $centinela) {
-        expect(textoDelDirectorio($dir))->not->toContain($centinela);
-    }
+    expectSinCentinelas(textoDelDirectorio($dir));
 });
 
 it('el canal single de staging tampoco recibe los datos personales de la excepción', function () {
@@ -97,9 +112,7 @@ it('el canal single de staging tampoco recibe los datos personales de la excepci
 
     expect(textoDelDirectorio($dir))->toContain('app.exception');
 
-    foreach (CENTINELAS as $centinela) {
-        expect(textoDelDirectorio($dir))->not->toContain($centinela);
-    }
+    expectSinCentinelas(textoDelDirectorio($dir));
 });
 
 it('conserva el mensaje solo de las excepciones propias de la app', function () {
