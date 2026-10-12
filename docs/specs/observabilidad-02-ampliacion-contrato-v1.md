@@ -1,7 +1,12 @@
 # Spec — Observabilidad 02: ampliación del contrato de logs v1 para el investigador
 
-- **Estado**: **borrador v2 (2026-10-12)**, pendiente de una segunda pasada de `revisor-spec` y de
-  la aprobación del dueño. Hasta que se apruebe, no se implementa nada.
+- **Estado**: **borrador v3 (2026-10-12)**, **aprobable con correcciones menores** según la segunda
+  pasada de `revisor-spec`, con las correcciones ya aplicadas. Pendiente de la aprobación del dueño.
+  **Aprobarla confirma**:
+  - D1, con su alcance a staging;
+  - la enmienda de la regla 113.
+
+  Hasta que se apruebe, no se implementa nada.
 - **Historia del borrador**:
   - **v1**: la primera pasada de `revisor-spec` la marcó "necesita otra vuelta, corta". Los
     hallazgos fueron:
@@ -10,7 +15,12 @@
       `order_id` cruzado; `.gitignore` sin versionar; la retención y su variable compartida; el
       alcance de `session_ref` a staging; el HMAC sin test; el handoff;
     - siete menores (M1–M7).
-  - **v2**: aplica todos esos hallazgos y anota las decisiones del dueño D1–D3 del mismo día.
+  - **v2**: aplica todos esos hallazgos y anota las decisiones del dueño D1–D3 del mismo día. La
+    segunda pasada la dio "aprobable con correcciones menores":
+    - N1: el caso borde "volvió sin pagar" contradecía al criterio 3;
+    - N2: `git ls-files` no corre en el contenedor;
+    - M-N1 a M-N3.
+  - **v3**: aplica N1, N2 y M-N1 a M-N3.
 - **Fuentes**:
   - Pedido del dueño del 2026-10-12: Revestimientos necesita las specs de los cambios que pide el
     investigador, escritas para que las implemente un agente sin contexto previo.
@@ -192,7 +202,7 @@ Con el contrato v1 quedan **parciales** estos casos:
   | `status` | string o `null` | `collection_status`, leído según la regla anterior. Valor externo, truncado a 64 |
   | `payment_id` | string o `null` | `payment_id`, leído igual. Valor externo, truncado a 64 |
   | `external_reference` | string o `null` | `external_reference`, leído igual. Valor externo, truncado a 64 |
-  | `order_id` | entero o `null` | `session('order_id')`, **solo si coincide** con `external_reference`. Si no coincide, o si falta cualquiera de los dos, `null` (decisión de la v2, por el hallazgo I3) |
+  | `order_id` | entero o `null` | `session('order_id')`, **solo si coincide** con `external_reference`, con comparación estricta de strings: `(string) session('order_id') === $externalReference`, sobre el valor ya normalizado. Así `"07"` no coincide con `7`. Si no coincide, o si falta cualquiera de los dos, `null` (decisión de la v2, por el hallazgo I3) |
 
 - **Por qué `order_id` exige la coincidencia**:
   - La sesión guarda el último pedido creado, y el cliente puede estar volviendo de un pedido
@@ -313,8 +323,13 @@ No cambia ningún permiso de la aplicación.
     `external_reference` es el único vínculo, no confiable.
   - **Retorno desde un pedido anterior** (el cliente creó A, después B, y vuelve de MercadoPago por
     A): la sesión dice B y `external_reference` dice A. No coinciden, así que `order_id` es `null`.
-  - **Volvió sin pagar**: MercadoPago manda `collection_status=null`, `payment_id=null`, etc. Los
-    tres atributos son `null`, y el evento sí se emite.
+  - **Volvió sin pagar**: MercadoPago manda `collection_status=null` y `payment_id=null`, pero
+    `external_reference` trae el id real del pedido. El evento se emite:
+    - `status` y `payment_id` son `null`;
+    - `external_reference` lleva el id;
+    - si coincide con la sesión, `order_id` también.
+
+    Es la señal "volvió sin pagar del pedido N" que necesita CU1.
   - **Parámetros como arreglo** (`?collection_status[]=x`): el valor es `null`, el evento se emite y
     la línea valida contra el schema.
   - **`collection_status` con un valor inventado** (URL armada a mano): se escribe truncado. La
@@ -341,11 +356,15 @@ No cambia ningún permiso de la aplicación.
 1. **Directorio propio** (OBS-10):
    - con el canal `app` construido desde `config/logging.php` real, la ruta configurada de
      `app_file` está dentro de `storage/logs/contrato/`;
-   - `storage/logs/.gitignore` contiene `!contrato/`, y `git ls-files storage/logs/contrato/.gitignore`
-     lo lista;
+   - en Pest: `storage/logs/.gitignore` contiene `!contrato/`, y `storage/logs/contrato/.gitignore`
+     existe con `*` y `!.gitignore`;
+   - en CI, no en Pest (el contenedor `app` no tiene `git`): un paso de `ci.yml` corre
+     `git ls-files --error-unmatch storage/logs/contrato/.gitignore`;
    - el paso de CI de OBS-09 sigue en verde, porque cubre `storage/logs/` de forma recursiva.
 2. **Retención** (OBS-11):
-   - sin `LOG_CONTRATO_DAYS` en el entorno, `config('logging.channels.app_file.days')` vale 90;
+   - sin `LOG_CONTRATO_DAYS` en el entorno, `config('logging.channels.app_file.days')` vale 90. El
+     test quita la variable de `$_ENV` y `$_SERVER` y vuelve a evaluar `config/logging.php`, para no
+     depender del `.env` de quien lo corre;
    - `config('logging.channels.daily.days')` sigue en 14 sin `LOG_DAILY_DAYS`;
    - `.env.example` declara `LOG_CONTRATO_DAYS=90` y no declara `LOG_DAILY_DAYS`.
 3. **`checkout.returned`** (OBS-12):
@@ -353,6 +372,7 @@ No cambia ningún permiso de la aplicación.
      `order_id` 7 en sesión, deja una sola línea `checkout.returned`, de nivel `info`, con
      `order_id: 7` y los tres valores, que valida contra el schema;
    - con `order_id` 8 en sesión y `external_reference=7`, la línea lleva `order_id: null`;
+   - con `order_id` 7 en sesión y `external_reference=07`, la línea lleva `order_id: null`;
    - sin pedido en sesión, la línea lleva `order_id: null` y la respuesta redirige al carrito;
    - con `collection_status=null&payment_id=null&external_reference=7`, `status` y `payment_id` son
      `null`;
@@ -398,7 +418,8 @@ No cambia ningún permiso de la aplicación.
 3. **Canal**:
    - en `config/logging.php`, la ruta de `app_file` y `days => env('LOG_CONTRATO_DAYS', 90)`;
    - `storage/logs/contrato/.gitignore` y `!contrato/` en `storage/logs/.gitignore`;
-   - `LOG_CONTRATO_DAYS=90` en `.env.example`.
+   - `LOG_CONTRATO_DAYS=90` en `.env.example`;
+   - en `.github/workflows/ci.yml`, el paso `git ls-files --error-unmatch` del criterio 1.
 4. **`checkout.returned`**: en `CheckoutController::success`, antes del primer `return`. La lectura
    escalar y la normalización de `"null"` van en un método privado del controlador. El truncado lo
    hace `EventLog`, que ya cubre `payment_id`, `status` y `external_reference`.
