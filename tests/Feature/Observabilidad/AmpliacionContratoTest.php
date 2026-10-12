@@ -4,6 +4,7 @@ use App\Models\AuditLog;
 use App\Models\Order;
 use App\Models\Product;
 use App\Services\Cart;
+use Illuminate\Testing\TestResponse;
 
 /**
  * Spec observabilidad-02 — ampliación del contrato de logs v1: directorio
@@ -116,4 +117,134 @@ it('order.created lleva el precio congelado de cada línea, por caja en modo M2,
 
     $auditoria = AuditLog::where('action', 'order.created')->where('subject_id', $order->id)->sole();
     expect($auditoria->payload['lines'])->toBe($esperadas);
+});
+
+// --- OBS-12: checkout.returned ---------------------------------------------
+
+/**
+ * @param  array<string, mixed>  $query
+ * @param  array<string, mixed>  $sesion
+ * @return array{0: TestResponse, 1: list<array<string, mixed>>}
+ */
+function volverDeMercadoPago(string $dir, array $query, array $sesion = []): array
+{
+    $respuesta = test()->withSession($sesion)->get(route('checkout.success').'?'.http_build_query($query));
+
+    return [$respuesta, eventosDelContrato($dir, 'checkout.returned')];
+}
+
+it('el retorno desde MercadoPago deja una línea checkout.returned con el pedido de la sesión si coincide', function () {
+    $dir = canalDeContrato();
+    $order = pedidoDePanel();
+
+    [, $retornos] = volverDeMercadoPago($dir, [
+        'collection_status' => 'approved',
+        'payment_id' => '123',
+        'external_reference' => (string) $order->id,
+    ], ['order_id' => $order->id]);
+
+    expect($retornos)->toHaveCount(1)
+        ->and($retornos[0]['level'])->toBe('info')
+        ->and($retornos[0]['attributes'])->toBe([
+            'order_id' => $order->id,
+            'status' => 'approved',
+            'payment_id' => '123',
+            'external_reference' => (string) $order->id,
+        ]);
+});
+
+it('si la sesión tiene otro pedido que external_reference, order_id es null', function () {
+    $dir = canalDeContrato();
+    $anterior = pedidoDePanel();
+    $ultimo = pedidoDePanel();
+
+    [, $retornos] = volverDeMercadoPago($dir, [
+        'collection_status' => 'approved',
+        'external_reference' => (string) $anterior->id,
+    ], ['order_id' => $ultimo->id]);
+
+    expect($retornos[0]['attributes']['order_id'])->toBeNull()
+        ->and($retornos[0]['attributes']['external_reference'])->toBe((string) $anterior->id);
+});
+
+it('la coincidencia con external_reference es estricta: 07 no es 7', function () {
+    $dir = canalDeContrato();
+    $order = pedidoDePanel();
+
+    [, $retornos] = volverDeMercadoPago($dir, [
+        'collection_status' => 'approved',
+        'external_reference' => '0'.$order->id,
+    ], ['order_id' => $order->id]);
+
+    expect($retornos[0]['attributes']['order_id'])->toBeNull();
+});
+
+it('sin pedido en sesión el retorno se registra con order_id null y redirige al carrito', function () {
+    $dir = canalDeContrato();
+
+    [$respuesta, $retornos] = volverDeMercadoPago($dir, ['collection_status' => 'approved', 'external_reference' => '7']);
+
+    $respuesta->assertRedirect(route('carrito.show'));
+    expect($retornos)->toHaveCount(1)
+        ->and($retornos[0]['attributes']['order_id'])->toBeNull();
+});
+
+it('volver sin pagar normaliza el "null" literal y conserva el pedido', function () {
+    $dir = canalDeContrato();
+    $order = pedidoDePanel();
+
+    [, $retornos] = volverDeMercadoPago($dir, [
+        'collection_status' => 'null',
+        'payment_id' => 'null',
+        'external_reference' => (string) $order->id,
+    ], ['order_id' => $order->id]);
+
+    expect($retornos[0]['attributes'])->toBe([
+        'order_id' => $order->id,
+        'status' => null,
+        'payment_id' => null,
+        'external_reference' => (string) $order->id,
+    ]);
+});
+
+it('un parámetro que llega como arreglo o vacío se escribe null y la línea valida contra el schema', function () {
+    $dir = canalDeContrato();
+
+    [, $retornos] = volverDeMercadoPago($dir, [
+        'collection_status' => ['x' => str_repeat('a', 300)],
+        'payment_id' => '',
+        'external_reference' => ['7'],
+    ]);
+
+    expect($retornos[0]['attributes'])->toBe([
+        'order_id' => null,
+        'status' => null,
+        'payment_id' => null,
+        'external_reference' => null,
+    ]);
+});
+
+it('sin collection_status no hay checkout.returned', function () {
+    $dir = canalDeContrato();
+    $order = pedidoDePanel();
+
+    volverDeMercadoPago($dir, ['payment_id' => '123'], ['order_id' => $order->id]);
+    volverDeMercadoPago($dir, [], ['order_id' => $order->id]);
+
+    expect(eventosDelContrato($dir, 'checkout.returned'))->toBe([]);
+});
+
+it('los valores del retorno se truncan a 64 caracteres', function () {
+    $dir = canalDeContrato();
+    $largo = str_repeat('x', 300);
+
+    [, $retornos] = volverDeMercadoPago($dir, [
+        'collection_status' => $largo,
+        'payment_id' => $largo,
+        'external_reference' => $largo,
+    ]);
+
+    expect($retornos[0]['attributes']['status'])->toBe(str_repeat('x', 64))
+        ->and($retornos[0]['attributes']['payment_id'])->toBe(str_repeat('x', 64))
+        ->and($retornos[0]['attributes']['external_reference'])->toBe(str_repeat('x', 64));
 });

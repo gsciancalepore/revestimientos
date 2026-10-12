@@ -42,6 +42,7 @@
         "checkout.mp_preference_failed",
         "checkout.payment_started",
         "checkout.rejected",
+        "checkout.returned",
         "http.request",
         "order.created",
         "order.paid",
@@ -316,6 +317,58 @@
             },
             "required": [
               "order_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "checkout.returned"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "order_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "status": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              },
+              "payment_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              },
+              "external_reference": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 64
+              }
+            },
+            "required": [
+              "order_id",
+              "status",
+              "payment_id",
+              "external_reference"
             ],
             "additionalProperties": false
           }
@@ -1418,6 +1471,10 @@
     },
     "checkout.rejected": {
       "description": "El cliente intentó avanzar hacia el pago y no pudo. `motivo`: `carrito_vacio`, `no_comprable` (GET /checkout), `validacion` (con `campos`, nunca valores) o `dominio` (con `detalle`, texto fijo de la app). Un carrito que deja de ser comprable entre el GET y el POST aparece como `no_comprable` y después como `dominio`.",
+      "level": "info"
+    },
+    "checkout.returned": {
+      "description": "El navegador del cliente volvió desde MercadoPago a la página de éxito y dijo traer ese estado. NO confirma ningún pago: los parámetros del retorno no vienen firmados y cualquiera puede armar la URL. La confirmación es `order.paid`, que llega por el webhook después de consultar la API de MercadoPago. `status: null` significa que volvió sin un pago completado, o que el valor no se pudo leer. Un retorno con `status` aprobado y sin `order.paid` posterior indica un webhook demorado o perdido. La AUSENCIA de este evento no prueba un abandono: sin retorno automático el cliente puede cerrar la pestaña después de pagar. `order_id` es el pedido de la sesión solo si coincide con `external_reference`; si es `null`, `external_reference` es el único vínculo con el pedido y no es confiable.",
       "level": "info"
     },
     "http.request": {
