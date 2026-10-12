@@ -61,9 +61,11 @@ return [
         ],
 
         // Contrato de logs v1 (spec observabilidad-01): JSON por línea en
-        // storage/logs/app-AAAA-MM-DD.jsonl. Es un stack con ignore_exceptions
-        // porque Laravel solo lee esa opción en ese driver, y un log que no se
-        // puede escribir nunca debe romper el request (OBS-08).
+        // storage/logs/contrato/app-AAAA-MM-DD.jsonl, un directorio sin otros
+        // archivos para que un consumidor lo monte solo (observabilidad-02,
+        // OBS-10). Es un stack con ignore_exceptions porque Laravel solo lee
+        // esa opción en ese driver, y un log que no se puede escribir nunca
+        // debe romper el request (OBS-08).
         'app' => [
             'driver' => 'stack',
             'channels' => ['app_file'],
@@ -72,9 +74,10 @@ return [
 
         'app_file' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/app.jsonl'),
+            'path' => storage_path('logs/contrato/app.jsonl'),
             'level' => env('LOG_LEVEL', 'debug'),
-            'days' => env('LOG_DAILY_DAYS', 14),
+            // Variable propia: LOG_DAILY_DAYS sigue gobernando laravel.log (OBS-11).
+            'days' => env('LOG_CONTRATO_DAYS', 90),
             'formatter' => ContractFormatter::class,
             'tap' => [ApplyRedaction::class],
         ],

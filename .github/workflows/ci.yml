@@ -69,6 +69,12 @@ jobs:
       - name: PHPStan
         run: ./vendor/bin/phpstan analyse --no-progress
 
+      # El directorio del contrato existe en un clon limpio (spec
+      # observabilidad-02, OBS-10, criterio 1). Va acá y no en Pest porque el
+      # contenedor local no tiene git.
+      - name: El directorio del contrato está versionado
+        run: git ls-files --error-unmatch storage/logs/contrato/.gitignore
+
       - name: Snapshot de storage/logs antes de la suite
         run: find storage/logs -type f -exec sha256sum {} + | sort > "$RUNNER_TEMP/logs-antes.txt"
 
