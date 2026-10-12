@@ -1,14 +1,22 @@
 # Spec — Observabilidad 02: ampliación del contrato de logs v1 para el investigador
 
-- **Estado**: **borrador (2026-10-12)**, pendiente de `revisor-spec` y de la aprobación del dueño.
-  Tiene tres decisiones del dueño abiertas (§Decisiones pendientes del dueño). Hasta que se
-  aprueben, no se implementa nada.
+- **Estado**: **borrador v2 (2026-10-12)**, pendiente de una segunda pasada de `revisor-spec` y de
+  la aprobación del dueño. Hasta que se apruebe, no se implementa nada.
+- **Historia del borrador**:
+  - **v1**: la primera pasada de `revisor-spec` la marcó "necesita otra vuelta, corta". Los
+    hallazgos fueron:
+    - dos bloqueantes de declaración (B1, la regla 113; B2, OBS-01 y OBS-04);
+    - ocho importantes (I1–I8): `checkout.returned` con `"null"` literal, con arreglos y con
+      `order_id` cruzado; `.gitignore` sin versionar; la retención y su variable compartida; el
+      alcance de `session_ref` a staging; el HMAC sin test; el handoff;
+    - siete menores (M1–M7).
+  - **v2**: aplica todos esos hallazgos y anota las decisiones del dueño D1–D3 del mismo día.
 - **Fuentes**:
   - Pedido del dueño del 2026-10-12: Revestimientos necesita las specs de los cambios que pide el
     investigador, escritas para que las implemente un agente sin contexto previo.
-  - Los requisitos del investigador: `~/incident-investigator/docs/requisitos.md`, que definen el
-    usuario (el desarrollador atendiendo el reclamo de un cliente), once casos de uso (CU1 a CU11)
-    y su cobertura con el contrato v1.
+  - Los requisitos del investigador (`~/incident-investigator/docs/requisitos.md`):
+    - definen el usuario: el desarrollador atendiendo el reclamo de un cliente;
+    - definen once casos de uso (CU1 a CU11) y su cobertura con el contrato v1.
   - [Spec `observabilidad-01-contrato-logs`](observabilidad-01-contrato-logs.md), cerrada, que esta
     spec amplía. Mantiene sus decisiones del dueño del 2026-09-24, en especial:
     - **sin datos personales**;
@@ -17,24 +25,29 @@
     - local primero, planes gratuitos.
   - [ADR-013](../adr/ADR-013-capa-observabilidad.md). Esta spec sigue en la **etapa 1** (local).
     La etapa 2 (staging) no cambia y sigue sin spec.
+  - Las decisiones del dueño del 2026-10-12 (§Decisiones del dueño).
   - El relevamiento del código del 2026-10-12 (§Contexto).
 
-## Por qué esta spec no usa la numeración global de reglas
+## Numeración y enmiendas
 
-Por el mismo motivo que observabilidad-01: no cambia ninguna regla de negocio, solo qué deja
-escrito el sistema mientras hace lo que ya hacía. Continúa la numeración propia de esa spec, desde
-**OBS-10**. No hay enmiendas a reglas de negocio. Las enmiendas son a OBS-02, de la spec 01
-(§Enmiendas).
+- **Numeración**: sigue la propia de observabilidad-01, desde **OBS-10**, por el mismo motivo que
+  esa spec: no agrega reglas de negocio, cambia qué deja escrito el sistema mientras hace lo que ya
+  hacía.
+- **Una enmienda a una regla de negocio**: OBS-14 cambia el payload de auditoría de `order.created`
+  que fija la **regla 113** (Spec 07.2). Ese payload es dato de negocio, porque queda en
+  `audit_logs` y el admin lo ve en el detalle del pedido. Es el mismo caso que las reglas 150 y 151
+  en observabilidad-01.
+- **Enmiendas a reglas cerradas de observabilidad-01**: OBS-01, OBS-02 y OBS-04.
+- Todas se detallan en §Enmiendas.
 
 ## Compatibilidad: todo sigue siendo v1
 
-Cada cambio es un **evento nuevo** o un **atributo opcional nuevo**, o una aclaración de una
-descripción que no cambia el significado. La regla de compatibilidad del contrato los declara
+Cada cambio del schema es un **evento nuevo**, un **atributo opcional nuevo** o una aclaración de
+una descripción que no cambia el significado. La regla de compatibilidad del contrato los declara
 compatibles, así que `schema_version` sigue en `"1"`.
 
-La excepción es el **lugar de entrega** (OBS-10), que no es parte del schema sino de OBS-02. Hoy no
-hay ningún consumidor implementado: el investigador todavía no tiene código. Por eso se cambia
-ahora y no después.
+El **lugar de entrega** (OBS-10) no es parte del schema sino de OBS-02. Hoy no hay ningún consumidor
+implementado: el investigador todavía no tiene código. Por eso se cambia ahora y no después.
 
 ## Objetivo
 
@@ -46,70 +59,96 @@ contrato **sin ver ningún otro archivo** de `storage/logs/`.
 
 **Entra**:
 - el directorio propio del contrato (OBS-10);
-- la retención (OBS-11);
+- la retención del canal del contrato (OBS-11);
 - el evento de retorno desde MercadoPago (OBS-12);
 - la referencia seudónima de sesión en `http.request` (OBS-13);
 - el precio unitario en las líneas de `order.created` (OBS-14);
-- el conocimiento del dominio en las descripciones del schema (OBS-15).
+- el conocimiento del dominio en las descripciones del schema (OBS-15);
+- las enmiendas de §Enmiendas.
 
 **No entra**:
 - el investigador;
-- los logs de staging (etapa 2 de ADR-013);
-- cualquier cambio de regla de negocio;
+- los logs de staging como fuente (etapa 2 de ADR-013);
 - `actor_id` en los espejos de auditoría y `release` en cada línea (§Alternativas descartadas).
 
 ## Contexto — qué hay hoy exactamente (2026-10-12)
 
 **Cómo usa los logs el investigador.** El usuario es el desarrollador de la tienda atendiendo el
 reclamo de un cliente. Traduce la identidad del cliente a un número de pedido con el panel de admin,
-y el agente recibe solo identificadores (`order_id`, `payment_id`) y una ventana de tiempo. Con el
-contrato v1 quedan **parciales** estos casos de uso:
+y el agente recibe solo identificadores (`order_id`, `payment_id`) y una ventana de tiempo.
+
+El contrato vive **solo en local** (etapa 1), así que en `storage/logs/contrato/` no hay reclamos
+reales: hay **reproducciones** de incidentes hechas por el desarrollador. Con ellas se arman los
+escenarios de evaluación del investigador.
+
+Con el contrato v1 quedan **parciales** estos casos:
 
 | Caso del investigador | Agujero | Lo tapa |
 |---|---|---|
 | CU1 "Pagué y el pedido sigue pendiente" | Después de `checkout.payment_started`, "abandonó en MercadoPago" y "pagó pero el webhook se perdió" se ven igual. Es el límite declarado del README del contrato | OBS-12 |
 | CU6 "No pude comprar / me dio error" | `checkout.rejected` no se puede atar a un visitante: no lleva `order_id`, y la sesión no aparece en ninguna línea | OBS-13 |
 | CU8 "El precio que pagué no es el que vi" | Las `lines` de `order.created` traen `product_id` y `cantidad`, pero no el precio congelado | OBS-14 |
-| Todos | El investigador tiene que poder montar el directorio de logs en solo lectura, y hoy ese directorio mezcla el contrato con `browser.log` (Boost) y con `laravel.log` (logger de emergencia), que no tienen la garantía de OBS-06 | OBS-10 |
-| Reclamos de más de dos semanas | La retención es de 14 días (`LOG_DAILY_DAYS`) | OBS-11 |
+| Todos | El investigador tiene que poder montar el directorio de logs en solo lectura, y hoy ese directorio mezcla el contrato con `browser.log` (Boost) y con `laravel.log` (logger de emergencia). Ninguno de los dos tiene la garantía de OBS-06 | OBS-10 |
+| Escenarios reproducidos hace más de dos semanas | La retención es de 14 días | OBS-11 |
 
 **Código involucrado**:
-- **`config/logging.php`**: el canal `app_file` (líneas 73–80) es un `daily` con
-  `path => storage_path('logs/app.jsonl')` y `days => env('LOG_DAILY_DAYS', 14)`. `.env.example`
-  no define `LOG_DAILY_DAYS`.
-- **`storage/logs/.gitignore`**: ignora todo menos a sí mismo.
-- **`app/Http/Middleware/AssignRequestId.php`**: genera el `request_id` y escribe `http.request`
-  en `terminate()` con `method`, `route`, `status`, `duration_ms` y `user_id` (solo con usuario
-  interno autenticado). Se registra con `prepend`, antes que la sesión (`bootstrap/app.php:23`).
-  En `terminate()` la sesión del request ya está disponible.
+- **`config/logging.php`**:
+  - El canal `app_file` (líneas 73–80) es un `daily` con
+    `path => storage_path('logs/app.jsonl')` y `days => env('LOG_DAILY_DAYS', 14)`.
+  - **La misma variable `LOG_DAILY_DAYS` gobierna el canal `daily`** (línea 95, `laravel.log`).
+  - `.env.example` no define `LOG_DAILY_DAYS`.
+- **`storage/logs/.gitignore`**: contiene `*` y `!.gitignore`. Excluye cualquier subdirectorio, y
+  git no versiona archivos dentro de un directorio excluido.
+- **`app/Http/Middleware/AssignRequestId.php`**:
+  - Genera el `request_id` y escribe `http.request` en `terminate()`, con `method`, `route`,
+    `status`, `duration_ms` y `user_id` (solo con usuario interno autenticado).
+  - Se registra con `prepend`, antes que la sesión (`bootstrap/app.php:23`). En `terminate()` la
+    sesión del request ya está disponible.
+- **`app/Logging/EventLog.php`**:
+  - `CLAVES_EXTERNAS` (`payment_id`, `tipo`, `mp_request_id`, `external_reference` y `status`) se
+    truncan a 64 caracteres.
+  - **Solo si son string** (líneas 38–41): un arreglo pasa sin truncar.
+  - `record()` escribe en el **canal por defecto**, sea cual sea: `app` en local, y lo que tenga
+    staging.
 - **`app/Http/Controllers/CheckoutController.php`**:
-  - `store` guarda `session(['order_id' => $order->id])`.
+  - `store` guarda `session(['order_id' => $order->id])` (línea 65) cada vez que crea un pedido,
+    sin borrar el anterior. La sesión guarda el **último** pedido creado.
   - `success` (líneas 127–147) lee `session('order_id')`. Si no hay pedido en sesión, redirige al
     carrito.
-- **`app/Services/MercadoPagoGateway.php`**: `preferencePayload()` (desde la línea 122) manda las
-  tres `back_urls` (`success`, `failure` y `pending`) a la misma ruta, `checkout.success`
-  (`GET /checkout/exito`). `auto_return` se agrega solo si esa URL es pública
-  (`backUrlEsPublica`), así que **en local el cliente vuelve solo si toca "Volver al sitio" en
-  MercadoPago**.
-- **Retorno de MercadoPago**: al volver, MercadoPago agrega parámetros al query string, entre ellos
-  `collection_status`, `payment_id` y `external_reference`. **No vienen firmados**: los puede
-  escribir cualquiera que arme la URL a mano. Los nombres exactos se **verifican contra la
-  documentación vigente de MercadoPago al implementar** (tarea 1).
-- **`app/Actions/PlaceOrderAction.php`** (líneas 156–163): la auditoría de `order.created` guarda
-  `lines` con `product_id` y `cantidad`. El precio congelado ya está a mano en
-  `$line['precio_unitario_cents']` (línea 150), y se guarda en `order_lines` pero no en la
-  auditoría.
+- **`app/Services/MercadoPagoGateway.php`**:
+  - `preferencePayload()` (desde la línea 123) manda las tres `back_urls` (`success`, `failure` y
+    `pending`) a la misma ruta, `checkout.success` (`GET /checkout/exito`), con
+    `external_reference = (string) $order->id` (regla 123).
+  - `auto_return` se agrega solo si esa URL es pública (`backUrlEsPublica`), así que **en local el
+    cliente vuelve solo si toca "Volver al sitio" en MercadoPago**.
+- **Retorno de MercadoPago**:
+  - Al volver, MercadoPago agrega parámetros al query string, entre ellos `collection_status`,
+    `payment_id` y `external_reference`.
+  - **No vienen firmados**: los puede escribir cualquiera que arme la URL a mano.
+  - Si el cliente vuelve **sin haber pagado**, MercadoPago manda los valores como el **texto
+    literal `"null"`**.
+  - Los nombres y valores exactos se verifican contra la documentación vigente de MercadoPago al
+    implementar (tarea 1).
+- **`app/Actions/PlaceOrderAction.php`**:
+  - El precio de cada línea se calcula en las líneas 104–114 (`$linesData[]['precio_unitario_cents']`).
+  - La auditoría de `order.created` (líneas 156–163) arma `lines` con un `map` sobre `$linesData`,
+    con la variable `$l`, y guarda solo `product_id` y `cantidad`.
 - **`docs/observabilidad/log-schema.v1.json`**:
-  - Los ítems de `lines` en `order.created` ya tienen `additionalProperties: true`.
-  - `http.request` tiene `additionalProperties: false`.
-- **`app/Logging/EventLog.php`**: `CLAVES_EXTERNAS` (`payment_id`, `tipo`, `mp_request_id`,
-  `external_reference` y `status`) se truncan a 64 caracteres.
-- **Sesión**: `SESSION_DRIVER=redis` y `SESSION_LIFETIME=120`. El cliente es anónimo (regla 27),
-  y el carrito vive en sesión, sin tabla (regla 81, Spec 05). El id de sesión solo se regenera en el
-  login de usuarios internos (`AuthenticatedSessionController:29`).
-- **Tests**: `tests/Pest.php` tiene `canalDeContrato()` (construye el canal real con la ruta en un
-  directorio temporal) y `lineasDelContrato()` (lee `app-*.jsonl` de ese directorio y valida cada
-  línea contra el schema). Los tests del contrato están en `tests/Feature/Observabilidad/`.
+  - El `enum` de `event` es cerrado.
+  - `http.request` tiene `additionalProperties: false`, y su descripción dice "Nunca lleva … las
+    cookies".
+  - Los ítems de `lines` en `order.created` tienen `additionalProperties: true`.
+- **Sesión**:
+  - `SESSION_DRIVER=redis` y `SESSION_LIFETIME=120`.
+  - El cliente es anónimo (regla 27), y el carrito vive en sesión, sin tabla (regla 81, Spec 05).
+  - El id de sesión cambia en el login (`AuthenticatedSessionController:29`, `regenerate()`) y en
+    el logout (línea 41, `invalidate()`) de los usuarios internos, y cuando la sesión vence.
+- **Tests**:
+  - `tests/Pest.php` tiene `canalDeContrato()`, que construye el canal real con la ruta en un
+    directorio temporal.
+  - También tiene `lineasDelContrato()`, que lee `app-*.jsonl` de ese directorio y valida cada línea
+    contra el schema.
+  - Los tests del contrato están en `tests/Feature/Observabilidad/`.
 - **CI** (`.github/workflows/ci.yml`, líneas 72–90): compara los hashes de **todo**
   `storage/logs/`, recursivo, antes y después de la suite.
 
@@ -119,59 +158,86 @@ contrato v1 quedan **parciales** estos casos de uso:
 - El canal `app_file` escribe en `storage/logs/contrato/app-AAAA-MM-DD.jsonl`.
 - En ese directorio no hay **ningún** otro archivo que escriba la aplicación, el framework o un
   paquete. La única excepción es su `.gitignore`.
-- El directorio existe en un clon limpio: se versiona con un `.gitignore` propio, que ignora todo
-  menos a sí mismo. Así nadie lo crea por accidente con otro dueño, por ejemplo Docker como `root` al
-  montarlo.
+- **El directorio existe en un clon limpio**, para que nadie lo cree por accidente con otro dueño,
+  por ejemplo Docker como `root` al montarlo. Para eso:
+  - se versiona `storage/logs/contrato/.gitignore`, con `*` y `!.gitignore`;
+  - `storage/logs/.gitignore` suma `!contrato/`, porque sin esa línea git no versiona nada dentro
+    del subdirectorio.
 - El consumidor recibe la ruta de **ese** directorio y lee `app-*.jsonl`.
 - `storage/logs/` sigue alojando `browser.log` y, si aparece, `laravel.log`. Ninguno es parte del
   contrato.
 
-**OBS-11 — Retención.** El canal `app_file` conserva **90 días** por defecto. Sigue siendo
-configurable con `LOG_DAILY_DAYS`, que pasa a figurar en `.env.example`. *(Sujeto a la decisión D2.)*
+**OBS-11 — Retención del canal del contrato.**
+- El canal `app_file` conserva **90 días** por defecto (decisión D2).
+- Pasa a leer su **propia variable**, `LOG_CONTRATO_DAYS`, que se declara en `.env.example` con
+  `90`.
+- `LOG_DAILY_DAYS` sigue gobernando solo el canal `daily`, con sus 14 días.
 
-**OBS-12 — `checkout.returned`: el cliente volvió desde MercadoPago.**
-- **Cuándo**: en `GET /checkout/exito` (`success`), cuando el request trae el parámetro
-  `collection_status`. Se emite **antes** de cualquier redirect, incluido el que manda al carrito si
-  la sesión no tiene pedido. Sin ese parámetro, por ejemplo al volver de una transferencia o al
-  recargar la página sin query string, no se emite.
+**OBS-12 — `checkout.returned`: el navegador del cliente volvió desde MercadoPago.**
+- **Cuándo**:
+  - En `GET /checkout/exito` (`success`), cuando el request trae el parámetro `collection_status`,
+    aunque su valor sea `"null"`.
+  - Se emite **antes** de cualquier redirect, incluido el que manda al carrito si la sesión no tiene
+    pedido.
+  - Sin ese parámetro no se emite: por ejemplo, al volver de una transferencia o al recargar la
+    página sin query string.
 - **Nivel**: `info`.
+- **Lectura de los parámetros**: cada uno se toma **solo si es un string escalar**. Si llega como
+  arreglo (`?collection_status[]=…`), si está vacío o si es el texto literal `"null"`, se escribe
+  `null`.
 - **`attributes`**:
 
-  | Clave | Tipo | Origen | Nota |
-  |---|---|---|---|
-  | `order_id` | entero o `null` | `session('order_id')` | `null` si el cliente volvió en otro navegador o se le venció la sesión |
-  | `status` | string o `null` | query `collection_status` | Valor externo, truncado a 64 |
-  | `payment_id` | string o `null` | query `payment_id` | Valor externo, truncado a 64. Los valores ausentes o `"null"` se escriben como `null` |
-  | `external_reference` | string o `null` | query `external_reference` | Valor externo, truncado a 64 |
+  | Clave | Tipo | Valor |
+  |---|---|---|
+  | `status` | string o `null` | `collection_status`, leído según la regla anterior. Valor externo, truncado a 64 |
+  | `payment_id` | string o `null` | `payment_id`, leído igual. Valor externo, truncado a 64 |
+  | `external_reference` | string o `null` | `external_reference`, leído igual. Valor externo, truncado a 64 |
+  | `order_id` | entero o `null` | `session('order_id')`, **solo si coincide** con `external_reference`. Si no coincide, o si falta cualquiera de los dos, `null` (decisión de la v2, por el hallazgo I3) |
 
-- **Significado, que va en la descripción del schema**: el **navegador** del cliente volvió desde
-  MercadoPago y dijo traer ese estado. **No confirma ningún pago**: los parámetros no vienen
-  firmados. La confirmación es `order.paid`, que llega por el webhook después de consultar la API
-  (Spec 08).
-  - Un `checkout.returned` con `status` aprobado y sin `order.paid` indica un webhook demorado o
+- **Por qué `order_id` exige la coincidencia**:
+  - La sesión guarda el último pedido creado, y el cliente puede estar volviendo de un pedido
+    anterior.
+  - `external_reference` viene sin firma, así que solo no alcanza para afirmar un `order_id`.
+  - La coincidencia de los dos es la única forma de que `order_id`, la clave por la que filtra
+    siempre el consumidor (OBS-01), no apunte al pedido equivocado.
+- **Significado, que va en la descripción del schema**, explicado sin citar specs:
+  - El **navegador** del cliente volvió desde MercadoPago y dijo traer ese estado. **No confirma
+    ningún pago**: los parámetros no vienen firmados. La confirmación es `order.paid`, que llega
+    por el webhook después de consultar la API de MercadoPago.
+  - `status: null` significa que volvió **sin un pago completado**, o que el valor no se pudo leer.
+  - Un retorno con `status` aprobado y sin `order.paid` posterior indica un webhook demorado o
     perdido.
-  - La ausencia de `checkout.returned` **no prueba un abandono**: en local no hay `auto_return`, y
-    el cliente puede cerrar la pestaña después de pagar.
+  - La **ausencia** de `checkout.returned` **no prueba un abandono**: en local no hay
+    `auto_return`, y el cliente puede cerrar la pestaña después de pagar.
+  - `order_id` es `null` cuando la sesión no coincide con `external_reference`. En ese caso
+    `external_reference` es el único vínculo con el pedido, y no es confiable.
 - **El README del contrato** reemplaza el límite "abandonó en MercadoPago y el webhook nunca llegó
   se ven igual" por este texto, más acotado: si el cliente volvió, se distingue; si no volvió, siguen
   viéndose igual.
 
-**OBS-13 — `session_ref` en `http.request`.** *(Sujeto a la decisión D1.)*
+**OBS-13 — `session_ref` en `http.request`.**
 - **Qué es**: los primeros 16 caracteres hexadecimales de
   `hash_hmac('sha256', $sessionId, config('app.key'))`.
-- **Dónde**: en `http.request` como atributo opcional, **solo si el request tiene sesión
-  iniciada**. Va únicamente en `http.request`: los demás eventos del mismo request se atan por
-  `request_id`.
-- **Prohibido**: el id de sesión crudo no aparece nunca en ninguna línea. Es una credencial (la
-  cookie de sesión).
+- **Dónde**:
+  - Como atributo opcional de `http.request`, **solo si el request tiene sesión iniciada**.
+  - Va únicamente en `http.request`: los demás eventos del mismo request se atan por `request_id`.
+- **Alcance**: aparece en **todos los canales** donde se escribe `http.request`, staging incluido,
+  con clientes reales. Ahí la retención la fija la plataforma, no OBS-11 (decisión D1).
+- **No es la cookie**:
+  - El id de sesión crudo es una credencial y no aparece nunca en ninguna línea.
+  - `session_ref` es un seudónimo derivado con una clave que el consumidor no tiene, así que no se
+    puede revertir a la cookie ni usar para suplantar la sesión.
+  - Por eso no viola el "nunca cookies" de OBS-04, que se enmienda para decirlo (§Enmiendas).
 - **Significado, que va en la descripción del schema**:
-  - Agrupa los requests de un **mismo navegador** mientras dure su sesión (120 minutos de
+  - Agrupa los requests de un **mismo navegador** mientras dure su sesión (`SESSION_LIFETIME` de
     inactividad).
   - No identifica a una persona, y no sirve para buscar a un cliente.
-  - Cambia si el usuario interno inicia sesión, si la sesión vence, o si cambia `APP_KEY`.
-- **Para qué la usa el investigador**: a partir del `order.created` de un pedido, salta por
-  `request_id` a su `http.request`, toma el `session_ref`, y encuentra los intentos previos del
-  mismo navegador, incluidos los `checkout.rejected`.
+  - Cambia cuando un usuario interno inicia o cierra sesión, cuando la sesión vence y cuando cambia
+    `APP_KEY`.
+- **Para qué la usa el investigador**:
+  - A partir del `order.created` de un pedido, salta por `request_id` a su `http.request` y toma el
+    `session_ref`.
+  - Con eso encuentra los intentos previos del mismo navegador, incluidos los `checkout.rejected`.
   - Si el cliente **nunca** llegó a crear un pedido, `session_ref` no ayuda a encontrarlo: el caso
     queda en ventana de tiempo, y así lo tiene que declarar el investigador.
 
@@ -179,181 +245,249 @@ configurable con `LOG_DAILY_DAYS`, que pasa a figurar en `.env.example`. *(Sujet
 - Cada ítem de `lines` suma `precio_unitario_cents` (entero), que es el precio congelado de esa
   línea al crear el pedido (reglas 102 y 111). En modo `M2` es el precio por **caja**, igual que en
   `order_lines`.
-- Se agrega en el payload de auditoría de `PlaceOrderAction`, así que llega a `audit_logs` y, por el
-  espejo, al log.
+- Se agrega en el payload de auditoría de `PlaceOrderAction`, así que queda en `audit_logs` y, por
+  el espejo, en el log. Enmienda la regla 113 (§Enmiendas).
 - En el schema se declara como propiedad opcional de cada ítem.
 
-**OBS-15 — El conocimiento del dominio vive en las descripciones del schema.** El investigador no
-lee la documentación de la tienda, solo el schema (ADR-013 y ADR-004 del investigador). Estas
-descripciones de `x-events` se completan, citando la regla o ADR de origen. Ninguna cambia el
-significado del evento; explicitan comportamiento que ya existe:
-- **`order.status_changed`**:
-  - Una transición a `cancelled` la hace siempre un admin (regla 165): no hay cancelación por parte
-    del cliente ni cancelaciones automáticas.
-  - Un pedido en `pending_payment` **no vence**: no hay scheduler en ningún entorno (ADR-012,
-    descartada). Sigue así hasta que llega el pago o un admin lo cancela.
-- **`order.created`**:
-  - El stock se descuenta al confirmarse el pago, no al crear el pedido (ADR-005).
-  - `lines[].precio_unitario_cents` es el precio congelado (OBS-14).
-- **`order.stock_restored`**: la devolución del dinero de un pedido pagado y cancelado se hace
-  fuera del sistema.
-- **`checkout.payment_started`**: el límite se reescribe según OBS-12.
+**OBS-15 — El conocimiento del dominio vive en las descripciones del schema.**
+- El investigador no lee la documentación de la tienda, solo el schema (ADR-013, y ADR-004 del
+  investigador).
+- Estas descripciones de `x-events` se completan. Cada una **explica el comportamiento** y cita
+  entre paréntesis la regla o ADR de origen, como ya hace `order.stock_negative` con la regla 145.
+- Ninguna cambia el significado del evento: explicitan comportamiento que ya existe.
+- Descripciones:
+  - **`order.status_changed`**:
+    - Una transición a `cancelled` la hace siempre un admin (regla 165): no hay cancelación por
+      parte del cliente ni cancelaciones automáticas.
+    - Un pedido en `pending_payment` **no vence**, porque no hay ningún proceso programado que lo
+      cancele (ADR-012, descartada). Sigue así hasta que llega el pago o un admin lo cancela.
+  - **`order.created`**:
+    - Crear el pedido no descuenta stock: el stock se descuenta al confirmarse el pago (ADR-005).
+    - `lines[].precio_unitario_cents` es el precio congelado de la línea; en productos por m², es
+      el precio por caja.
+  - **`order.stock_restored`**: se devuelve al stock lo de un pedido `paid` o `shipped` que se
+      cancela (regla 165). La devolución del dinero se hace fuera del sistema.
+  - **`checkout.payment_started`**: el límite se reescribe según OBS-12. Si el cliente volvió, hay
+      un `checkout.returned`; si no volvió, el abandono y el webhook perdido siguen viéndose igual.
 
-## Enmiendas a la spec observabilidad-01 (cerrada)
+## Enmiendas a specs cerradas
 
-- **OBS-02**:
-  - La ruta pasa de `storage/logs/app-AAAA-MM-DD.jsonl` a `storage/logs/contrato/app-AAAA-MM-DD.jsonl`
-    (OBS-10).
-  - La retención pasa de 14 a 90 días (OBS-11, sujeto a D2).
-  - Se anota como sincronía fechada en esa spec, sin reescribir su texto.
-- **README del contrato** (`docs/observabilidad/README.md`, §Cómo se entrega y §Límites): se
-  actualiza la ruta, la retención y el límite de OBS-12.
+Cada enmienda se anota como **sincronía fechada** en su spec, sin reescribir el texto original.
+
+- **Regla 113 (Spec 07.2)**:
+  - El payload de auditoría de `order.created` pasa de `lines: [product_id, cantidad]` a
+    `lines: [product_id, cantidad, precio_unitario_cents]` (OBS-14).
+  - El precio también queda en `audit_logs`, no solo en el log, igual que se decidió para el
+    `payment_id` en las reglas 150 y 151.
+  - **Decisión del dueño a confirmar en la aprobación** de esta spec.
+- **OBS-01 (observabilidad-01)**: "las líneas de un pedido (`product_id` y `cantidad`)" pasa a
+  incluir `precio_unitario_cents`.
+- **OBS-02 (observabilidad-01)**:
+  - La ruta pasa de `storage/logs/app-AAAA-MM-DD.jsonl` a
+    `storage/logs/contrato/app-AAAA-MM-DD.jsonl` (OBS-10).
+  - La retención pasa de 14 a 90 días, con la variable propia `LOG_CONTRATO_DAYS` (OBS-11).
+- **OBS-04 (observabilidad-01)**:
+  - `http.request` suma `session_ref` como atributo opcional (OBS-13).
+  - El "nunca incluye … las cookies" se mantiene, con la aclaración de que `session_ref` es un
+    seudónimo irreversible sin la clave, y no la cookie.
 
 ## Matriz de permisos
 
 No cambia ningún permiso de la aplicación.
 
-| Actor | Lee `storage/logs/contrato/` | Ve `session_ref` | Ve `precio_unitario_cents` en la auditoría |
+| Actor | Lee `storage/logs/contrato/` | Ve `session_ref` | Ve `precio_unitario_cents` en `audit_logs` |
 |---|---|---|---|
 | Cliente anónimo | no | no | no |
 | Admin | no | no | sí: ya ve la auditoría del detalle del pedido (Spec 08) |
 | Vendedor, depósito | no | no | como hoy: la auditoría del detalle es solo para admin |
 | Dueño, en su máquina | sí | sí | sí |
-| `incident-investigator` (externo) | sí, solo ese directorio y en solo lectura | sí | sí, por el espejo |
+| `incident-investigator` (externo) | sí, solo ese directorio y en solo lectura | sí | no (lo ve en el log, en `order.created`) |
 
 ## Casos borde
 
-- **Recarga de `/checkout/exito` con el query string de MercadoPago**: emite otro
-  `checkout.returned`. Se acepta: cada línea es una navegación real, y el investigador los agrupa
-  por `order_id`.
-- **Retorno en otro navegador o con la sesión vencida**: `order_id` es `null`. El investigador
-  correlaciona por `external_reference`, que es el id del pedido según la regla 123, pero lo trata
-  como valor no confiable.
-- **`collection_status` presente con un valor inventado** (URL armada a mano): se escribe truncado.
-  La descripción del schema ya dice que no confirma nada.
-- **`payment_id=null` literal en el query** (MercadoPago lo manda así cuando no hubo pago): se
-  escribe `null`.
-- **Retorno de una transferencia**: no trae `collection_status`, así que no emite.
-- **Request sin sesión** (`/up`, por ejemplo): `http.request` sin `session_ref`.
-- **Webhook de MercadoPago**: pasa por el grupo `web` y puede tener una sesión nueva en cada
-  notificación. Su `session_ref` no agrupa nada útil. Se acepta para no agregar un caso especial.
-- **Login de un usuario interno**: el id de sesión se regenera y `session_ref` cambia. No afecta a
-  los clientes, que son anónimos.
-- **Rotación de `APP_KEY`**: cambian todos los `session_ref` desde ese momento. Es aceptado y queda
-  declarado en la descripción.
-- **Líneas viejas sin `precio_unitario_cents`**: los pedidos creados antes de esta spec no lo
-  tienen. El atributo es opcional y el investigador tolera su ausencia.
-- **Archivos anteriores en `storage/logs/app-*.jsonl`**: no se mueven ni se migran. Siguen
-  existiendo hasta que el dueño los borre (tarea 8).
+- **`checkout.returned`**:
+  - **Recarga de `/checkout/exito` con el query string de MercadoPago**: emite otro
+    `checkout.returned`. Se acepta: cada línea es una navegación real, y el investigador los agrupa
+    por `order_id` o `external_reference`.
+  - **Retorno en otro navegador o con la sesión vencida**: `order_id` es `null` y
+    `external_reference` es el único vínculo, no confiable.
+  - **Retorno desde un pedido anterior** (el cliente creó A, después B, y vuelve de MercadoPago por
+    A): la sesión dice B y `external_reference` dice A. No coinciden, así que `order_id` es `null`.
+  - **Volvió sin pagar**: MercadoPago manda `collection_status=null`, `payment_id=null`, etc. Los
+    tres atributos son `null`, y el evento sí se emite.
+  - **Parámetros como arreglo** (`?collection_status[]=x`): el valor es `null`, el evento se emite y
+    la línea valida contra el schema.
+  - **`collection_status` con un valor inventado** (URL armada a mano): se escribe truncado. La
+    descripción del schema ya dice que no confirma nada.
+  - **Retorno de una transferencia**: no trae `collection_status`, así que no emite.
+- **`session_ref`**:
+  - **Request sin sesión** (`/up`, por ejemplo): `http.request` sin `session_ref`.
+  - **Webhook de MercadoPago**: pasa por el grupo `web` y puede tener una sesión nueva en cada
+    notificación. Su `session_ref` no agrupa nada útil. Se acepta para no agregar un caso especial.
+  - **Login o logout de un usuario interno**: el id de sesión cambia y `session_ref` también. No
+    afecta a los clientes, que son anónimos.
+  - **Rotación de `APP_KEY`**: cambian todos los `session_ref` desde ese momento. Es aceptado y queda
+    declarado en la descripción.
+- **Otros**:
+  - **Líneas viejas sin `precio_unitario_cents`**: los pedidos creados antes de esta spec no lo
+    tienen. El atributo es opcional y el investigador tolera su ausencia.
+  - **Archivos anteriores en `storage/logs/app-*.jsonl`**: no se mueven ni se migran. Siguen
+    existiendo hasta que el dueño los borre (tarea 9).
+  - **`.env` local existente**: no tiene `LOG_CONTRATO_DAYS`, así que toma el default de 90 del
+    config, que es el valor buscado.
 
 ## Criterios de aceptación
 
 1. **Directorio propio** (OBS-10):
    - con el canal `app` construido desde `config/logging.php` real, la ruta configurada de
      `app_file` está dentro de `storage/logs/contrato/`;
-   - `storage/logs/contrato/.gitignore` existe en el repositorio;
-   - el paso de CI de OBS-09 sigue en verde (cubre `storage/logs/` de forma recursiva).
-2. **Retención** (OBS-11): sin `LOG_DAILY_DAYS` en el entorno, `config('logging.channels.app_file.days')`
-   vale 90, y `.env.example` declara la variable.
+   - `storage/logs/.gitignore` contiene `!contrato/`, y `git ls-files storage/logs/contrato/.gitignore`
+     lo lista;
+   - el paso de CI de OBS-09 sigue en verde, porque cubre `storage/logs/` de forma recursiva.
+2. **Retención** (OBS-11):
+   - sin `LOG_CONTRATO_DAYS` en el entorno, `config('logging.channels.app_file.days')` vale 90;
+   - `config('logging.channels.daily.days')` sigue en 14 sin `LOG_DAILY_DAYS`;
+   - `.env.example` declara `LOG_CONTRATO_DAYS=90` y no declara `LOG_DAILY_DAYS`.
 3. **`checkout.returned`** (OBS-12):
-   - un `GET /checkout/exito?collection_status=approved&payment_id=123&external_reference=7`, con
-     `order_id` 7 en sesión, deja una sola línea `checkout.returned` con esos valores, y valida
-     contra el schema;
-   - el mismo request sin pedido en sesión deja la línea con `order_id: null` y redirige al
-     carrito;
+   - `GET /checkout/exito?collection_status=approved&payment_id=123&external_reference=7`, con
+     `order_id` 7 en sesión, deja una sola línea `checkout.returned`, de nivel `info`, con
+     `order_id: 7` y los tres valores, que valida contra el schema;
+   - con `order_id` 8 en sesión y `external_reference=7`, la línea lleva `order_id: null`;
+   - sin pedido en sesión, la línea lleva `order_id: null` y la respuesta redirige al carrito;
+   - con `collection_status=null&payment_id=null&external_reference=7`, `status` y `payment_id` son
+     `null`;
+   - con `collection_status[]=x`, `status` es `null` y la línea valida contra el schema;
    - sin `collection_status`, no hay `checkout.returned`;
-   - con valores de 300 caracteres, los tres quedan truncados a 64;
-   - con `payment_id=null`, el atributo es `null`.
+   - con valores de 300 caracteres, los tres quedan truncados a 64.
 4. **`session_ref`** (OBS-13):
-   - dos requests de la misma sesión tienen el mismo `session_ref`, de 16 caracteres hexadecimales;
+   - en un request con sesión, `session_ref` es igual a
+     `substr(hash_hmac('sha256', <id de sesión>, config('app.key')), 0, 16)`;
+   - dos requests de la misma sesión tienen el mismo `session_ref`;
    - dos sesiones distintas tienen `session_ref` distintos;
    - el id de sesión crudo no aparece en ninguna línea del archivo (búsqueda textual);
    - una línea de un request sin sesión no tiene `session_ref`;
    - todas las líneas validan contra el schema.
-5. **Precio unitario** (OBS-14): crear un pedido de dos líneas deja `order.created` con
-   `precio_unitario_cents` en cada ítem, igual al de `order_lines`, en el log y en `audit_logs`.
+5. **Precio unitario** (OBS-14): crear un pedido con una línea en modo `Unidad` y otra en modo `M2`
+   deja `order.created` con `precio_unitario_cents` en cada ítem, igual al de su `order_lines` (el
+   de la línea `M2`, por caja), en el log y en `audit_logs`.
 6. **Descripciones** (OBS-15): un test verifica que las descripciones de `order.status_changed`,
-   `order.created`, `order.stock_restored`, `checkout.payment_started` y `checkout.returned`
-   mencionan la regla o la ADR que citan (165, ADR-012, ADR-005 y OBS-12).
-7. **Calidad**: Pint, PHPStan nivel 8 y la suite en verde. Cada regla OBS-10 a OBS-14 verificada
-   **mutando la implementación**, con algún test en rojo por mutación.
+   `order.created`, `order.stock_restored` y `checkout.payment_started` contienen sus referencias de
+   origen ("regla 165", "ADR-012", "ADR-005"). También verifica que `checkout.returned` y
+   `http.request` declaran que no confirman pagos y que `session_ref` no es la cookie.
+7. **Calidad**:
+   - Pint, PHPStan nivel 8 y la suite en verde;
+   - cada regla OBS-10 a OBS-14 verificada **mutando la implementación**, con algún test en rojo
+     por mutación. Por ejemplo: cambiar el HMAC por un `hash` sin clave, o quitar la coincidencia
+     de `order_id`.
 
 ## Tareas técnicas
 
-1. **Verificar los parámetros de retorno** de MercadoPago (`collection_status`, `payment_id` y
-   `external_reference`) contra la documentación vigente de Checkout Pro. Si difieren, se detiene la
-   implementación y se pregunta al dueño (`AGENTS.md`, §Ambigüedad).
-2. **Schema** (`docs/observabilidad/log-schema.v1.json`):
-   - `checkout.returned` en el `enum` de `event`, con su bloque en `allOf` y su descripción en
-     `x-events`;
-   - `session_ref` opcional en `http.request`, con `pattern: ^[0-9a-f]{16}$`;
-   - `precio_unitario_cents` opcional en los ítems de `lines` de `order.created`;
-   - las descripciones de OBS-15;
-   - `maxLength: 64` en los valores externos nuevos.
-3. **Canal**: `config/logging.php` (ruta de `app_file` y `days` por defecto en 90),
-   `storage/logs/contrato/.gitignore` y `LOG_DAILY_DAYS=90` en `.env.example`.
-4. **`checkout.returned`**: en `CheckoutController::success`, antes del primer `return`. Los tres
-   valores del query pasan por `EventLog`, que ya trunca `payment_id`, `status` y
-   `external_reference`.
+1. **Verificar los parámetros de retorno** de Checkout Pro contra la documentación vigente de
+   MercadoPago: `collection_status`, `payment_id`, `external_reference` y el `"null"` literal.
+   - Si difieren de lo que dice esta spec, se detiene la implementación y se pregunta al dueño
+     (`AGENTS.md`, §Ambigüedad).
+2. **Schema** (`docs/observabilidad/log-schema.v1.json`). **El bloque de cada regla se agrega junto
+   con su regla**, no al final: el `enum` de `event` es cerrado y `http.request` no admite
+   atributos extra, así que sin el schema los tests de la regla no validan. Los bloques son:
+   - OBS-12: `checkout.returned` en el `enum`, su bloque en `allOf` con `maxLength: 64` en los
+     valores externos, y su descripción en `x-events`;
+   - OBS-13: `session_ref` opcional en `http.request`, con `pattern: ^[0-9a-f]{16}$`, y la
+     descripción de `http.request` actualizada;
+   - OBS-14: `precio_unitario_cents` opcional en los ítems de `lines` de `order.created`;
+   - OBS-15: solo las descripciones de su lista.
+3. **Canal**:
+   - en `config/logging.php`, la ruta de `app_file` y `days => env('LOG_CONTRATO_DAYS', 90)`;
+   - `storage/logs/contrato/.gitignore` y `!contrato/` en `storage/logs/.gitignore`;
+   - `LOG_CONTRATO_DAYS=90` en `.env.example`.
+4. **`checkout.returned`**: en `CheckoutController::success`, antes del primer `return`. La lectura
+   escalar y la normalización de `"null"` van en un método privado del controlador. El truncado lo
+   hace `EventLog`, que ya cubre `payment_id`, `status` y `external_reference`.
 5. **`session_ref`**: en `AssignRequestId::terminate()`, con `$request->hasSession()`.
-6. **Precio unitario**: el `map` de `lines` en `PlaceOrderAction::execute`.
+6. **Precio unitario**: en el `map` de `lines` de `PlaceOrderAction::execute`, con
+   `'precio_unitario_cents' => $l['precio_unitario_cents']`.
 7. **Tests** en `tests/Feature/Observabilidad/`, con `canalDeContrato()` y `lineasDelContrato()`.
 8. **Sincronías**, en commit `docs:` propio:
-   - observabilidad-01 (§Sincronía, enmienda de OBS-02);
-   - `docs/observabilidad/README.md`;
+   - Spec 07.2 (regla 113) y observabilidad-01 (OBS-01, OBS-02 y OBS-04), como sincronías fechadas;
+   - `docs/observabilidad/README.md`:
+     - §Cómo se entrega: la ruta y la retención;
+     - §Qué no vas a encontrar nunca: la aclaración de `session_ref`;
+     - §Límites: el texto nuevo de OBS-12;
    - `docs/arquitectura.md` §Observabilidad;
-   - `.ai/rules/observabilidad.md`, por la ruta nueva;
+   - `.ai/rules/observabilidad.md`, por la ruta nueva y la lectura escalar de parámetros externos;
    - glosario: `session_ref` y "retorno desde MercadoPago" como términos técnicos;
-   - roadmap y runbook del README, con dos pasos a mano del dueño: borrar los
-     `storage/logs/app-*.jsonl` viejos y avisar al investigador para que vuelva a copiar el schema.
+   - roadmap y runbook del README.
+9. **Pasos a mano del dueño**, anotados en el runbook:
+   - borrar los `storage/logs/app-*.jsonl` viejos;
+   - avisar al investigador para que vuelva a copiar el schema en
+     `contracts/revestimientos/`.
 
-## Decisiones pendientes del dueño
+## Decisiones del dueño (2026-10-12)
 
-- **D1 — ¿`session_ref` es aceptable bajo "sin datos personales"?**
-  - **A favor**: no es ninguno de los datos que lista OBS-06; el investigador no puede revertirlo a
-    la cookie (necesitaría `APP_KEY`); y vence con la sesión.
-  - **En contra**: agrupa la navegación de un visitante anónimo, que es un dato de comportamiento.
-  - **Recomendación**: aceptarlo, porque es la única forma de cerrar CU6 sin pedir datos al cliente.
-    Si se rechaza, OBS-13 sale de la spec y CU6 queda declarado como parcial.
+- **D1 — `session_ref` se acepta** bajo "sin datos personales". No es ninguno de los datos que lista
+  OBS-06, no es reversible sin `APP_KEY` y vence con la sesión. Es la única forma de cerrar CU6 sin
+  pedirle datos al cliente.
+  - **Alcance que la v1 del borrador no explicitaba (hallazgo I6)**: el atributo sale en todos los
+    canales, staging incluido, con clientes reales. Allá lo ya escrito se conserva lo que retenga la
+    plataforma.
+  - El dueño lo **confirma al aprobar** esta spec.
 - **D2 — Retención de 90 días.**
-  - Son archivos chicos y solo locales.
-  - El número sale de que un reclamo puede llegar semanas después de la compra. Cualquier valor
-    mayor a 14 cumple el objetivo.
-- **D3 — Nombre del directorio**: `contrato/`, en español, como el resto del repo.
+  - **Motivo real**: el contrato es solo local, así que lo que se conserva son **reproducciones**
+    de incidentes y no reclamos de clientes. 90 días permiten volver a un escenario reproducido
+    mientras se arma la suite de evaluación del investigador.
+  - La v1 del borrador lo justificaba con reclamos tardíos de clientes, que en local no existen
+    (hallazgo I5).
+  - Se aplica con una variable propia, para no alargar también `laravel.log`.
+- **D3 — El directorio se llama `contrato/`**, en español, como el resto del repo.
 
 ## Alternativas descartadas
 
 - **`actor_id` en los espejos de auditoría**: `audit_logs` ya lo guarda, y por la regla 165 se sabe
   que toda cancelación es de un admin. Saber **cuál** admin no cambia la respuesta a ningún reclamo
-  de cliente. No tapa un agujero: no entra.
+  de cliente. No tapa un agujero, así que no entra.
 - **`release` (versión desplegada) en cada línea**: en local no hay despliegues. Se reevalúa en la
   etapa 2 de ADR-013.
 - **`session_ref` en todos los eventos**: es redundante, porque `request_id` ya ata cada evento a
   su `http.request`. Ponerlo solo ahí sigue el patrón del resumen por request (OBS-04).
+- **`order_id` de `checkout.returned` tomado de la sesión sin verificar**: con varios pedidos en la
+  misma sesión apuntaría al equivocado (hallazgo I3).
+- **`order_id` tomado de `external_reference`**: es un valor sin firma, y `order_id` es la clave por
+  la que filtra el consumidor.
+- **Seguir usando `LOG_DAILY_DAYS` para el canal del contrato**: subirla a 90 alargaría también
+  `laravel.log` (hallazgo I5).
 - **Leer `storage/logs/` entero y filtrar `app-*.jsonl` del lado del investigador**: la frontera de
-  datos quedaría en el código del consumidor y no en el sistema de archivos, el mismo defecto que
-  ADR-013 descartó para el agente dentro del repo (hallazgo B2).
+  datos quedaría en el código del consumidor y no en el sistema de archivos. Es el mismo defecto
+  que ADR-013 descartó para el agente dentro del repo (hallazgo B2 de esa ADR).
 
 ## Nota de handoff para el agente implementador
 
-Para empezar, leé en este orden:
+**Antes de empezar**: esta spec tiene que estar **aprobada y mergeada a `main`** por su propio PR
+(rama `docs/observabilidad-02-spec`). Recién ahí se abre
+`feat/observabilidad-02-ampliacion-contrato` desde `main` actualizado.
+
+**Orden de lectura**:
 1. `AGENTS.md`;
 2. `PROJECT_PRINCIPLES.md`;
 3. esta spec;
-4. la spec observabilidad-01 entera (las reglas OBS-01 a OBS-09 siguen vigentes);
-5. `docs/observabilidad/README.md`;
-6. `.ai/rules/observabilidad.md`;
-7. `grep -rin 'log\|checkout\|sesión' .ai/rules`.
+4. la spec observabilidad-01 entera (las reglas OBS-01 a OBS-09 siguen vigentes, con las enmiendas
+   de esta spec);
+5. ADR-013;
+6. `docs/observabilidad/README.md`;
+7. `.ai/rules/index.md`, las reglas cuyo glob cubre los archivos que vas a tocar
+   (`observabilidad.md`, `controllers.md`, `actions.md`, `tests.md`, entre otras) y
+   `grep -rin 'log\|checkout\|sesión\|session' .ai/rules`.
 
-Reglas:
-- **Rama** `feat/observabilidad-02-ampliacion-contrato`, desde `main` actualizado. TDD, una regla
-  por vez: test en rojo → implementación → refactor.
-- **Orden sugerido**: OBS-10 y OBS-11 (configuración) → OBS-14 (un `map`) → OBS-12 → OBS-13 →
-  OBS-15 (schema y descripciones).
+**Cómo trabajar**:
+- TDD, una regla por vez: test en rojo → implementación con **su bloque de schema** → refactor.
+- **Orden sugerido**:
+  1. OBS-10 y OBS-11 (configuración);
+  2. OBS-14 (un `map`);
+  3. OBS-12;
+  4. OBS-13;
+  5. OBS-15 (solo descripciones).
 - **Todo corre en Docker**: `make format` → `make lint` → `make stan` → `make test`. Nunca dos
   suites en paralelo.
 - **No agregar dependencias.** `hash_hmac` es nativo de PHP.
-- **Antes del push**, pasar `revisor-entrega` (`.claude/agents/`): su chequeo de mutaciones es parte
+- **Antes del push**, pasar `revisor-entrega` (`.claude/agents/`). Su chequeo de mutaciones es parte
   del criterio 7.
 - **Commits** en español, con Conventional Commits y **sin trailers de atribución a herramientas de
-  IA**. Las sincronías de documentos van en un commit `docs:` aparte.
+  IA**. Las sincronías de documentos (tarea 8) van en un commit `docs:` aparte.
