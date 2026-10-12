@@ -4,6 +4,7 @@ use App\Models\AuditLog;
 use App\Models\Order;
 use App\Models\Product;
 use App\Services\Cart;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 
 /**
@@ -247,4 +248,54 @@ it('los valores del retorno se truncan a 64 caracteres', function () {
     expect($retornos[0]['attributes']['status'])->toBe(str_repeat('x', 64))
         ->and($retornos[0]['attributes']['payment_id'])->toBe(str_repeat('x', 64))
         ->and($retornos[0]['attributes']['external_reference'])->toBe(str_repeat('x', 64));
+});
+
+// --- OBS-13: session_ref en http.request -----------------------------------
+
+function sessionRefEsperado(string $sessionId): string
+{
+    return substr(hash_hmac('sha256', $sessionId, (string) config('app.key')), 0, 16);
+}
+
+it('http.request de un request con sesión lleva session_ref, el HMAC del id de sesión con APP_KEY', function () {
+    $dir = canalDeContrato();
+
+    $this->get(route('carrito.show'))->assertOk();
+
+    $resumen = eventosDelContrato($dir, 'http.request')[0]['attributes'];
+    expect($resumen['session_ref'])->toBe(sessionRefEsperado(app('session')->getId()))
+        ->and($resumen['session_ref'])->toMatch('/^[0-9a-f]{16}$/');
+});
+
+it('dos requests de la misma sesión comparten session_ref y otra sesión tiene otro', function () {
+    $dir = canalDeContrato();
+
+    // Cada request de test sin cookie abre una sesión nueva: la "misma sesión"
+    // es la que vuelve con su cookie, como haría el navegador.
+    $this->get(route('carrito.show'));
+    $cookie = config('session.cookie');
+    $this->withCookie($cookie, app('session')->getId())->get(route('carrito.show'));
+    $this->withCookie($cookie, Str::random(40))->get(route('carrito.show'));
+
+    $refs = array_map(fn (array $linea): string => $linea['attributes']['session_ref'], eventosDelContrato($dir, 'http.request'));
+
+    expect($refs)->toHaveCount(3)
+        ->and($refs[0])->toBe($refs[1])
+        ->and($refs[2])->not->toBe($refs[0]);
+});
+
+it('el id de sesión crudo no aparece en ninguna línea', function () {
+    $dir = canalDeContrato();
+
+    $this->get(route('carrito.show'));
+
+    expect(textoDelDirectorio($dir))->not->toContain(app('session')->getId());
+});
+
+it('un request sin sesión no lleva session_ref', function () {
+    $dir = canalDeContrato();
+
+    $this->get('/up')->assertOk();
+
+    expect(eventosDelContrato($dir, 'http.request')[0]['attributes'])->not->toHaveKey('session_ref');
 });

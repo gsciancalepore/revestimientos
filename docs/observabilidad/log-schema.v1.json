@@ -161,6 +161,10 @@
               },
               "user_id": {
                 "type": "integer"
+              },
+              "session_ref": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{16}$"
               }
             },
             "required": [
@@ -1478,7 +1482,7 @@
       "level": "info"
     },
     "http.request": {
-      "description": "Resumen de un request HTTP al terminar. Nunca lleva la URL, el query string, el cuerpo, las cookies ni las cabeceras.",
+      "description": "Resumen de un request HTTP al terminar. Nunca lleva la URL, el query string, el cuerpo, las cookies ni las cabeceras. `session_ref`, cuando está, NO es la cookie: es un seudónimo de la sesión (HMAC con la clave de la app, 16 caracteres hexadecimales) que no se puede revertir sin esa clave. Agrupa los requests de un mismo navegador mientras dure su sesión (`SESSION_LIFETIME` de inactividad) y no identifica a una persona ni sirve para buscar a un cliente. Cambia cuando un usuario interno inicia o cierra sesión, cuando la sesión vence y si cambia la clave de la app. Solo aparece en requests con sesión; los demás eventos del mismo request se atan por `request_id`.",
       "level": "info"
     },
     "order.created": {

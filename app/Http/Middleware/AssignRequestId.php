@@ -44,6 +44,20 @@ class AssignRequestId
             $attributes['user_id'] = $request->user()->getKey();
         }
 
+        if ($request->hasSession()) {
+            $attributes['session_ref'] = self::sessionRef($request->session()->getId());
+        }
+
         EventLog::record('http.request', $attributes);
+    }
+
+    /**
+     * Seudónimo de la sesión (observabilidad-02, OBS-13): agrupa los requests
+     * de un mismo navegador sin escribir nunca el id crudo, que es la
+     * credencial de la cookie. Sin `APP_KEY` no se puede revertir.
+     */
+    private static function sessionRef(string $sessionId): string
+    {
+        return substr(hash_hmac('sha256', $sessionId, (string) config('app.key')), 0, 16);
     }
 }
