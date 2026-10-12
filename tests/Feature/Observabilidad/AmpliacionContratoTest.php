@@ -299,3 +299,31 @@ it('un request sin sesión no lleva session_ref', function () {
 
     expect(eventosDelContrato($dir, 'http.request')[0]['attributes'])->not->toHaveKey('session_ref');
 });
+
+// --- OBS-15: conocimiento del dominio en las descripciones ------------------
+
+/**
+ * @return array<string, string>
+ */
+function descripcionesDelContrato(): array
+{
+    $schema = json_decode((string) file_get_contents(base_path('docs/observabilidad/log-schema.v1.json')), true);
+
+    return array_map(fn (array $evento): string => $evento['description'], $schema['x-events']);
+}
+
+it('las descripciones explican el comportamiento del dominio y citan su origen', function () {
+    $descripciones = descripcionesDelContrato();
+
+    expect($descripciones['order.status_changed'])->toContain('regla 165', 'ADR-012', 'no vence')
+        ->and($descripciones['order.created'])->toContain('ADR-005', 'precio_unitario_cents')
+        ->and($descripciones['order.stock_restored'])->toContain('regla 165', 'shipped', 'fuera del sistema')
+        ->and($descripciones['checkout.payment_started'])->toContain('checkout.returned');
+});
+
+it('las descripciones declaran que checkout.returned no confirma pagos y que session_ref no es la cookie', function () {
+    $descripciones = descripcionesDelContrato();
+
+    expect($descripciones['checkout.returned'])->toContain('NO confirma ningún pago', 'no prueba un abandono')
+        ->and($descripciones['http.request'])->toContain('`session_ref`', 'NO es la cookie');
+});

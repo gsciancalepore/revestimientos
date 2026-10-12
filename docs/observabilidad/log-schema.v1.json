@@ -1470,7 +1470,7 @@
       "level": "error"
     },
     "checkout.payment_started": {
-      "description": "El pedido quedó creado y el cliente fue derivado a pagar (preferencia de MercadoPago generada, o instrucciones de transferencia). Si después no hay confirmación, los logs NO distinguen si el cliente abandonó en MercadoPago o si el webhook nunca llegó.",
+      "description": "El pedido quedó creado y el cliente fue derivado a pagar (preferencia de MercadoPago generada, o instrucciones de transferencia). Si el cliente volvió desde MercadoPago queda un `checkout.returned` con el estado que dijo traer. Si no volvió y después no hay confirmación, los logs NO distinguen si el cliente abandonó en MercadoPago o si el webhook nunca llegó.",
       "level": "info"
     },
     "checkout.rejected": {
@@ -1486,7 +1486,7 @@
       "level": "info"
     },
     "order.created": {
-      "description": "Espejo de la auditoría (`audit_logs`). Se creó un pedido en `pending_payment`. Todavía no descuenta stock.",
+      "description": "Espejo de la auditoría (`audit_logs`). Se creó un pedido en `pending_payment`. Todavía no descuenta stock: el stock se descuenta al confirmarse el pago (ADR-005). `lines[].precio_unitario_cents` es el precio congelado de cada línea al crear el pedido; en productos que se venden por m², es el precio por caja.",
       "level": "info"
     },
     "order.paid": {
@@ -1502,7 +1502,7 @@
       "level": "warning"
     },
     "order.status_changed": {
-      "description": "Espejo de la auditoría (`audit_logs`). Transición de estado del pedido.",
+      "description": "Espejo de la auditoría (`audit_logs`). Transición de estado del pedido. Una transición a `cancelled` la hace siempre un admin (regla 165): el cliente no puede cancelar y no hay cancelaciones automáticas. Un pedido en `pending_payment` no vence: ningún proceso programado lo cancela (ADR-012, descartada), así que sigue así hasta que llega el pago o un admin lo cancela.",
       "level": "info"
     },
     "order.stock_negative": {
@@ -1510,7 +1510,7 @@
       "level": "warning"
     },
     "order.stock_restored": {
-      "description": "Espejo de la auditoría (`audit_logs`). Se devolvió al stock lo de un pedido pagado que se canceló.",
+      "description": "Espejo de la auditoría (`audit_logs`). Se devolvió al stock lo de un pedido `paid` o `shipped` que un admin canceló (regla 165); cancelar un pedido `pending_payment` no toca el stock porque nunca se descontó. La devolución del dinero se hace fuera del sistema (panel de MercadoPago o transferencia bancaria).",
       "level": "info"
     },
     "product.created": {
