@@ -1,12 +1,12 @@
 # Spec — Observabilidad 02: ampliación del contrato de logs v1 para el investigador
 
-- **Estado**: **borrador v3 (2026-10-12)**, **aprobable con correcciones menores** según la segunda
-  pasada de `revisor-spec`, con las correcciones ya aplicadas. Pendiente de la aprobación del dueño.
-  **Aprobarla confirma**:
+- **Estado**: **aprobada (2026-10-12)** por el dueño, tras dos pasadas de `revisor-spec`. La
+  segunda fue "aprobable con correcciones menores", y las correcciones ya están aplicadas en la v3.
+  **La aprobación confirma**:
   - D1, con su alcance a staging;
   - la enmienda de la regla 113.
 
-  Hasta que se apruebe, no se implementa nada.
+  Lista para implementar según la nota de handoff, una vez mergeada a `main`.
 - **Historia del borrador**:
   - **v1**: la primera pasada de `revisor-spec` la marcó "necesita otra vuelta, corta". Los
     hallazgos fueron:
@@ -289,7 +289,7 @@ Cada enmienda se anota como **sincronía fechada** en su spec, sin reescribir el
     `lines: [product_id, cantidad, precio_unitario_cents]` (OBS-14).
   - El precio también queda en `audit_logs`, no solo en el log, igual que se decidió para el
     `payment_id` en las reglas 150 y 151.
-  - **Decisión del dueño a confirmar en la aprobación** de esta spec.
+  - **Confirmada por el dueño** al aprobar esta spec (2026-10-12).
 - **OBS-01 (observabilidad-01)**: "las líneas de un pedido (`product_id` y `cantidad`)" pasa a
   incluir `precio_unitario_cents`.
 - **OBS-02 (observabilidad-01)**:
@@ -450,7 +450,7 @@ No cambia ningún permiso de la aplicación.
   - **Alcance que la v1 del borrador no explicitaba (hallazgo I6)**: el atributo sale en todos los
     canales, staging incluido, con clientes reales. Allá lo ya escrito se conserva lo que retenga la
     plataforma.
-  - El dueño lo **confirma al aprobar** esta spec.
+  - **Confirmado por el dueño** al aprobar esta spec (2026-10-12).
 - **D2 — Retención de 90 días.**
   - **Motivo real**: el contrato es solo local, así que lo que se conserva son **reproducciones**
     de incidentes y no reclamos de clientes. 90 días permiten volver a un escenario reproducido
