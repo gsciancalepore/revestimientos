@@ -22,8 +22,8 @@ conocer el código de la tienda. Decisiones: [ADR-013](../adr/ADR-013-capa-obser
 - Lo que queda en `storage/logs/` **no es parte del contrato** y no se debe leer:
   - `laravel.log` es el canal de otros entornos o el logger de emergencia de Laravel;
   - `browser.log` lo escribe Laravel Boost en desarrollo.
-- Hasta el 2026-10-12 el contrato se escribía directamente en `storage/logs/app-*.jsonl`. Esos
-  archivos viejos no se migran.
+- Antes de la spec observabilidad-02 el contrato se escribía directamente en
+  `storage/logs/app-*.jsonl`. Esos archivos viejos no se migran.
 
 ## Forma de una línea
 

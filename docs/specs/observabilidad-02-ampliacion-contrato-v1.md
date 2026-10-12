@@ -1,7 +1,9 @@
 # Spec — Observabilidad 02: ampliación del contrato de logs v1 para el investigador
 
-- **Estado**: **implementada (2026-10-12)** en la rama `feat/observabilidad-02-ampliacion-contrato`,
-  pendiente de `revisor-entrega` y del PR a `main` (§Sincronía 2026-10-12 — implementación). Fue
+- **Estado**: **implementada (2026-10-12)** en la rama `feat/observabilidad-02-ampliacion-contrato`.
+  `revisor-entrega` la dio apta con correcciones menores, ya aplicadas. El **PR #44** espera el merge
+  del dueño (§Sincronía 2026-10-12 — implementación y §Sincronía 2026-10-12 — revisión de
+  `revisor-entrega`). Fue
   **aprobada (2026-10-12)** por el dueño, tras dos pasadas de `revisor-spec`. La segunda fue
   "aprobable con correcciones menores", y las correcciones ya estaban aplicadas en la v3. La
   aprobación confirmó D1, con su alcance a staging, y la enmienda de la regla 113.
@@ -575,4 +577,27 @@ suite no escribe en `storage/logs/`.
 - borrar los `storage/logs/app-*.jsonl` viejos;
 - volver a copiar el schema en `incident-investigator/contracts/revestimientos/`, con el commit del
   merge.
+
+## Sincronía 2026-10-12 — revisión de `revisor-entrega`
+
+Veredicto: **apto con correcciones menores**. No hubo bloqueantes. Los gates se corroboraron:
+Pint, PHPStan nivel 8 y la suite completa, sin que la suite escriba en `storage/logs/`.
+
+**Mutaciones del revisor**: 26, una por vez, sobre OBS-10 a OBS-15. Murieron 25.
+- La que sobrevivió fue no normalizar el `"null"` literal en `external_reference`: ningún test lo
+  cubría.
+- Se agregó el test "el `"null"` literal se normaliza en los tres parámetros, external_reference
+  incluido", y la mutación muere.
+- La suite queda en **580 tests**: 559 de base y 21 de esta spec.
+
+**Correcciones aplicadas**:
+- El test de `LOG_CONTRATO_DAYS` repone el valor previo de la variable en lugar de borrarlo.
+- El runbook del README suma el paso de volver a copiar el schema en el investigador (tarea 9).
+- El README del contrato dice "antes de la spec observabilidad-02" en lugar de una fecha.
+- El punto de retome del roadmap deja escrito el estado de la rama, sin remitir a una sección
+  inexistente.
+- La regla del centinela del CP en `.ai/rules/tests.md` viene de #43, no de esta spec. El revisor la
+  aceptó como alcance ajeno, declarado en la sincronía de implementación.
+
+PR #44, abierto el 2026-10-12 contra `main`.
 
