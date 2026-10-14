@@ -580,3 +580,20 @@ e imagen `app` reconstruida.
 
 El schema se copió en `incident-investigator` (`contracts/revestimientos/log-schema.v1.json`), con
 este commit como origen. La siguiente etapa de ADR-013 (staging) necesita spec propia.
+
+## Sincronía 2026-10-12 — enmiendas de observabilidad-02
+
+La spec [`observabilidad-02-ampliacion-contrato-v1`](observabilidad-02-ampliacion-contrato-v1.md),
+aprobada por el dueño el 2026-10-12, enmienda tres reglas de esta spec. El texto original se
+conserva arriba.
+
+- **OBS-01**: "las líneas de un pedido (`product_id` y `cantidad`)" pasa a incluir
+  `precio_unitario_cents`, el precio congelado de la línea (observabilidad-02, OBS-14).
+- **OBS-02**:
+  - la ruta pasa de `storage/logs/app-AAAA-MM-DD.jsonl` a
+    `storage/logs/contrato/app-AAAA-MM-DD.jsonl`, un directorio que no contiene otro archivo que su
+    `.gitignore` (OBS-10);
+  - la retención pasa de 14 a 90 días, con la variable propia `LOG_CONTRATO_DAYS`.
+    `LOG_DAILY_DAYS` queda solo para `laravel.log` (OBS-11).
+- **OBS-04**: `http.request` suma `session_ref` como atributo opcional (OBS-13). El "nunca incluye
+  … las cookies" se mantiene: `session_ref` es un seudónimo (HMAC con `APP_KEY`), no la cookie.

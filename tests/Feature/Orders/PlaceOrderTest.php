@@ -186,7 +186,8 @@ test('audit order.created con payload y sin descontar stock', function () {
     expect($log->payload['subtotal_cents'])->toBe($order->subtotal_cents);
     expect($log->payload['shipping_cost_cents'])->toBe($order->shipping_cost_cents);
     expect($log->payload['total_cents'])->toBe($order->total_cents);
-    expect($log->payload['lines'])->toBe([['product_id' => $product->id, 'cantidad' => 2]]);
+    // Regla 113, enmendada por observabilidad-02 (OBS-14): el precio congelado también va.
+    expect($log->payload['lines'])->toBe([['product_id' => $product->id, 'cantidad' => 2, 'precio_unitario_cents' => $order->lines->first()->precio_unitario_cents]]);
     expect($log->actor_id)->toBeNull();
 
     $product->refresh();

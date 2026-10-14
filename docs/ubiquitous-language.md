@@ -76,6 +76,8 @@ sentido, es un bug de lenguaje.
 | **Evento de log** | Término técnico. Una línea del contrato de logs con un nombre estable (`order.paid`, `checkout.rejected`). El conjunto de eventos es el **catálogo de eventos (de log)**, que no tiene nada que ver con el **Catálogo público**. | ADR-013 |
 | **`request_id`** | Término técnico. Identificador que la tienda asigna a cada request HTTP: aparece en todas sus líneas de log y en la cabecera `X-Request-Id`. No es el `x-request-id` de MercadoPago, que en el log se llama `mp_request_id`. | OBS-03 |
 | **Incidente operativo** | Término técnico. Algo que salió mal y hay que investigar (un pago que no llegó, un checkout que falló). No es un **Incidente de pago**: ese es un estado de negocio de un pedido. | ADR-013 |
+| **`session_ref`** | Término técnico. Seudónimo de la sesión del navegador que va en `http.request`: los primeros 16 hex del HMAC-SHA256 del id de sesión con `APP_KEY`. Agrupa los requests de un mismo navegador mientras dure la sesión. **No es la cookie** ni identifica a una persona, y el id crudo nunca se escribe. | observabilidad-02, OBS-13 |
+| **Retorno desde MercadoPago** | Término técnico. Navegación del cliente desde MercadoPago de vuelta a `/checkout/exito`, con parámetros sin firmar en el query string. Se registra como `checkout.returned`. **No confirma un pago**: eso es `order.paid`, por el webhook. | observabilidad-02, OBS-12 |
 
 ## Sinónimos prohibidos
 

@@ -112,6 +112,46 @@ class CheckoutController extends Controller
     }
 
     /**
+     * El navegador volvió desde MercadoPago (observabilidad-02, OBS-12). Los
+     * parámetros del retorno no vienen firmados: solo se toman si son texto, y
+     * el pedido de la sesión se registra solo si coincide con
+     * `external_reference`, porque la sesión guarda el último pedido creado y
+     * el cliente puede estar volviendo de uno anterior.
+     */
+    private function registrarRetornoDeMercadoPago(Request $request): void
+    {
+        if (! $request->query->has('collection_status')) {
+            return;
+        }
+
+        $externalReference = $this->parametroDeRetorno($request, 'external_reference');
+        $orderId = session('order_id');
+
+        EventLog::record('checkout.returned', [
+            'order_id' => $orderId !== null && (string) $orderId === $externalReference ? (int) $orderId : null,
+            'status' => $this->parametroDeRetorno($request, 'collection_status'),
+            'payment_id' => $this->parametroDeRetorno($request, 'payment_id'),
+            'external_reference' => $externalReference,
+        ]);
+    }
+
+    /**
+     * MercadoPago manda el texto literal "null" cuando no hubo pago; un
+     * arreglo (`?clave[]=…`) solo puede venir de una URL armada a mano. El
+     * valor vacío ya llega como `null` (`ConvertEmptyStringsToNull`).
+     */
+    private function parametroDeRetorno(Request $request, string $clave): ?string
+    {
+        $valor = $request->query($clave);
+
+        if (! is_string($valor) || $valor === 'null') {
+            return null;
+        }
+
+        return $valor;
+    }
+
+    /**
      * El cliente fue derivado a pagar (OBS-05.3): distingue "llegó a pagar" de
      * "se cayó antes", no el abandono en MercadoPago de un webhook perdido.
      */
@@ -124,8 +164,10 @@ class CheckoutController extends Controller
         ]);
     }
 
-    public function success(Cart $cart): View|RedirectResponse
+    public function success(Request $request, Cart $cart): View|RedirectResponse
     {
+        $this->registrarRetornoDeMercadoPago($request);
+
         $orderId = session('order_id');
 
         if ($orderId === null) {

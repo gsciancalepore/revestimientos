@@ -160,6 +160,7 @@ class PlaceOrderAction
                 'lines' => collect($linesData)->map(fn (array $l): array => [
                     'product_id' => $l['product']->id,
                     'cantidad' => $l['cantidad'],
+                    'precio_unitario_cents' => $l['precio_unitario_cents'],
                 ])->all(),
             ]);
 

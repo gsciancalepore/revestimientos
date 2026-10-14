@@ -10,7 +10,7 @@ paths:
 # Observabilidad — contrato de logs v1 (spec observabilidad-01, ADR-013)
 
 ## Lo que se escribe en el log es un contrato público
-Un sistema externo (`incident-investigator`) lee `storage/logs/app-*.jsonl` sin conocer este código. La forma de cada línea y el catálogo de eventos viven en `docs/observabilidad/log-schema.v1.json`, que es la fuente de verdad; los tests validan cada línea contra él (`lineasDelContrato()` en `tests/Pest.php`). Agregar un evento o un atributo opcional es compatible; quitar, renombrar o cambiar un tipo o un significado exige `schema_version: "2"` y aviso al consumidor.
+Un sistema externo (`incident-investigator`) lee `storage/logs/contrato/app-*.jsonl` sin conocer este código. Ese directorio no puede tener ningún otro archivo que su `.gitignore` (observabilidad-02, OBS-10): el consumidor lo monta entero. La retención es `LOG_CONTRATO_DAYS` (90); `LOG_DAILY_DAYS` es solo de `laravel.log`. La forma de cada línea y el catálogo de eventos viven en `docs/observabilidad/log-schema.v1.json`, que es la fuente de verdad; los tests validan cada línea contra él (`lineasDelContrato()` en `tests/Pest.php`). Agregar un evento o un atributo opcional es compatible; quitar, renombrar o cambiar un tipo o un significado exige `schema_version: "2"` y aviso al consumidor.
 
 ## Todo `Log::` nuevo en `app/` es un evento del catálogo
 Se emite con `EventLog::record('evento', [...])`, nunca con `Log::info('texto')`. Un evento entra al catálogo **solo si tapa un agujero que hoy impide investigar un incidente concreto** (criterio del dueño): nada de eventos "por si acaso". Antes de emitirlo, declararlo en el schema con su descripción —incluido cuándo es comportamiento previsto y no una falla— y cubrirlo con un test que valide contra el schema. Lo que no pasa por `EventLog` termina como `app.log`, que es riesgo residual.
@@ -35,3 +35,10 @@ El canal `app` es un `stack` con `ignore_exceptions: true` sobre `app_file`: Lar
 
 ## Los tests no escriben en `storage/logs/`
 `phpunit.xml` fija `LOG_CHANNEL=null`; los tests del contrato usan `canalDeContrato()`, que construye el canal real con la ruta en un directorio temporal. CI compara los hashes de `storage/logs/` antes y después de la suite. `storage/logs/browser.log` lo escribe Boost desde el navegador del desarrollador (solo local, `require-dev`): no es de la suite ni del contrato.
+
+## Un parámetro externo se lee solo si es texto
+`$request->query('x')` devuelve un arreglo si la URL trae `?x[]=…`, y `EventLog` trunca solo strings: un arreglo pasaría entero al prompt del consumidor y la línea no validaría. Todo valor del request que vaya a un evento se toma solo si es string escalar (si no, `null`), como `CheckoutController::parametroDeRetorno` (observabilidad-02, OBS-12). El texto literal `"null"` que manda MercadoPago también se normaliza a `null`. El string vacío ya llega como `null` por `ConvertEmptyStringsToNull`.
+
+## Nunca el id de sesión crudo
+El id de sesión es la credencial de la cookie. Para agrupar requests de un navegador se usa `session_ref` (HMAC con `APP_KEY`, 16 hex), solo en `http.request` (`AssignRequestId::terminate`). Los demás eventos se atan por `request_id`. En los tests, la "misma sesión" es la que vuelve con su cookie (`withCookie(config('session.cookie'), $id)`): cada request sin cookie abre una sesión nueva.
+

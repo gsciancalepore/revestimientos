@@ -30,3 +30,7 @@ Declarado dentro de un archivo de test, el otro no puede correr solo (`Call to u
 
 ## Buscar una palabra suelta en una página entera da falsos verdes y falsos rojos
 `assertDontSee('-3')` falla porque "-3" aparece en un slug o una clase; `str_contains($html, 'Pedidos')` da verdadero por un texto del dashboard que no es el enlace. Afirmar lo específico: el badge ("Sin stock"), la frase que solo aparece en ese estado ("Quedan"), o el `href` exacto con `route(...)`. Las dos variantes se colaron en 08.c y las dos daban una impresión equivocada de lo que cubrían.
+
+## Un centinela de datos personales que puede aparecer por azar se busca como valor suelto
+El CP tiene 4 dígitos por validación, y `'9999'` buscado como subcadena aparece por azar dentro de un UUID (`request_id`) o de un monto aleatorio de `ProductFactory`: el test de datos personales falló así en CI el 2026-10-12, en un PR que solo tocaba documentación (#42, corregido en #43). Un centinela numérico se busca con límites (`(?<![0-9a-f])9999(?![0-9a-f])`, como `expectSinCentinelas` en `ExcepcionesTest`), que sigue detectando una filtración real (`"9999"` en JSON, `'9999'` en SQL o en una traza), y los montos del escenario se fijan en lugar de dejarlos al azar.
+

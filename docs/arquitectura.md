@@ -382,7 +382,7 @@ Implementado en `docs/specs/06-envio-fase2-importador.md:1` (cerrada, reglas 129
 - **Dos modos de venta** (`unidad_venta`): precio/stock en cajas (modo `m2`) o en
   unidades (modo `unidad`); `precio_caja` se deriva solo en modo `m2` (Spec 03). `OrderLine.cantidad` entera positiva (`M2→cajas`, `Unidad→unidades`), `m2_por_caja` `decimal(8,2) → string` nunca float.
 
-## Observabilidad (contrato de logs v1 — ADR-013, spec observabilidad-01)
+## Observabilidad (contrato de logs v1 — ADR-013, specs observabilidad-01 y observabilidad-02)
 
 Revestimientos es un **sistema observado**: publica un contrato de logs versionado que consume un
 sistema externo (`incident-investigator`) sin conocer este código. Estructura original reservada por
@@ -390,8 +390,11 @@ ADR-004, enmendada por ADR-013.
 
 - **Contrato**: `docs/observabilidad/log-schema.v1.json` (JSON Schema, fuente de verdad del catálogo
   de eventos) y su README. Canal `app` (`config/logging.php`): un `stack` con `ignore_exceptions`
-  sobre `app_file` (daily), que escribe `storage/logs/app-AAAA-MM-DD.jsonl` (fecha UTC), un objeto
-  JSON por línea.
+  sobre `app_file` (daily), que escribe `storage/logs/contrato/app-AAAA-MM-DD.jsonl` (fecha UTC), un
+  objeto JSON por línea. El directorio `contrato/` no contiene otro archivo que su `.gitignore`, para
+  que un consumidor lo monte en solo lectura sin ver `browser.log` ni `laravel.log`
+  (observabilidad-02, OBS-10). Retención de 90 días con la variable propia `LOG_CONTRATO_DAYS`;
+  `LOG_DAILY_DAYS` gobierna solo `laravel.log` (OBS-11).
 - **`app/Logging/`**:
   - `EventLog::record()`: único punto de emisión de eventos, que trunca los valores externos.
   - `ContractFormatter`: forma de la línea. Lo que no es un evento sale como `app.log`.
@@ -400,14 +403,20 @@ ADR-004, enmendada por ADR-013.
   - `ErrorSerializer`: objeto `error` sin argumentos, y sin mensaje salvo en las excepciones propias.
 - **Correlación**: `App\Http\Middleware\AssignRequestId` (el primero de la pila global) genera el
   `request_id`, lo pone en `Context`, lo devuelve en `X-Request-Id` y escribe `http.request` en
-  `terminate`.
+  `terminate`. Si el request tiene sesión, `http.request` suma `session_ref`: los primeros 16 hex del
+  HMAC-SHA256 del id de sesión con `APP_KEY`, nunca el id crudo (OBS-13).
+- **Retorno desde MercadoPago**: `CheckoutController::success` emite `checkout.returned` cuando el
+  request trae `collection_status`, antes de cualquier redirect. Los parámetros no vienen firmados:
+  se leen solo si son texto, el `"null"` literal se normaliza y `order_id` va solo si el pedido de la
+  sesión coincide de forma estricta con `external_reference` (OBS-12).
 - **Espejo de la auditoría**: `AuditRecorder` escribe la fila en `audit_logs` y emite el mismo evento
   con `DB::afterCommit`, agregando `order_id` cuando el sujeto es un pedido.
 - **Excepciones**: `bootstrap/app.php` reporta `app.exception` y detiene el reporte por defecto
   (`->stop()`). `zend.exception_ignore_args = On` en `docker/php/php.ini` y en CI.
 - **Auditoría**: tabla `audit_logs` para acciones críticas (ADR-004). Implementada desde la Spec 01 y
   extendida a precios, stock y pagos. `order.paid` y `order.paid_after_cancel` guardan `payment_id`
-  (reglas 150 y 151 enmendadas).
+  (reglas 150 y 151 enmendadas). Las `lines` de `order.created` guardan `precio_unitario_cents`
+  (regla 113 enmendada por observabilidad-02, OBS-14).
 - **Eventos de dominio**: no existen (`app/Events/` nunca se creó). ADR-013 descarta el punto 2 de
   ADR-004.
 - **Métricas, trazas, errores agrupados y uptime**: etapas 2 a 5 de ADR-013, sin implementar.

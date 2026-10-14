@@ -185,6 +185,7 @@ Vite: <http://localhost:5173>
 - **Spec Higiene 03 — oferta, calculadora y cobertura** (completa: 03.a y 03.b mergeadas): [`docs/specs/higiene-03-oferta-calculadora-cobertura.md`](docs/specs/higiene-03-oferta-calculadora-cobertura.md)
 - **Spec — Identidad visual pública** (en curso: fase A implementada, faltan B y C): [`docs/specs/identidad-visual-publica.md`](docs/specs/identidad-visual-publica.md)
 - **Spec Observabilidad 01 — contrato de logs** (cerrada): [`docs/specs/observabilidad-01-contrato-logs.md`](docs/specs/observabilidad-01-contrato-logs.md)
+- **Spec Observabilidad 02 — ampliación del contrato de logs v1** (implementada, PR #44 en revisión): [`docs/specs/observabilidad-02-ampliacion-contrato-v1.md`](docs/specs/observabilidad-02-ampliacion-contrato-v1.md)
 - **Spec Higiene 02 — auditoría, validación y cobertura** (cerrada, precondición de la Spec 08): [`docs/specs/higiene-02-auditoria-validacion-cobertura.md`](docs/specs/higiene-02-auditoria-validacion-cobertura.md)
 - **Higiene ShippingRate/AllowedSpecs/UserRole**: [`docs/specs/higiene-01-shippingrate-allowedspecs-userrole.md`](docs/specs/higiene-01-shippingrate-allowedspecs-userrole.md)
 - **Spec — Calidad de análisis estático** (PHPStan↔Pest, gates): [`docs/specs/calidad-analisis-estatico.md`](docs/specs/calidad-analisis-estatico.md)
@@ -207,7 +208,7 @@ no necesita PHP ni Node. El Makefile lo resume:
 | `make setup` | Primer arranque completo (instala, migra y siembra) |
 | `make up` / `make down` | Levantar / detener los servicios |
 | `make logs` | Logs del contenedor PHP |
-| `tail -f storage/logs/app-$(date -u +%F).jsonl` | Logs de la app en el formato del contrato (JSON por línea, [`docs/observabilidad/`](docs/observabilidad/README.md)) |
+| `tail -f storage/logs/contrato/app-$(date -u +%F).jsonl` | Logs de la app en el formato del contrato (JSON por línea, [`docs/observabilidad/`](docs/observabilidad/README.md)) |
 | `make shell` | Terminal dentro del contenedor PHP |
 | `make artisan cmd="route:list"` | Cualquier comando Artisan (ej: `migrate`, `tinker`) |
 | `make migrate` | Aplica migraciones |
@@ -231,7 +232,9 @@ no necesita PHP ni Node. El Makefile lo resume:
 | `ERR_EMPTY_RESPONSE` o *connection reset* en `localhost:8080`, con los contenedores `healthy` | Se reinició WSL (`wsl --shutdown`) y los puertos publicados quedaron rotos | `docker compose up -d --force-recreate web assets mailpit` (regla en `.ai/rules/general.md`) |
 | `ERR_CONNECTION_CLOSED` al abrir el sitio | Se entró por `https://` o por `localhost` sin puerto | Usar **`http://localhost:8080`**; si el navegador fuerza HTTPS, desactivar "Usar siempre conexiones seguras" (regla en `.ai/rules/general.md`) |
 | Entre 7 y 22 tests en rojo de golpe, con `deadlock detected` o `relation "roles" does not exist` | Dos suites de Pest corriendo a la vez se pisan el `migrate:fresh` y dejan la base de tests a medio migrar | Correr **una sola suite por vez**; sanear con `docker compose exec -e DB_DATABASE=ceramica_test app php artisan migrate:fresh --force` (regla en `.ai/rules/tests.md`). El rojo es ambiental, no del código |
-| No aparece `storage/logs/app-*.jsonl` y la app sigue escribiendo en `laravel.log` | El `.env` es anterior al contrato de logs: `make setup` no pisa un `.env` existente | Poner `LOG_CHANNEL=app` en `.env` a mano (regla en `.ai/rules/observabilidad.md`) |
+| No aparece `storage/logs/contrato/app-*.jsonl` y la app sigue escribiendo en `laravel.log` | El `.env` es anterior al contrato de logs: `make setup` no pisa un `.env` existente | Poner `LOG_CHANNEL=app` en `.env` a mano (regla en `.ai/rules/observabilidad.md`) |
+| Quedaron archivos `storage/logs/app-*.jsonl` sueltos | Son anteriores a la spec observabilidad-02, que movió el contrato a `storage/logs/contrato/` | Borrarlos a mano: no se migran y ningún consumidor los lee |
+| El investigador de incidentes no ve `checkout.returned`, `session_ref` ni `precio_unitario_cents` | Su copia del schema es anterior a la spec observabilidad-02 | Volver a copiar `docs/observabilidad/log-schema.v1.json` en `~/incident-investigator/contracts/revestimientos/` y anotar ahí el commit de origen |
 | Se vació la base de **desarrollo** al querer sanear la de tests | `--env=testing` **no** apunta a `ceramica_test`: no existe `.env.testing`, así que Artisan carga el `.env` normal | Nunca usar `--env=testing`; tocar la base de tests solo con `-e DB_DATABASE=ceramica_test`. Verificar con `make artisan cmd="db:show"` antes de cualquier comando destructivo (regla en `.ai/rules/tests.md`) |
 
 

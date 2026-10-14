@@ -124,3 +124,15 @@ Form Request, que sigue siendo quien produce el 422 con mensajes en español. Mo
 llamadores que no pasan por HTTP, y un pedido con `shipping_cp` inválido no matchea ninguna tarifa
 —`ShippingCalculator` devuelve `disponible = false` y la regla 118 congela `shipping_cost_cents = 0`—,
 de modo que el pedido saldría con envío gratis y sin dirección utilizable, en silencio.
+
+## Sincronía 2026-10-12 — enmienda a la regla 113 (observabilidad-02)
+
+El texto original de la regla 113 se conserva arriba. Por la spec
+[`observabilidad-02-ampliacion-contrato-v1`](observabilidad-02-ampliacion-contrato-v1.md) (OBS-14),
+aprobada por el dueño el 2026-10-12, el payload de auditoría de `order.created` pasa de
+`lines: [product_id, cantidad]` a `lines: [product_id, cantidad, precio_unitario_cents]`.
+`precio_unitario_cents` es el precio congelado de la línea (reglas 102 y 111); en modo `M2`, por caja.
+
+El dato queda en `audit_logs`, y por lo tanto en el detalle del pedido del panel, además del espejo
+en el log. Lo confirmó el dueño al aprobar esa spec, igual que se decidió para el `payment_id` en las
+reglas 150 y 151.
